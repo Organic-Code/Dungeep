@@ -56,7 +56,11 @@ namespace dungeep {
 		using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
 	public:
-		explicit quadtree(const area&, size_type max_depth = 10, size_type max_size = 50)
+		explicit quadtree(const area& ar)
+			noexcept(Dynamicity != quadtree_dynamics::static_children && noexcept(container()))
+			: quadtree(ar, 10, 50) {}
+
+		quadtree(const area&, size_type max_depth, size_type max_size)
 			noexcept(Dynamicity != quadtree_dynamics::static_children && noexcept(container()));
 
 		quadtree(const quadtree& other);
@@ -75,7 +79,7 @@ namespace dungeep {
 
 		iterator insert(const value_type& value);
 
-		template <typename Args...>
+		template <typename... Args>
 		iterator emplace(const area& target, Args&&... args);
 
 		/**
