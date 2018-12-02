@@ -18,19 +18,26 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
+namespace dungeep {
 struct area;
 
 struct point {
 	float x, y;
 
 	point operator+(const point& p) const noexcept;
+
 	point& operator+=(const point& p) noexcept;
+
 	point operator-(const point& p) const noexcept;
+
 	point& operator-=(const point& p) noexcept;
+
 	point operator/(float val) const noexcept;
+
 	point& operator/=(float val) noexcept;
+
 	point operator*(float val) const noexcept;
+
 	point& operator*=(float val) noexcept;
 
 	constexpr bool is_in(const area&) const noexcept;
@@ -42,8 +49,10 @@ struct area {
 	point bot_right; // greatest x & y
 
 	constexpr bool contains(const area& other) const noexcept;
+
 	constexpr bool collides_with(const area& other) const noexcept;
 };
+}
 
 #include "geometry.tpp"
 

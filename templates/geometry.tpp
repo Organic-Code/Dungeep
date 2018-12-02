@@ -15,15 +15,15 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-constexpr bool point::is_in(const area& ar) const noexcept {
+constexpr bool dungeep::point::is_in(const area& ar) const noexcept {
 	return ar.top_left.x  <= this->x && ar.top_left.y  <= this->y
 	       && ar.bot_right.x >= this->x && ar.bot_right.y >= this->y;
 }
 
-constexpr bool area::contains(const area& other) const noexcept {
+constexpr bool dungeep::area::contains(const area& other) const noexcept {
 	return other.bot_right.is_in(*this) && other.top_left.is_in(*this);
 }
 
-constexpr bool area::collides_with(const area& other) const noexcept {
+constexpr bool dungeep::area::collides_with(const area& other) const noexcept {
 	return other.bot_right.is_in(*this) || other.top_left.is_in(*this) || other.contains(*this);
 }

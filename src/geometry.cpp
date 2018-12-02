@@ -17,6 +17,8 @@
 
 #include "geometry.hpp"
 
+using namespace dungeep;
+
 point point::operator+(const point& p) const noexcept {
 	point tmp(*this);
 	tmp += p;
