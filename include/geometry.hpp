@@ -40,7 +40,9 @@ struct point {
 
 	point& operator*=(float val) noexcept;
 
-	constexpr bool is_in(const area&) const noexcept;
+	bool is_in(const area&) const noexcept;
+
+	float length() const noexcept;
 
 };
 
@@ -48,9 +50,13 @@ struct area {
 	point top_left; // smallest x & y
 	point bot_right; // greatest x & y
 
-	constexpr bool contains(const area& other) const noexcept;
+	float size() const noexcept;
 
-	constexpr bool collides_with(const area& other) const noexcept;
+	bool contains(const area& other) const noexcept;
+
+	bool collides_with(const area& other) const noexcept;
+
+	void assert_well_formed() const noexcept;
 };
 }
 

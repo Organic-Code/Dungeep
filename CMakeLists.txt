@@ -15,3 +15,4 @@ endforeach()
 add_subdirectory(${root_dir}/tests)
 
 add_executable(dungeep main.cpp ${COMMON_SOURCES_ABS})
+target_link_libraries(dungeep m)
