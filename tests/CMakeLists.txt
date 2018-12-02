@@ -5,10 +5,10 @@ set(CMAKE_CXX_STANDARD 17)
 
 find_package(Catch2 REQUIRED)
 
-set(TEST_SOURCES)
+set(TEST_SOURCES geometry_test.cpp)
 
 add_executable(dungeep_tests main.cpp ${COMMON_SOURCES_ABS} ${TEST_SOURCES})
-target_link_libraries(dungeep_tests Catch2::Catch2)
+target_link_libraries(dungeep_tests Catch2::Catch2 m)
 
 include(CTest)
 include(Catch)
