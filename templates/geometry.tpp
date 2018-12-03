@@ -37,7 +37,7 @@ inline bool dungeep::area::contains(const area& other) const noexcept {
 inline bool dungeep::area::collides_with(const area& other) const noexcept {
 	this->assert_well_formed();
 	other.assert_well_formed();
-	return other.bot_right.is_in(*this) || other.top_left.is_in(*this) || other.contains(*this);
+	return other.bot_right.is_in(*this) || other.top_left.is_in(*this) || this->bot_right.is_in(other);
 }
 
 inline float dungeep::area::size() const noexcept {

@@ -20,13 +20,6 @@
 
 using namespace dungeep;
 
-namespace {
-	// bad implementation, but fair enough for these tests
-	bool close_to(float value, float expected) {
-		return value > expected - 0.01f && value < expected + 0.01f;
-	}
-}
-
 SCENARIO("Geometry has collision and sizes") {
 	const point p1{0.f, 0.f};
 	const point p2{10.f, 10.f};
@@ -42,18 +35,18 @@ SCENARIO("Geometry has collision and sizes") {
 
 	GIVEN("Points") {
 		CHECK(p1.length() == 0.f);
-		CHECK(close_to(p2.length(), 14.14f));
-		CHECK(close_to(p3.length(), 14.14f));
-		CHECK(close_to(p4.length(), 5.38f));
-		CHECK(close_to(p5.length(), 4.12f));
+		CHECK(p2.length() == Approx(14.142f));
+		CHECK(p3.length() == Approx(14.142f));
+		CHECK(p4.length() == Approx(5.3852f));
+		CHECK(p5.length() == Approx(4.1231f));
 	}
 
 	GIVEN("Areas") {
-		CHECK(close_to(a1.size(), 10000.f));
-		CHECK(close_to(a2.size(), 286.f));
-		CHECK(close_to(a3.size(), 1.f));
-		CHECK(close_to(a4.size(), 0.f));
-		CHECK(close_to(a5.size(), 64.f));
+		CHECK(a1.size() == Approx(10000.f));
+		CHECK(a2.size() == Approx(286.f));
+		CHECK(a3.size() == Approx(1.f));
+		CHECK(a4.size() == Approx(0.f));
+		CHECK(a5.size() == Approx(64.f));
 	}
 
 	GIVEN("Points and areas") {
