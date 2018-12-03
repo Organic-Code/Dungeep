@@ -468,16 +468,6 @@ auto quadtree<T, D, Container>::erase(const_iterator it) -> iterator {
 }
 
 template<typename T,quadtree_dynamics D, template <typename...> typename Container>
-void quadtree<T, D, Container>::update_pos(iterator it) {
-	update_pos_impl(it);
-}
-
-template<typename T,quadtree_dynamics D, template <typename...> typename Container>
-void quadtree<T, D, Container>::update_pos(const_iterator it) {
-	update_pos_impl(it);
-}
-
-template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 bool quadtree<T, D, Container>::has_collision(const area& ar) const noexcept {
 	return has_collision_if(ar, [](auto&&) { return true; });
 }
@@ -653,13 +643,6 @@ T quadtree<T, Dynamicity, Container>::extract(iterator element) {
 template<typename T, quadtree_dynamics Dynamicity, template <typename...> typename Container>
 T quadtree<T, Dynamicity, Container>::extract(const_iterator element) {
 	return extract_impl(element);
-}
-
-template<typename T, quadtree_dynamics Dynamicity, template <typename...> typename Container>
-template<typename IteratorType>
-void quadtree<T, Dynamicity, Container>::update_pos_impl(IteratorType it) {
-	area hitbox = it->hitbox();
-	emplace(hitbox, extract(it));
 }
 
 template<typename T, quadtree_dynamics Dynamicity, template <typename...> typename Container>

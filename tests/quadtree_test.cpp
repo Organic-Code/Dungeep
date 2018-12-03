@@ -98,8 +98,7 @@ TEST_CASE("Quadtree") {
 			it = qt.find(c2);
 			REQUIRE(it != qt.end());
 
-			it->hitbox_ = c.hitbox();
-			qt.update_pos(it);
+			qt.move(it, c.hitbox());
 
 			qt.move(c4, {{25.f, 25.5f}, {25.f, 25.5f}});
 			qt.insert(c3);

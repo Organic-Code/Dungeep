@@ -59,7 +59,7 @@ namespace dungeep {
 	public:
 		explicit quadtree(const area& ar)
 			noexcept(Dynamicity != quadtree_dynamics::static_children && noexcept(container()))
-			: quadtree(ar, 10, 50) {}
+			: quadtree(ar, 10, 20) {}
 
 		quadtree(const area&, size_type max_depth, size_type max_size)
 			noexcept(Dynamicity != quadtree_dynamics::static_children && noexcept(container()));
@@ -70,6 +70,7 @@ namespace dungeep {
 		quadtree<T,Dynamicity,Container>& operator=(const quadtree<T,Dynamicity,Container>& other);
 		quadtree<T,Dynamicity,Container>& operator=(quadtree<T,Dynamicity,Container>&& other) noexcept(noexcept(container().operator=(std::declval<container&&>()))) = default;
 
+		// Iterator for the whole collection
 		[[nodiscard]] iterator begin() noexcept;
 		[[nodiscard]] const_iterator begin() const noexcept;
 		[[nodiscard]] const_iterator cbegin() const noexcept;
@@ -78,13 +79,20 @@ namespace dungeep {
 		[[nodiscard]] const_iterator end() const noexcept;
 		[[nodiscard]] const_iterator cend() const noexcept;
 
+
+		// Inserts an element, given its '.hitbox()' location
+		// All iterators might be invalidated
 		iterator insert(const value_type& value);
 
+		// Construct an element in-place
+		// All iterators might be invalidated
 		template <typename... Args>
 		iterator emplace(const area& target, Args&&... args);
 
 		/**
 		 * Visists all elements on the given area
+		 * The visitor function should not attempt to insert or remove an element in or from the collection.
+		 * If the visitor returns true, the element is safely deleted.
 		 * TODO: visit([const] T&)
 		 */
 		template <typename FuncT>
@@ -106,14 +114,6 @@ namespace dungeep {
 		 */
 		iterator erase(iterator it);
 		iterator erase(const_iterator it);
-
-		/**
-		 * Moves an element to another area
-		 * TODO: return iterator ? iterator invalidation ?
-		 * TODO: update_pos(const T&)
-		 */
-		void update_pos(iterator it);
-		void update_pos(const_iterator it);
 
 		/**
 		 * Returns true if at least one element is at least partially present in the given area
@@ -140,6 +140,7 @@ namespace dungeep {
 		const_iterator find(const T& element) const noexcept;
 
 		// TODO: iterator invalidation?
+		// TODO: return iterator?
 		void move(iterator it, const area& new_area);
 		void move(const T& element, const area& new_area);
 		void move(const_iterator it, const area& new_area);
@@ -181,9 +182,6 @@ namespace dungeep {
 
 		template <typename IteratorType>
 		IteratorType erase_impl(IteratorType);
-
-		template <typename IteratorType>
-		void update_pos_impl(IteratorType it);
 
 		template <typename IteratorType>
 		T extract_impl(IteratorType element);
