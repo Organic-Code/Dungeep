@@ -29,6 +29,10 @@ namespace {
 
 		collider(const collider&) noexcept = default;
 		collider& operator=(const collider&) noexcept = default;
+		bool operator==(const collider& other) const {
+			// lazy equality test
+			return hitbox_.contains(other.hitbox_) && other.hitbox_.contains(hitbox_);
+		}
 
 		const area& hitbox() const noexcept {
 			return hitbox_;
@@ -56,10 +60,55 @@ TEST_CASE("Quadtree") {
 		for (auto i = 0u ; i < 42 ; ++i) {
 			qt.insert({rand_area()});
 		}
+		std::swap(qt,qt);
 		CHECK(qt.size() == 42);
 		qt.clear();
 		CHECK(qt.size() == 0);
 		CHECK(qt.empty());
+	}
 
+	SECTION("Container") {
+		collider c1{{{24.f, 24.f}, {26.f, 26.f}}};
+		collider c2{{{24.f, 74.f}, {26.f, 76.f}}};
+		collider c3{{{74.f, 74.f}, {76.f, 76.f}}};
+		collider c4{{{74.f, 24.f}, {76.f, 26.f}}};
+		collider c5{{{20.f, 20.f}, {30.f, 80.f}}};
+
+		qt.insert(c1);
+		qt.insert(c2);
+		qt.insert(c3);
+		qt.insert(c4);
+		qt.insert(c5);
+
+		REQUIRE(qt.size() == 5);
+
+		SECTION("Modifying & visiting") {
+			auto it = qt.find(c1);
+			REQUIRE(it != qt.end());
+
+			collider c = qt.extract(it);
+			CHECK(qt.size() == 4);
+
+			CHECK(c == c1);
+
+			it = qt.find(c2);
+			REQUIRE(it != qt.end());
+
+			it->hitbox_ = c.hitbox();
+			qt.update_pos(it);
+
+			int hits = 0;
+			qt.visit(c.hitbox(), [&hits, &qt](decltype(qt)::iterator it_) {
+				++hits;
+				static bool b = true;
+				if (std::exchange(b, false)) {
+					qt.erase(it_);
+				}
+			});
+			CHECK(hits == 2);
+			CHECK(qt.size() == 3);
+			CHECK(qt.has_collision(c.hitbox()));
+			CHECK(!qt.has_collision({{0.f, 0.f}, {2.f, 2.f}}));
+		}
 	}
 }

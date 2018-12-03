@@ -34,7 +34,7 @@ namespace dungeep {
 	};
 
 	// T should have a noexcept '.hitbox()' method returning an area.
-	template <typename T, quadtree_dynamics Dynamicity = quadtree_dynamics::dynamic_children, template <typename> typename Container = std::vector>
+	template <typename T, quadtree_dynamics Dynamicity = quadtree_dynamics::dynamic_children, template <typename...> typename Container = std::vector>
 	class quadtree {
 		template <typename, typename, typename>
 		struct iterator_type;

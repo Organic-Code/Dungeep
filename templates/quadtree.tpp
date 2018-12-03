@@ -23,7 +23,7 @@
 
 namespace dungeep {
 
-template <typename T,quadtree_dynamics D, template <typename> typename U>
+template <typename T,quadtree_dynamics D, template <typename...> typename U>
 template <typename QuadTree, typename Value, typename SubIterator>
 struct quadtree<T,D,U>::iterator_type {
 
@@ -42,10 +42,10 @@ struct quadtree<T,D,U>::iterator_type {
 
 	iterator_type(iterator_type&& other) noexcept = default;
 
-	iterator_type operator++() const noexcept;
-	iterator_type& operator++(int) noexcept;
-	iterator_type operator--() noexcept;
-	iterator_type& operator--(int) noexcept;
+	iterator_type operator++(int) const noexcept;
+	iterator_type& operator++() noexcept;
+	iterator_type operator--(int) const noexcept;
+	iterator_type& operator--() noexcept;
 
 	bool operator==(const iterator_type& other) const noexcept;
 	bool operator!=(const iterator_type& other) const noexcept;
@@ -84,7 +84,7 @@ struct quadtree<T,D,U>::iterator_type {
 		}
 
 		for (unsigned char i = 0 ; i + child_it_->first < 4 ; ++i) {
-			if (!(*(qt_->children_)[i + child_it_]).empty()) {
+			if (!(*qt_->children_)[i + child_it_->first].empty()) {
 				return false;
 			}
 		}
@@ -113,15 +113,15 @@ private:
 
 };
 
-template <typename T, quadtree_dynamics D, template <typename> typename U>
+template <typename T, quadtree_dynamics D, template <typename...> typename U>
 template <typename Q, typename V, typename S>
 quadtree<T,D,U>::iterator_type<Q,V,S>::iterator_type(const iterator_type<Q,V,S>& other)
 		: qt_{other.qt_}
 		, current_{other.current_}
-		, child_it_{other.child_it_ ? std::make_unique<pair_type>(*other.child_it_) : nullptr}
+		, child_it_{other.child_it_ == nullptr ? nullptr : std::make_unique<pair_type>(*other.child_it_)}
 {}
 
-template <typename T, quadtree_dynamics D, template <typename> typename U>
+template <typename T, quadtree_dynamics D, template <typename...> typename U>
 template <typename Q, typename V, typename S>
 typename quadtree<T,D,U>::template iterator_type<Q,V,S>& quadtree<T,D,U>::iterator_type<Q,V,S>::operator=(const iterator_type<Q,V,S>& other) {
 	this->qt_ = other.qt_;
@@ -137,25 +137,25 @@ typename quadtree<T,D,U>::template iterator_type<Q,V,S>& quadtree<T,D,U>::iterat
 
 
 
-template <typename T, quadtree_dynamics D, template <typename> typename U>
+template <typename T, quadtree_dynamics D, template <typename...> typename U>
 template <typename Q, typename V, typename S>
-quadtree<T,D,U>::iterator_type<Q,V,S> quadtree<T,D,U>::iterator_type<Q,V,S>::operator++() const noexcept {
+typename quadtree<T,D,U>::template iterator_type<Q,V,S> quadtree<T,D,U>::iterator_type<Q,V,S>::operator++(int) const noexcept {
         iterator_type<Q,V,S> tmp(*this);
 		return ++tmp;
 }
 
 
-template <typename T, quadtree_dynamics D, template <typename> typename U>
+template <typename T, quadtree_dynamics D, template <typename...> typename U>
 template <typename Q, typename V, typename S>
-quadtree<T,D,U>::iterator_type<Q,V,S>& quadtree<T,D,U>::iterator_type<Q,V,S>::operator++(int) noexcept {
+typename quadtree<T,D,U>::template iterator_type<Q,V,S>& quadtree<T,D,U>::iterator_type<Q,V,S>::operator++() noexcept {
 	assert(qt_);
 	if (current_ == qt_->values_.end()) {
 		assert(child_it_);
-		assert(qt_.size() > qt_->values_.size());
+		assert(qt_->size() > qt_->values_.size());
 
 		++child_it_->second;
 		while (child_it_->second == iterator_type<Q,V,S>{}) {
-			child_it_->second = {&(*qt_->children_)[child_it_->first]};
+			child_it_->second = {(*qt_->children_)[child_it_->first]};
 			++child_it_->first;
 			assert(child_it_->first <= 4);
 		}
@@ -166,16 +166,16 @@ quadtree<T,D,U>::iterator_type<Q,V,S>& quadtree<T,D,U>::iterator_type<Q,V,S>::op
 }
 
 
-template <typename T, quadtree_dynamics D, template <typename> typename U>
+template <typename T, quadtree_dynamics D, template <typename...> typename U>
 template <typename Q, typename V, typename S>
-quadtree<T,D,U>::iterator_type<Q,V,S> quadtree<T,D,U>::iterator_type<Q,V,S>::operator--() noexcept {
+typename quadtree<T,D,U>::template iterator_type<Q,V,S> quadtree<T,D,U>::iterator_type<Q,V,S>::operator--(int) const noexcept {
 	iterator_type<Q,V,S> tmp(*this);
 	return --tmp;
 }
 
-template <typename T, quadtree_dynamics D, template <typename> typename U>
+template <typename T, quadtree_dynamics D, template <typename...> typename U>
 template <typename Q, typename V, typename S>
-quadtree<T,D,U>::iterator_type<Q,V,S>& quadtree<T,D,U>::iterator_type<Q,V,S>::operator--(int) noexcept {
+typename quadtree<T,D,U>::template iterator_type<Q,V,S>& quadtree<T,D,U>::iterator_type<Q,V,S>::operator--() noexcept {
 	assert(qt_);
 	if (current_ == qt_->values_.end() && child_it_) {
 		if (!child_it_->second.is_at_beg()) {
@@ -201,7 +201,7 @@ quadtree<T,D,U>::iterator_type<Q,V,S>& quadtree<T,D,U>::iterator_type<Q,V,S>::op
 }
 
 // test end == end, beg == beg, end == {}
-template <typename T, quadtree_dynamics D, template <typename> typename U>
+template <typename T, quadtree_dynamics D, template <typename...> typename U>
 template <typename Q, typename V, typename S>
 bool quadtree<T,D,U>::iterator_type<Q,V,S>::operator==(const iterator_type<Q,V,S>& other) const noexcept {
 	if (other.qt_ == nullptr) {
@@ -210,23 +210,23 @@ bool quadtree<T,D,U>::iterator_type<Q,V,S>::operator==(const iterator_type<Q,V,S
 		return other.is_at_end();
 	}
 
-	if (this->qt_ == other.qt_ && this->current == other.current_) {
+	if (this->qt_ == other.qt_ && this->current_ == other.current_) {
 		if (!this->child_it_) {
 			return !other.child_it_;
 		}
-		return this->child_it_->first == other.child_it_.first && this->child_it_.second == other.child_it_.second;
+		return this->child_it_->first == other.child_it_->first && this->child_it_->second == other.child_it_->second;
 	} else {
 		return false;
 	}
 }
 
-template <typename T, quadtree_dynamics D, template <typename> typename U>
+template <typename T, quadtree_dynamics D, template <typename...> typename U>
 template <typename Q, typename V, typename S>
 bool quadtree<T,D,U>::iterator_type<Q,V,S>::operator!=(const iterator_type<Q,V,S>& other) const noexcept {
 	return !(*this == other);
 }
 
-template <typename T, quadtree_dynamics D, template <typename> typename U>
+template <typename T, quadtree_dynamics D, template <typename...> typename U>
 template <typename Q, typename V, typename S>
 bool quadtree<T,D,U>::iterator_type<Q,V,S>::operator>(const iterator_type<Q,V,S>& other) const noexcept {
 	if (this->current_ != other.current_) {
@@ -247,7 +247,7 @@ bool quadtree<T,D,U>::iterator_type<Q,V,S>::operator>(const iterator_type<Q,V,S>
 	}
 }
 
-template <typename T, quadtree_dynamics D, template <typename> typename U>
+template <typename T, quadtree_dynamics D, template <typename...> typename U>
 template <typename Q, typename V, typename S>
 bool quadtree<T,D,U>::iterator_type<Q,V,S>::operator>=(const iterator_type<Q,V,S>& other) const noexcept {
 	if (this->current_ != other.current_) {
@@ -268,21 +268,22 @@ bool quadtree<T,D,U>::iterator_type<Q,V,S>::operator>=(const iterator_type<Q,V,S
 	}
 }
 
-template <typename T, quadtree_dynamics D, template <typename> typename U>
+template <typename T, quadtree_dynamics D, template <typename...> typename U>
 template <typename Q, typename V, typename S>
 bool quadtree<T,D,U>::iterator_type<Q,V,S>::operator<(const iterator_type<Q,V,S>& other) const noexcept {
 	return !(*this >= other);
 }
 
-template <typename T, quadtree_dynamics D,template <typename> typename U>
+template <typename T, quadtree_dynamics D,template <typename...> typename U>
 template <typename Q, typename V, typename S>
 bool quadtree<T,D,U>::iterator_type<Q,V,S>::operator<=(const iterator_type<Q,V,S>& other) const noexcept {
 	return !(*this > other);
 }
 
-template <typename T, quadtree_dynamics D, template <typename> typename U>
+template <typename T, quadtree_dynamics D, template <typename...> typename U>
 template <typename Q, typename V, typename S>
 auto quadtree<T,D,U>::iterator_type<Q,V,S>::operator*() noexcept -> value_type& {
+	assert(qt_);
 	if (current_ != qt_->values_.end()) {
 		return *current_;
 	} else {
@@ -290,9 +291,10 @@ auto quadtree<T,D,U>::iterator_type<Q,V,S>::operator*() noexcept -> value_type& 
 	}
 }
 
-template <typename T, quadtree_dynamics D, template <typename> typename U>
+template <typename T, quadtree_dynamics D, template <typename...> typename U>
 template <typename Q, typename V, typename S>
 auto quadtree<T,D,U>::iterator_type<Q,V,S>::operator*() const noexcept -> const value_type& {
+	assert(qt_);
 	if (current_ != qt_->values_.end()) {
 		return *current_;
 	} else {
@@ -300,17 +302,18 @@ auto quadtree<T,D,U>::iterator_type<Q,V,S>::operator*() const noexcept -> const 
 	}
 }
 
-template <typename T, quadtree_dynamics D, template <typename> typename U>
+template <typename T, quadtree_dynamics D, template <typename...> typename U>
 template <typename Q, typename V, typename S>
 auto quadtree<T,D,U>::iterator_type<Q,V,S>::operator->() noexcept -> value_type* {
+	assert(qt_);
 	if (current_ != qt_->values_.end()) {
 		return &*current_;
 	} else {
-		return &*child_it_->second;
+		return &(*child_it_->second);
 	}
 }
 
-template <typename T, quadtree_dynamics D, template <typename> typename U>
+template <typename T, quadtree_dynamics D, template <typename...> typename U>
 template <typename Q, typename V, typename S>
 auto quadtree<T,D,U>::iterator_type<Q,V,S>::operator->() const noexcept -> const value_type* {
 	if (current_ != qt_->values_.end()) {
@@ -322,7 +325,7 @@ auto quadtree<T,D,U>::iterator_type<Q,V,S>::operator->() const noexcept -> const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-template<typename T,quadtree_dynamics Dynamicity, template <typename> typename Container>
+template<typename T,quadtree_dynamics Dynamicity, template <typename...> typename Container>
 quadtree<T, Dynamicity, Container>::quadtree(const area& ar, size_type max_depth, size_type max_size)
 	noexcept(Dynamicity != quadtree_dynamics::static_children && noexcept(container()))
 	: area_{ar}
@@ -339,7 +342,7 @@ quadtree<T, Dynamicity, Container>::quadtree(const area& ar, size_type max_depth
 }
 
 
-template<typename T, quadtree_dynamics Dynamicity, template <typename> typename Container>
+template<typename T, quadtree_dynamics Dynamicity, template <typename...> typename Container>
 quadtree<T, Dynamicity, Container>::quadtree(const quadtree& other)
 	: area_{other.area_}
 	, center_{other.center_}
@@ -349,7 +352,7 @@ quadtree<T, Dynamicity, Container>::quadtree(const quadtree& other)
 	, children_{std::make_unique<children>(other.children_)}
 {}
 
-template<typename T, quadtree_dynamics Dynamicity, template <typename> typename Container>
+template<typename T, quadtree_dynamics Dynamicity, template <typename...> typename Container>
 quadtree<T, Dynamicity, Container>& quadtree<T, Dynamicity, Container>::operator=(const quadtree<T, Dynamicity, Container>& other) {
 	this->area_ = other.area_;
 	this->center_ = other.center_;
@@ -360,42 +363,42 @@ quadtree<T, Dynamicity, Container>& quadtree<T, Dynamicity, Container>::operator
 	return *this;
 }
 
-template<typename T,quadtree_dynamics D, template <typename> typename Container>
+template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 auto quadtree<T, D, Container>::begin() noexcept -> iterator {
 	return iterator{*this};
 }
 
-template<typename T,quadtree_dynamics D, template <typename> typename Container>
+template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 auto quadtree<T, D, Container>::begin() const noexcept -> const_iterator {
 	return iterator{*this};
 }
 
-template<typename T,quadtree_dynamics D, template <typename> typename Container>
+template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 auto quadtree<T, D, Container>::cbegin() const noexcept -> const_iterator {
 	return const_iterator{*this};
 }
 
-template<typename T,quadtree_dynamics D, template <typename> typename Container>
+template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 auto quadtree<T, D, Container>::end() noexcept -> iterator {
 	return iterator{};
 }
 
-template<typename T,quadtree_dynamics D, template <typename> typename Container>
+template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 auto quadtree<T, D, Container>::end() const noexcept -> const_iterator {
 	return const_iterator{};
 }
 
-template<typename T,quadtree_dynamics D, template <typename> typename Container>
+template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 auto quadtree<T, D, Container>::cend() const noexcept -> const_iterator {
 	return const_iterator{};
 }
 
-template<typename T,quadtree_dynamics D, template <typename> typename Container>
+template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 auto quadtree<T, D, Container>::insert(const value_type& value) -> iterator {
 	return emplace(value.hitbox(), value);
 }
 
-template<typename T,quadtree_dynamics D, template <typename> typename Container>
+template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 template<typename... Args>
 auto quadtree<T, D, Container>::emplace(const area& target, Args&& ... args) -> iterator {
 
@@ -420,7 +423,7 @@ auto quadtree<T, D, Container>::emplace(const area& target, Args&& ... args) -> 
 	return it;
 }
 
-template<typename T,quadtree_dynamics D, template <typename> typename Container>
+template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 bool quadtree<T, D, Container>::empty() const noexcept {
 	if (!values_.empty()) {
 		return false;
@@ -432,7 +435,7 @@ bool quadtree<T, D, Container>::empty() const noexcept {
 	return (*children_)[0].empty() && (*children_)[1].empty() && (*children_)[2].empty() && (*children_)[3].empty();
 }
 
-template<typename T,quadtree_dynamics D, template <typename> typename Container>
+template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 auto quadtree<T, D, Container>::size() const noexcept -> size_type {
 	if (!children_) {
 		return values_.size();
@@ -444,7 +447,7 @@ auto quadtree<T, D, Container>::size() const noexcept -> size_type {
 	return size;
 }
 
-template<typename T,quadtree_dynamics D, template <typename> typename Container>
+template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 void quadtree<T, D, Container>::clear() noexcept(noexcept(container().clear())) {
 	values_.clear();
 	if (children_) {
@@ -454,27 +457,27 @@ void quadtree<T, D, Container>::clear() noexcept(noexcept(container().clear())) 
 	}
 }
 
-template<typename T,quadtree_dynamics D, template <typename> typename Container>
+template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 auto quadtree<T, D, Container>::erase(iterator it) -> iterator {
 	return erase_impl(it);
 }
 
-template<typename T,quadtree_dynamics D, template <typename> typename Container>
+template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 auto quadtree<T, D, Container>::erase(const_iterator it) -> iterator {
 	return erase_impl(it);
 }
 
-template<typename T,quadtree_dynamics D, template <typename> typename Container>
+template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 void quadtree<T, D, Container>::update_pos(iterator it) {
 	update_pos_impl(it);
 }
 
-template<typename T,quadtree_dynamics D, template <typename> typename Container>
+template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 void quadtree<T, D, Container>::update_pos(const_iterator it) {
 	update_pos_impl(it);
 }
 
-template<typename T,quadtree_dynamics D, template <typename> typename Container>
+template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 bool quadtree<T, D, Container>::has_collision(const area& ar) const noexcept {
 	return has_collision_if(ar, [](auto&&) { return true; });
 }
@@ -492,7 +495,7 @@ bool quadtree<T, D, Container>::has_collision(const area& ar) const noexcept {
 	\
 	if (children_) { \
 		for (auto i = 0u ; i < 4 ; ++i) { \
-			if ((*children_)[i].has_collision(ar, pred)) { \
+			if ((*children_)[i].has_collision_if(ar, pred)) { \
 				return true; \
 			} \
 		} \
@@ -500,13 +503,13 @@ bool quadtree<T, D, Container>::has_collision(const area& ar) const noexcept {
 	\
 	return false;
 
-template<typename T,quadtree_dynamics D, template <typename> typename Container>
+template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 template <typename FuncT>
 bool quadtree<T,D,Container>::has_collision_if(const area& ar, FuncT&& pred) noexcept(std::is_nothrow_invocable_v<FuncT, T&>) {
 	DUNGEEP_QTREE_HASCOLLISIONIF_IMPL(ar, pred)
 }
 
-template<typename T,quadtree_dynamics D, template <typename> typename Container>
+template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 template <typename FuncT>
 bool quadtree<T,D,Container>::has_collision_if(const area& ar, FuncT&& pred) const noexcept(std::is_nothrow_invocable_v<FuncT, const T&>) {
 	DUNGEEP_QTREE_HASCOLLISIONIF_IMPL(ar, pred)
@@ -514,7 +517,7 @@ bool quadtree<T,D,Container>::has_collision_if(const area& ar, FuncT&& pred) con
 
 #undef DUNGEEP_QTREE_HASCOLLISIONIF_IMPL
 
-template<typename T,quadtree_dynamics D, template <typename> typename Container>
+template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 auto quadtree<T, D, Container>::find_dir(const area& target) const -> dirs {
 
 	if (center_.x < target.top_left.x) {
@@ -533,7 +536,7 @@ auto quadtree<T, D, Container>::find_dir(const area& target) const -> dirs {
 	return dirs::none;
 }
 
-template<typename T,quadtree_dynamics D, template <typename> typename Container>
+template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 template <typename IteratorType>
 IteratorType quadtree<T, D, Container>::erase_impl(IteratorType it) {
 	if (it.current_ != values_.end()) {
@@ -547,7 +550,7 @@ IteratorType quadtree<T, D, Container>::erase_impl(IteratorType it) {
 	it.child_it_->second = (*children_)[it.child_it_->first - 1].erase(it.child_it_->second);
 
 	while (it.child_it_->second.is_at_end() && it.child_it_->first < 4) {
-		it.child_it_->second = {&(*it->qt_->children_)[it.child_it_->first]};
+		it.child_it_->second = (*it.qt_->children_)[it.child_it_->first].begin();
 		++it.child_it_->first;
 	}
 	delete_children(it);
@@ -575,19 +578,39 @@ IteratorType quadtree<T, D, Container>::erase_impl(IteratorType it) {
 		} \
 	}
 
-template<typename T,quadtree_dynamics D, template <typename> typename Container>
+template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 template <typename FuncT>
 void quadtree<T, D, Container>::visit(const area& target, FuncT&& visitor) noexcept(std::is_nothrow_invocable_v<FuncT, iterator>) {
-	DUNGEEP_QTREE_VISIT_IMPL(iterator, target, visitor)
+	//DUNGEEP_QTREE_VISIT_IMPL(iterator, target, visitor)
+
+	if (!target.collides_with(this->area_)) {
+		return;
+	}
+
+	{
+		iterator it{*this};
+		while (it.current_ != this->values_.end()) {
+			if (target.collides_with(it->hitbox())) {
+				visitor(it);
+			}
+			++it;
+		}
+	}
+
+	if (children_) {
+		for (auto i = 0u ; i < 4 ; ++i) {
+			(*children_)[i].visit(target, visitor);
+		}
+	}
 }
 
-template<typename T,quadtree_dynamics D, template <typename> typename Container>
+template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 template <typename FuncT>
 void quadtree<T, D, Container>::visit(const area& target, FuncT&& visitor) const noexcept(std::is_nothrow_invocable_v<FuncT, const_iterator>) {
 	DUNGEEP_QTREE_VISIT_IMPL(const_iterator, target, visitor)
 }
 
-template<typename T, quadtree_dynamics Dynamicity, template <typename> typename Container>
+template<typename T, quadtree_dynamics Dynamicity, template <typename...> typename Container>
 void quadtree<T, Dynamicity, Container>::create_children() {
 	if constexpr (Dynamicity != quadtree_dynamics::static_children) {
 		if (!children_ && max_depth_ > 0) {
@@ -610,7 +633,7 @@ void quadtree<T, Dynamicity, Container>::create_children() {
 	}
 }
 
-template<typename T, quadtree_dynamics Dynamicity, template <typename> typename Container>
+template<typename T, quadtree_dynamics Dynamicity, template <typename...> typename Container>
 template<typename IteratorType>
 void quadtree<T, Dynamicity, Container>::delete_children(IteratorType& it) {
 	if constexpr (Dynamicity == quadtree_dynamics::dynamic_children) {
@@ -631,24 +654,25 @@ void quadtree<T, Dynamicity, Container>::delete_children(IteratorType& it) {
 
 #undef DUNGEEP_QTREE_VISIT_IMPL
 
-template<typename T, quadtree_dynamics Dynamicity, template <typename> typename Container>
+template<typename T, quadtree_dynamics Dynamicity, template <typename...> typename Container>
 T quadtree<T, Dynamicity, Container>::extract(iterator element) {
 	return extract_impl(element);
 }
 
 
-template<typename T, quadtree_dynamics Dynamicity, template <typename> typename Container>
+template<typename T, quadtree_dynamics Dynamicity, template <typename...> typename Container>
 T quadtree<T, Dynamicity, Container>::extract(const_iterator element) {
 	return extract_impl(element);
 }
 
-template<typename T, quadtree_dynamics Dynamicity, template <typename> typename Container>
+template<typename T, quadtree_dynamics Dynamicity, template <typename...> typename Container>
 template<typename IteratorType>
 void quadtree<T, Dynamicity, Container>::update_pos_impl(IteratorType it) {
-	emplace(it->hitbox(), extract(it));
+	area hitbox = it->hitbox();
+	emplace(hitbox, extract(it));
 }
 
-template<typename T, quadtree_dynamics Dynamicity, template <typename> typename Container>
+template<typename T, quadtree_dynamics Dynamicity, template <typename...> typename Container>
 template<typename IteratorType>
 T quadtree<T, Dynamicity, Container>::extract_impl(IteratorType element) {
 	IteratorType* runner = &element;
@@ -680,12 +704,12 @@ T quadtree<T, Dynamicity, Container>::extract_impl(IteratorType element) {
 	} \
 	return it; \
 
-template<typename T, quadtree_dynamics Dynamicity, template <typename> typename Container>
+template<typename T, quadtree_dynamics Dynamicity, template <typename...> typename Container>
 auto quadtree<T, Dynamicity, Container>::find(const T& element) noexcept -> iterator {
 	DUNGEEP_QTREE_FIND_IMPL(iterator)
 }
 
-template<typename T, quadtree_dynamics Dynamicity, template <typename> typename Container>
+template<typename T, quadtree_dynamics Dynamicity, template <typename...> typename Container>
 auto quadtree<T, Dynamicity, Container>::find(const T& element) const noexcept -> const_iterator {
 	DUNGEEP_QTREE_FIND_IMPL(const_iterator)
 }
@@ -695,7 +719,7 @@ auto quadtree<T, Dynamicity, Container>::find(const T& element) const noexcept -
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-template<typename T, quadtree_dynamics Dynamicity, template <typename> typename Container>
+template<typename T, quadtree_dynamics Dynamicity, template <typename...> typename Container>
 quadtree<T, Dynamicity, Container>::children::children(const area& shared_area, size_type max_depth, size_type max_size)
 	: children_{{
         {split_from_indexed_dir(shared_area, 0), max_depth, max_size},
@@ -704,7 +728,7 @@ quadtree<T, Dynamicity, Container>::children::children(const area& shared_area, 
         {split_from_indexed_dir(shared_area, 3), max_depth, max_size}}}
 {}
 
-template<typename T, quadtree_dynamics Dynamicity, template <typename> typename Container>
+template<typename T, quadtree_dynamics Dynamicity, template <typename...> typename Container>
 area quadtree<T, Dynamicity, Container>::children::split_from_indexed_dir(const area& shared, int dir) {
 
 	const point center = (shared.top_left + shared.bot_right) / 2;
