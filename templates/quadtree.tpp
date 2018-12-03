@@ -563,10 +563,20 @@ IteratorType quadtree<T, D, Container>::erase_impl(IteratorType it) {
 	} \
 	\
 	{ \
-		iterator_type it{*this}; \
+		iterator it{*this}; \
 		while (it.current_ != this->values_.end()) { \
 			if (target.collides_with(it->hitbox())) { \
-				visitor(it); \
+				if constexpr (std::is_same_v<std::invoke_result_t<FuncT, iterator>, bool>) { \
+					if (visitor(it)) { \
+						if (it.current_ + 1 != this->values_.end()) { \
+							*it.current_ = this->values_.back(); \
+						} \
+						this->values_.pop_back(); \
+						continue; \
+					} \
+				} else { \
+					visitor(it); \
+				} \
 			} \
 			++it; \
 		} \
@@ -581,27 +591,7 @@ IteratorType quadtree<T, D, Container>::erase_impl(IteratorType it) {
 template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 template <typename FuncT>
 void quadtree<T, D, Container>::visit(const area& target, FuncT&& visitor) noexcept(std::is_nothrow_invocable_v<FuncT, iterator>) {
-	//DUNGEEP_QTREE_VISIT_IMPL(iterator, target, visitor)
-
-	if (!target.collides_with(this->area_)) {
-		return;
-	}
-
-	{
-		iterator it{*this};
-		while (it.current_ != this->values_.end()) {
-			if (target.collides_with(it->hitbox())) {
-				visitor(it);
-			}
-			++it;
-		}
-	}
-
-	if (children_) {
-		for (auto i = 0u ; i < 4 ; ++i) {
-			(*children_)[i].visit(target, visitor);
-		}
-	}
+	DUNGEEP_QTREE_VISIT_IMPL(iterator, target, visitor)
 }
 
 template<typename T,quadtree_dynamics D, template <typename...> typename Container>

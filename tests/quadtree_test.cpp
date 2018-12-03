@@ -108,9 +108,7 @@ TEST_CASE("Quadtree") {
 			qt.visit(c.hitbox(), [&hits, &qt](decltype(qt)::iterator it_) {
 				++hits;
 				static bool b = true;
-				if (std::exchange(b, false)) {
-					qt.erase(it_);
-				}
+				return std::exchange(b, false);
 			});
 			CHECK(hits == 3);
 			CHECK(qt.size() == 4);
