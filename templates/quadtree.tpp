@@ -123,7 +123,7 @@ quadtree<T,D,U>::iterator_type<Q,V,S>::iterator_type(const iterator_type<Q,V,S>&
 
 template <typename T, quadtree_dynamics D, template <typename...> typename U>
 template <typename Q, typename V, typename S>
-typename quadtree<T,D,U>::template iterator_type<Q,V,S>& quadtree<T,D,U>::iterator_type<Q,V,S>::operator=(const iterator_type<Q,V,S>& other) {
+auto quadtree<T,D,U>::iterator_type<Q,V,S>::operator=(const iterator_type& other) -> iterator_type& {
 	this->qt_ = other.qt_;
 	this->current_ = other.current_;
 
@@ -139,7 +139,7 @@ typename quadtree<T,D,U>::template iterator_type<Q,V,S>& quadtree<T,D,U>::iterat
 
 template <typename T, quadtree_dynamics D, template <typename...> typename U>
 template <typename Q, typename V, typename S>
-typename quadtree<T,D,U>::template iterator_type<Q,V,S> quadtree<T,D,U>::iterator_type<Q,V,S>::operator++(int) const noexcept {
+auto quadtree<T,D,U>::iterator_type<Q,V,S>::operator++(int) const noexcept -> iterator_type {
         iterator_type<Q,V,S> tmp(*this);
 		return ++tmp;
 }
@@ -147,7 +147,7 @@ typename quadtree<T,D,U>::template iterator_type<Q,V,S> quadtree<T,D,U>::iterato
 
 template <typename T, quadtree_dynamics D, template <typename...> typename U>
 template <typename Q, typename V, typename S>
-typename quadtree<T,D,U>::template iterator_type<Q,V,S>& quadtree<T,D,U>::iterator_type<Q,V,S>::operator++() noexcept {
+auto quadtree<T,D,U>::iterator_type<Q,V,S>::operator++() noexcept -> iterator_type& {
 	assert(qt_);
 	if (current_ == qt_->values_.end()) {
 		assert(child_it_);
@@ -168,14 +168,14 @@ typename quadtree<T,D,U>::template iterator_type<Q,V,S>& quadtree<T,D,U>::iterat
 
 template <typename T, quadtree_dynamics D, template <typename...> typename U>
 template <typename Q, typename V, typename S>
-typename quadtree<T,D,U>::template iterator_type<Q,V,S> quadtree<T,D,U>::iterator_type<Q,V,S>::operator--(int) const noexcept {
+auto quadtree<T,D,U>::iterator_type<Q,V,S>::operator--(int) const noexcept -> iterator_type {
 	iterator_type<Q,V,S> tmp(*this);
 	return --tmp;
 }
 
 template <typename T, quadtree_dynamics D, template <typename...> typename U>
 template <typename Q, typename V, typename S>
-typename quadtree<T,D,U>::template iterator_type<Q,V,S>& quadtree<T,D,U>::iterator_type<Q,V,S>::operator--() noexcept {
+auto quadtree<T,D,U>::iterator_type<Q,V,S>::operator--() noexcept -> iterator_type& {
 	assert(qt_);
 	if (current_ == qt_->values_.end() && child_it_) {
 		if (!child_it_->second.is_at_beg()) {
@@ -203,7 +203,7 @@ typename quadtree<T,D,U>::template iterator_type<Q,V,S>& quadtree<T,D,U>::iterat
 // test end == end, beg == beg, end == {}
 template <typename T, quadtree_dynamics D, template <typename...> typename U>
 template <typename Q, typename V, typename S>
-bool quadtree<T,D,U>::iterator_type<Q,V,S>::operator==(const iterator_type<Q,V,S>& other) const noexcept {
+bool quadtree<T,D,U>::iterator_type<Q,V,S>::operator==(const iterator_type& other) const noexcept {
 	if (other.qt_ == nullptr) {
 		return this->is_at_end();
 	} else if (this->qt_ == nullptr) {
@@ -222,13 +222,13 @@ bool quadtree<T,D,U>::iterator_type<Q,V,S>::operator==(const iterator_type<Q,V,S
 
 template <typename T, quadtree_dynamics D, template <typename...> typename U>
 template <typename Q, typename V, typename S>
-bool quadtree<T,D,U>::iterator_type<Q,V,S>::operator!=(const iterator_type<Q,V,S>& other) const noexcept {
+bool quadtree<T,D,U>::iterator_type<Q,V,S>::operator!=(const iterator_type& other) const noexcept {
 	return !(*this == other);
 }
 
 template <typename T, quadtree_dynamics D, template <typename...> typename U>
 template <typename Q, typename V, typename S>
-bool quadtree<T,D,U>::iterator_type<Q,V,S>::operator>(const iterator_type<Q,V,S>& other) const noexcept {
+bool quadtree<T,D,U>::iterator_type<Q,V,S>::operator>(const iterator_type& other) const noexcept {
 	if (this->current_ != other.current_) {
 		return this->current_ > other.current_;
 	}
@@ -249,7 +249,7 @@ bool quadtree<T,D,U>::iterator_type<Q,V,S>::operator>(const iterator_type<Q,V,S>
 
 template <typename T, quadtree_dynamics D, template <typename...> typename U>
 template <typename Q, typename V, typename S>
-bool quadtree<T,D,U>::iterator_type<Q,V,S>::operator>=(const iterator_type<Q,V,S>& other) const noexcept {
+bool quadtree<T,D,U>::iterator_type<Q,V,S>::operator>=(const iterator_type& other) const noexcept {
 	if (this->current_ != other.current_) {
 		return this->current_ >= other.current_;
 	}
@@ -270,13 +270,13 @@ bool quadtree<T,D,U>::iterator_type<Q,V,S>::operator>=(const iterator_type<Q,V,S
 
 template <typename T, quadtree_dynamics D, template <typename...> typename U>
 template <typename Q, typename V, typename S>
-bool quadtree<T,D,U>::iterator_type<Q,V,S>::operator<(const iterator_type<Q,V,S>& other) const noexcept {
+bool quadtree<T,D,U>::iterator_type<Q,V,S>::operator<(const iterator_type& other) const noexcept {
 	return !(*this >= other);
 }
 
 template <typename T, quadtree_dynamics D,template <typename...> typename U>
 template <typename Q, typename V, typename S>
-bool quadtree<T,D,U>::iterator_type<Q,V,S>::operator<=(const iterator_type<Q,V,S>& other) const noexcept {
+bool quadtree<T,D,U>::iterator_type<Q,V,S>::operator<=(const iterator_type& other) const noexcept {
 	return !(*this > other);
 }
 
@@ -353,7 +353,7 @@ quadtree<T, Dynamicity, Container>::quadtree(const quadtree& other)
 {}
 
 template<typename T, quadtree_dynamics Dynamicity, template <typename...> typename Container>
-quadtree<T, Dynamicity, Container>& quadtree<T, Dynamicity, Container>::operator=(const quadtree<T, Dynamicity, Container>& other) {
+auto quadtree<T, Dynamicity, Container>::operator=(const quadtree<T, Dynamicity, Container>& other) -> quadtree& {
 	this->area_ = other.area_;
 	this->center_ = other.center_;
 	this->max_size_ = other.max_size_;
