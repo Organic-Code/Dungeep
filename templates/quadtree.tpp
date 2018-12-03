@@ -716,6 +716,46 @@ auto quadtree<T, Dynamicity, Container>::find(const T& element) const noexcept -
 
 #undef DUNGEEP_QTREE_FIND_IMPL
 
+template<typename T, quadtree_dynamics Dynamicity, template <typename...> typename Container>
+void quadtree<T, Dynamicity, Container>::move(iterator it, const area& new_area) {
+	move_impl(it, new_area);
+}
+
+template<typename T, quadtree_dynamics Dynamicity, template <typename...> typename Container>
+void quadtree<T, Dynamicity, Container>::move(const T& element, const area& new_area) {
+	iterator it = find(element);
+	if (it != this->end()) {
+		move_impl(it, new_area);
+	}
+}
+
+template<typename T, quadtree_dynamics Dynamicity, template <typename...> typename Container>
+void quadtree<T, Dynamicity, Container>::move(const_iterator it, const area& new_area) {
+	move_impl(it, new_area);
+}
+
+template<typename T, quadtree_dynamics Dynamicity, template <typename...> typename Container>
+template<typename Iterator>
+void quadtree<T, Dynamicity, Container>::move_impl(Iterator it, const area& new_area) {
+	if (!children_) {
+		// moving from this->values_ to this->values_
+		return;
+	}
+
+	dirs new_area_dir = find_dir(new_area);
+	dirs current_area_dir = find_dir(it->hitbox());
+
+	if (current_area_dir == new_area_dir) {
+		(*children_)[new_area_dir].move(it.child_it_->second, new_area);
+		return;
+	}
+
+	T val = extract(it);
+	val.set_hitbox(new_area);
+	emplace(new_area, std::move_if_noexcept(val));
+}
+
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

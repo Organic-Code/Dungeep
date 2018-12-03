@@ -38,6 +38,10 @@ namespace {
 			return hitbox_;
 		}
 
+		void set_hitbox(const area& ar) noexcept {
+			hitbox_ = ar;
+		}
+
 		area hitbox_;
 	};
 
@@ -97,6 +101,9 @@ TEST_CASE("Quadtree") {
 			it->hitbox_ = c.hitbox();
 			qt.update_pos(it);
 
+			qt.move(c4, {{25.f, 25.5f}, {25.f, 25.5f}});
+			qt.insert(c3);
+
 			int hits = 0;
 			qt.visit(c.hitbox(), [&hits, &qt](decltype(qt)::iterator it_) {
 				++hits;
@@ -105,8 +112,8 @@ TEST_CASE("Quadtree") {
 					qt.erase(it_);
 				}
 			});
-			CHECK(hits == 2);
-			CHECK(qt.size() == 3);
+			CHECK(hits == 3);
+			CHECK(qt.size() == 4);
 			CHECK(qt.has_collision(c.hitbox()));
 			CHECK(!qt.has_collision({{0.f, 0.f}, {2.f, 2.f}}));
 		}

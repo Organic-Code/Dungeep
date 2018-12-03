@@ -30,10 +30,11 @@ namespace dungeep {
 	enum class quadtree_dynamics {
 		static_children,   // children are created at the start
 		lazy_children,     // children are created when needed
-		dynamic_children,  // children are created when needed, deleted when uneeded
+		dynamic_children,  // children are created when needed, deleted when unneeded
 	};
 
 	// T should have a noexcept '.hitbox()' method returning an area.
+	// T should have a '.set_hitbox(area)' method.
 	template <typename T, quadtree_dynamics Dynamicity = quadtree_dynamics::dynamic_children, template <typename...> typename Container = std::vector>
 	class quadtree {
 		template <typename, typename, typename>
@@ -138,6 +139,11 @@ namespace dungeep {
 		iterator find(const T& element) noexcept;
 		const_iterator find(const T& element) const noexcept;
 
+		// TODO: iterator invalidation?
+		void move(iterator it, const area& new_area);
+		void move(const T& element, const area& new_area);
+		void move(const_iterator it, const area& new_area);
+
 
 	private:
 
@@ -181,6 +187,9 @@ namespace dungeep {
 
 		template <typename IteratorType>
 		T extract_impl(IteratorType element);
+
+		template <typename Iterator>
+		void move_impl(Iterator it, const area& new_area);
 
 		area area_;
 		point center_;
