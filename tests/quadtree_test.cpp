@@ -17,7 +17,7 @@
 
 #include <cstdlib>
 #include <ctime>
-#include <catch.hpp>
+#include <catch2/catch.hpp>
 #include <quadtree.hpp>
 #include <geometry.hpp>
 
