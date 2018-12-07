@@ -73,6 +73,8 @@ public:
 		        static_cast<unsigned int>(m_tiles.front().size())};
 	}
 
+
+
 private:
 
 	struct map_area {
@@ -88,14 +90,11 @@ private:
 
 	void ensure_pathing(const std::vector<dungeep::uis_point>& rooms_center);
 
-	void ensure_oneroom_path(const dungeep::uis_point& room_center);
-
 	void ensure_tworoom_path(const dungeep::uis_point& r1_center, const dungeep::uis_point& r2_center);
 
 	dungeep::uis_point generate_holed_room(const room_gen_properties& rp, unsigned int hole_count, std::mt19937_64& random_engine);
 
-	static dungeep::uis_point generate_zone_dimensions(const zone_gen_properties& zgp,
-	                                                               std::mt19937_64& random_engine);
+	static dungeep::uis_point generate_zone_dimensions(const zone_gen_properties& zgp, std::mt19937_64& random_engine);
 
 
 	void generate_tiles(const zone_gen_properties& rp, map_area tiles_area, tiles tile, std::mt19937_64& random_engine);

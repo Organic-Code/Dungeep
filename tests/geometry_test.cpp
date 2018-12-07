@@ -18,9 +18,10 @@
 #include <catch2/catch.hpp>
 #include <geometry.hpp>
 
-using namespace dungeep;
-
 SCENARIO("Geometry has collision and sizes") {
+	using point = dungeep::point<float>;
+	using area = dungeep::area<float>;
+
 	const point p1{0.f, 0.f};
 	const point p2{10.f, 10.f};
 	const point p3{-10.f, -10.f};

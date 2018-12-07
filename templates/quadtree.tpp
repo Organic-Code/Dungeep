@@ -783,7 +783,7 @@ quadtree<T, Dynamicity, Container>::children::children(const area& shared_area, 
 {}
 
 template<typename T, quadtree_dynamics Dynamicity, template <typename...> typename Container>
-area quadtree<T, Dynamicity, Container>::children::split_from_indexed_dir(const area& shared, int dir) {
+auto quadtree<T, Dynamicity, Container>::children::split_from_indexed_dir(const area& shared, int dir) -> area {
 
 	const point center = (shared.top_left + shared.bot_right) / 2;
 	const point& top_left = shared.top_left;

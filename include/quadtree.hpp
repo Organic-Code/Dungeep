@@ -56,8 +56,11 @@ namespace dungeep {
 		using reverse_iterator = std::reverse_iterator<iterator>;
 		using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
+		using area = dungeep::area<float>;
+		using point = dungeep::point<float>;
+
 	public:
-		explicit quadtree(const area& ar)
+		explicit quadtree(const area& ar) // NOLINT
 			noexcept(Dynamicity != quadtree_dynamics::static_children && noexcept(container()))
 			: quadtree(ar, 10, 20) {}
 

@@ -19,10 +19,13 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace dungeep {
+
+template <typename>
 struct area;
 
+template <typename T>
 struct point {
-	float x, y;
+	T x, y;
 
 	point operator+(const point& p) const noexcept;
 
@@ -40,27 +43,23 @@ struct point {
 
 	point& operator*=(float val) noexcept;
 
-	bool is_in(const area&) const noexcept;
+	bool is_in(const area<T>&) const noexcept;
 
-	float length() const noexcept;
+	T length() const noexcept;
 
 };
+using uis_point = point<unsigned int>;
 
 template <typename T>
-struct s_point {
-	T x, y;
-};
-using uis_point = s_point<unsigned int>;
-
 struct area {
-	point top_left; // smallest x & y
-	point bot_right; // greatest x & y
+	point<T> top_left; // smallest x & y
+	point<T> bot_right; // greatest x & y
 
-	float width() const noexcept;
+	T width() const noexcept;
 
-	float height() const noexcept;
+	T height() const noexcept;
 
-	float size() const noexcept;
+	T size() const noexcept;
 
 	bool contains(const area& other) const noexcept;
 

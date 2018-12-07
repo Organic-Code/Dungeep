@@ -67,7 +67,7 @@ target_link_libraries(imgui-sfml PRIVATE "sfml-system" "sfml-window" "sfml-graph
 
 include_directories(include templates external/SFML/include)
 
-set(COMMON_SOURCES src/geometry.cpp src/map.cpp)
+set(COMMON_SOURCES main.cpp src/map.cpp)
 
 foreach(source ${COMMON_SOURCES})
     list(APPEND COMMON_SOURCES_ABS ${root_dir}/${source})
@@ -79,9 +79,10 @@ make_target(
         dungeep "dungeep" ${COMMON_SOURCES}
         INCLUDES include/
         EXT_INCLUDES ${root_dir}/external/SFML/include ${root_dir}/external/imgui ${root_dir}/external/imgui-sfml ${root_dir}/external/breep/include
-        OPTIONS cxx executable static_runtime
+        OPTIONS cxx executable static_runtime
 )
 
 set_property(TARGET dungeep PROPERTY CXX_STANDARD 17)
 set_property(TARGET dungeep PROPERTY CXX_STANDARD_REQUIRED ON)
+
 

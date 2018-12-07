@@ -29,20 +29,20 @@ map::map(size_type size, const std::vector<room_gen_properties>& rooms_propertie
 	assert(!rooms_properties.empty());
 
 	std::vector<dungeep::uis_point> rooms_center;
-	rooms_center.reserve(static_cast<unsigned long>(rooms_properties.size() * rooms_properties[0].avg_rooms_n));
+	rooms_center.reserve(rooms_properties.size() * static_cast<unsigned long>(rooms_properties[0].avg_rooms_n));
 
 	for (const room_gen_properties& rp : rooms_properties) {
 		auto rooms_n = gen_positive(rp.avg_rooms_n, rp.rooms_n_dev, random_engine);
 		auto holes_n = gen_positive(rp.avg_holes_n, rp.holes_n_dev, random_engine);
 
-		for (auto i = 0u ; i < rooms_n - 1; ++i) {
+		for (auto i = 0u ; i < static_cast<unsigned>(rooms_n - 1.f) ; ++i) {
 
 			unsigned int hfr = std::min(
 					static_cast<unsigned int>(holes_n),
-					static_cast<unsigned int>(gen_positive(holes_n / (rooms_n - i), 2.5f, random_engine))
+					static_cast<unsigned int>(gen_positive(holes_n / (rooms_n - static_cast<float>(i)), 2.5f, random_engine))
 			);
 
-			holes_n -= hfr;
+			holes_n -= static_cast<float>(hfr);
 			dungeep::uis_point room = generate_holed_room(rp, hfr, random_engine);
 			if (room.x != 0 && room.y != 0) {
 				rooms_center.push_back(room);
@@ -59,10 +59,6 @@ map::map(size_type size, const std::vector<room_gen_properties>& rooms_propertie
 
 void map::ensure_pathing(const std::vector<dungeep::uis_point>& rooms_center) {
 	using dungeep::uis_point;
-	for (const uis_point& room : rooms_center) {
-		ensure_oneroom_path(room);
-	}
-
 	for (const uis_point& room_1 : rooms_center) {
 		for (const uis_point& room_2 : rooms_center) {
 			if (&room_1 == &room_2) {
@@ -73,11 +69,7 @@ void map::ensure_pathing(const std::vector<dungeep::uis_point>& rooms_center) {
 	}
 }
 
-void map::ensure_oneroom_path(const dungeep::uis_point& room_center) {
-
-}
-
-void map::ensure_tworoom_path(const dungeep::uis_point& r1_center, const dungeep::uis_point& r2_center) {
+void map::ensure_tworoom_path(const dungeep::uis_point& /*r1_center*/, const dungeep::uis_point& /*r2_center*/) {
 
 }
 
@@ -134,8 +126,8 @@ void map::generate_tiles(const zone_gen_properties& rp, map_area tiles_area, til
 		}
 	};
 
-	for (auto i = 0 ; i < tiles_area.width ; ++i) {
-		for (auto j = 0 ; j < tiles_area.height ; ++j) {
+	for (auto i = 0u ; i < tiles_area.width ; ++i) {
+		for (auto j = 0u ; j < tiles_area.height ; ++j) {
 			generated_room[i + array_shift][j + array_shift] = tile;
 		}
 	}
@@ -146,8 +138,8 @@ void map::generate_tiles(const zone_gen_properties& rp, map_area tiles_area, til
 	ar.height = tiles_area.height;
 	add_fuzziness(generated_room, rp, ar, tile, zone_fuzziness, random_engine);
 
-	for (auto i = std::max<int>(array_shift - tiles_area.x, 0) ; i < generated_room.size() && tiles_area.x + i < m_tiles.size() + array_shift ; ++i) {
-		for (auto j = std::max<int>(array_shift - tiles_area.y, 0) ; j < generated_room[i].size() && tiles_area.y + j < m_tiles[i].size() + array_shift; ++j) {
+	for (auto i = std::max(array_shift - tiles_area.x, 0u) ; i < generated_room.size() && tiles_area.x + i < m_tiles.size() + array_shift ; ++i) {
+		for (auto j = std::max(array_shift - tiles_area.y, 0u) ; j < generated_room[i].size() && tiles_area.y + j < m_tiles[i].size() + array_shift; ++j) {
 			if (generated_room[i][j] != tiles::none) {
 				m_tiles[i + tiles_area.x - array_shift][j + tiles_area.y - array_shift] = generated_room[i][j];
 			}
@@ -174,7 +166,7 @@ void map::add_fuzziness(std::vector<std::vector<tiles>>& generated_room, const z
 					assigner(i, j, true);
 				}
 			} else {
-				for (auto j = 0 ; j < current_delta + 0.9f; ++j) {
+				for (auto j = 0 ; j < static_cast<int>(current_delta + 0.9f); ++j) {
 					assigner(i, j, false);
 				}
 			}
@@ -182,33 +174,33 @@ void map::add_fuzziness(std::vector<std::vector<tiles>>& generated_room, const z
 	};
 
 	// fuzziness on y axis (left)
-	generate_fuzziness(tiles_area.y, tiles_area.y + tiles_area.height, tiles_area.height / 2.f, [&](unsigned int i, int j, bool fill) {
-		int idx = j + tiles_area.x;
-		if (idx > 0 && idx < generated_room.size()) {
+	generate_fuzziness(tiles_area.y, tiles_area.y + tiles_area.height, static_cast<float>(tiles_area.height) / 2.f, [&](unsigned int i, int j, bool fill) {
+		unsigned int idx = static_cast<unsigned>(j) + tiles_area.x;
+		if (idx < generated_room.size()) {
 			generated_room[idx][i] = fill ? tile : tiles::none;
 		}
 	});
 
 	// fuzziness on y axis (right)
-	generate_fuzziness(tiles_area.y, tiles_area.y + tiles_area.height, tiles_area.height / 2.f, [&](unsigned int i, int j, bool fill) {
-		int idx = j + tiles_area.x + tiles_area.width;
-		if (idx > 0 && idx < generated_room.size()) {
+	generate_fuzziness(tiles_area.y, tiles_area.y + tiles_area.height, static_cast<float>(tiles_area.height) / 2.f, [&](unsigned int i, int j, bool fill) {
+		unsigned int idx = static_cast<unsigned>(j) + tiles_area.x + tiles_area.width;
+		if (idx < generated_room.size()) {
 			generated_room[idx][i] = fill ? tiles::none : tile;
 		}
 	});
 
 	// fuzziness on x axis (top)
-	generate_fuzziness(tiles_area.x, tiles_area.x + tiles_area.width, tiles_area.width / 2.f, [&](unsigned int i, int j, bool fill) {
-		int idx = j + tiles_area.y;
-		if (idx > 0 && idx < generated_room[i].size()) {
+	generate_fuzziness(tiles_area.x, tiles_area.x + tiles_area.width, static_cast<float>(tiles_area.width) / 2.f, [&](unsigned int i, int j, bool fill) {
+		unsigned int idx = static_cast<unsigned>(j) + tiles_area.y;
+		if (idx < generated_room[i].size()) {
 			generated_room[i][idx] = fill ? tile : tiles::none;
 		}
 	});
 
 	// fuzziness on x axis (bottom)
-	generate_fuzziness(tiles_area.x, tiles_area.x + tiles_area.width, tiles_area.width / 2.f, [&](unsigned int i, int j, bool fill) {
-		int idx = j + tiles_area.y + tiles_area.height;
-		if (idx > 0 && idx < generated_room[i].size()) {
+	generate_fuzziness(tiles_area.x, tiles_area.x + tiles_area.width, static_cast<float>(tiles_area.width) / 2.f, [&](unsigned int i, int j, bool fill) {
+		unsigned int idx = static_cast<unsigned>(j) + tiles_area.y + tiles_area.height;
+		if (idx < generated_room[i].size()) {
 			generated_room[i][idx] = fill ? tiles::none : tile;
 		}
 	});
@@ -266,17 +258,17 @@ float map::gen_positive(float avg, float dev, std::mt19937_64& engine) {
 
 dungeep::uis_point map::generate_zone_dimensions(const zone_gen_properties& zgp, std::mt19937_64& random_engine) {
 
-	float min_size = zgp.min_height;
+	auto min_size = zgp.min_height;
 	min_size *= min_size;
-	float max_size = zgp.max_height;
+	auto max_size = zgp.max_height;
 	max_size *= max_size;
 
-	float room_size = std::clamp(gen_positive(zgp.avg_size, zgp.size_deviation, random_engine), min_size, max_size);
+	float room_size = std::clamp(gen_positive(zgp.avg_size, zgp.size_deviation, random_engine), static_cast<float>(min_size), static_cast<float>(max_size));
 
-	unsigned int avg_room_dim = (zgp.max_height + zgp.min_height) / 2;
+	float avg_room_dim = static_cast<float>(zgp.max_height + zgp.min_height) / 2.f;
 	dungeep::uis_point room_dim{};
-	room_dim.x = std::clamp(static_cast<unsigned int>(gen_positive(avg_room_dim, 2.f * avg_room_dim / 5.f, random_engine)), zgp.min_height, zgp.max_height);
-	room_dim.y = static_cast<unsigned int>(room_size / room_dim.x);
+	room_dim.x = std::clamp(static_cast<unsigned int>(gen_positive(avg_room_dim, 0.4f * avg_room_dim, random_engine)), zgp.min_height, zgp.max_height);
+	room_dim.y = static_cast<unsigned int>(room_size / static_cast<float>(room_dim.x));
 
 	return room_dim;
 }
