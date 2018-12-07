@@ -585,7 +585,7 @@ IteratorType quadtree<T, D, Container>::erase_impl(IteratorType it) {
 	{ \
 		iterator_type it{*this}; \
 		while (it.current_ != this->values_.end()) { \
-			if (target.collides_with(it->thitbox())) { \
+			if (target.collides_with(it->hitbox())) { \
 				/* if non const context AND visitor returns a boolean */\
 				if constexpr (std::is_same_v<iterator_type, iterator> && std::is_same_v<std::invoke_result_t<FuncT, iterator>, bool>) { \
 					if (visitor(it)) { \
