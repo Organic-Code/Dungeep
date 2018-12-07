@@ -40,7 +40,19 @@ inline bool dungeep::area::collides_with(const area& other) const noexcept {
 	return other.bot_right.is_in(*this) || other.top_left.is_in(*this) || this->bot_right.is_in(other);
 }
 
+
+inline float dungeep::area::width() const noexcept {
+	assert_well_formed();
+	return bot_right.x - top_left.x;
+}
+
+inline float dungeep::area::height() const noexcept {
+	assert_well_formed();
+	return bot_right.y - top_left.y;
+}
+
 inline float dungeep::area::size() const noexcept {
+	assert_well_formed();
 	point hz{bot_right.x - top_left.x, 0};
 	point vt{bot_right.y - top_left.y, 0};
 

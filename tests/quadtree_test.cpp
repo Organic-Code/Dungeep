@@ -64,7 +64,6 @@ TEST_CASE("Quadtree") {
 		for (auto i = 0u ; i < 42 ; ++i) {
 			qt.insert({rand_area()});
 		}
-		std::swap(qt,qt);
 		CHECK(qt.size() == 42);
 		qt.clear();
 		CHECK(qt.size() == 0);
@@ -101,7 +100,7 @@ TEST_CASE("Quadtree") {
 			qt.move(it, c.hitbox());
 
 			qt.move(c4, {{25.f, 25.5f}, {25.f, 25.5f}});
-			qt.insert(c3);
+			it = qt.insert(c3);
 
 			int hits = 0;
 			qt.visit(c.hitbox(), [&hits, &qt](decltype(qt)::iterator it_) {
@@ -111,6 +110,9 @@ TEST_CASE("Quadtree") {
 			});
 			CHECK(hits == 3);
 			CHECK(qt.size() == 4);
+			it = qt.find(c3);
+			qt.erase(it);
+			CHECK(qt.size() == 3);
 			CHECK(qt.has_collision(c.hitbox()));
 			CHECK(!qt.has_collision({{0.f, 0.f}, {2.f, 2.f}}));
 		}

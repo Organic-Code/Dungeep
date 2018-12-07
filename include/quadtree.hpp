@@ -80,20 +80,24 @@ namespace dungeep {
 		[[nodiscard]] const_iterator cend() const noexcept;
 
 
-		// Inserts an element, given its '.hitbox()' location
-		// All iterators might be invalidated
+		/**
+		 * Inserts an element, given its '.hitbox()' location
+		 * Iterators are invalidated
+		 */
 		iterator insert(const value_type& value);
 
-		// Construct an element in-place
-		// All iterators might be invalidated
+		/**
+		 * Iterators are invalidated
+		 */
 		template <typename... Args>
 		iterator emplace(const area& target, Args&&... args);
 
 		/**
 		 * Visists all elements on the given area
 		 * The visitor function should not attempt to insert or remove an element in or from the collection.
-		 * If the visitor returns true, the element is safely deleted.
-		 * TODO: visit([const] T&)
+		 * If the visitor returns true, the element is safely deleted (iterators are invalidated).
+		 *
+		 * Do not attempt to call quatree::erase() while visiting. To delete current value, return true instead.
 		 */
 		template <typename FuncT>
 		void visit(const area& target, FuncT&& visitor) noexcept(std::is_nothrow_invocable_v<FuncT, iterator>);
@@ -109,11 +113,11 @@ namespace dungeep {
 
 		/**
 		 * returns the element right after the erased one
-		 * TODO: iterator invalidation ?
-		 * TODO: erase(const T&)
+		 * Iterators are invalidated
 		 */
 		iterator erase(iterator it);
 		iterator erase(const_iterator it);
+		void erase(const T&);
 
 		/**
 		 * Returns true if at least one element is at least partially present in the given area
@@ -131,7 +135,7 @@ namespace dungeep {
 		bool has_collision_if(const area& ar, FuncT&& pred) const noexcept(std::is_nothrow_invocable_v<FuncT, const T&>);
 
 		/**
-		 * TODO: iterator invalidation?
+		 * Iterators are invalidated
 		 */
 		T extract(iterator element);
 		T extract(const_iterator element);
@@ -139,8 +143,9 @@ namespace dungeep {
 		iterator find(const T& element) noexcept;
 		const_iterator find(const T& element) const noexcept;
 
-		// TODO: iterator invalidation?
-		// TODO: return iterator?
+		/**
+		 * Iterators are invalidated
+		 */
 		void move(iterator it, const area& new_area);
 		void move(const T& element, const area& new_area);
 		void move(const_iterator it, const area& new_area);

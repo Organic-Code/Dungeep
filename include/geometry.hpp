@@ -46,9 +46,19 @@ struct point {
 
 };
 
+template <typename T>
+struct s_point {
+	T x, y;
+};
+using uis_point = s_point<unsigned int>;
+
 struct area {
 	point top_left; // smallest x & y
 	point bot_right; // greatest x & y
+
+	float width() const noexcept;
+
+	float height() const noexcept;
 
 	float size() const noexcept;
 
