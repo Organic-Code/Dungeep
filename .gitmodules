@@ -1,0 +1,12 @@
+[submodule "external/breep"]
+	path = external/breep
+	url = https://github.com/organic-code/breep
+[submodule "external/SFML"]
+	path = external/SFML
+	url = https://github.com/SFML/SFML
+[submodule "external/imgui"]
+	path = external/imgui
+	url = https://github.com/ocornut/imgui
+[submodule "external/imgui-sfml"]
+	path = external/imgui-sfml
+	url = https://github.com/eliasdaler/imgui-sfml
