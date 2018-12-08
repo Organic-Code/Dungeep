@@ -18,6 +18,8 @@
 #include <random>
 #include <algorithm>
 #include <iostream>
+#include <unordered_set>
+#include <set>
 
 #include "map.hpp"
 
@@ -300,4 +302,138 @@ std::ostream& operator<<(std::ostream& o, const map& m) {
 		o << '\n';
 	}
 	return o;
+}
+
+std::vector<dungeep::direction> map::path_to(const dungeep::point_i& source, const dungeep::point_i& destination) const {
+	using dungeep::point_i;
+	using dungeep::direction;
+
+	std::vector<direction> ans;
+	if (source == destination) {
+		return ans;
+	}
+
+	struct node {
+		point_i pos{};
+		float dist{};
+		float heur{};
+
+		direction parent{direction::none};
+
+		float cost() const {
+			return dist + heur;
+		}
+
+		bool operator<(const node& n) const noexcept {
+			return cost() < n.cost();
+		}
+
+		bool operator==(const node& n) const noexcept {
+			return pos == n.pos;
+		}
+	};
+	auto cost_of = [&destination](const point_i& p) {
+		return std::hypot(static_cast<float>(destination.x - p.x), static_cast<float>(destination.y - p.y));
+	};
+	auto hash = [](const node& n) noexcept {
+		return n.pos.x + n.pos.y;
+	};
+	auto make_node = [&cost_of](const point_i& p, float distance) {
+		return node{p, distance, cost_of(p)};
+	};
+	auto make_child_node = [&cost_of](const node& parent, const std::pair<point_i, direction>& translation) {
+		dungeep::point_i new_pos = parent.pos + translation.first;
+		return node{new_pos, parent.dist + std::hypot(static_cast<float>(translation.first.x), static_cast<float>(translation.first.y))
+			  , cost_of(new_pos), translation.second};
+	};
+
+	std::unordered_set<node, decltype(hash)> closed_list{0, std::move(hash)};
+	std::set<node> open_list{};
+
+	open_list.emplace(make_node(source, 0.f));
+
+	constexpr std::array<std::pair<point_i, direction>, 8> possible_children = {
+			std::pair{point_i{-1, -1}, direction::top_left },
+			std::pair{point_i{ 0, -1}, direction::top      },
+			std::pair{point_i{ 1, -1}, direction::top_right},
+			std::pair{point_i{-1,  0}, direction::left     },
+			std::pair{point_i{ 1,  0}, direction::right    },
+			std::pair{point_i{-1,  1}, direction::bot_left },
+			std::pair{point_i{ 0,  1}, direction::bot      },
+			std::pair{point_i{ 1,  1}, direction::bot_right}
+	};
+
+	std::optional<node> ending_node{};
+	do {
+		auto smallest = open_list.begin();
+		node q = *smallest;
+		open_list.erase(smallest);
+
+		auto it_pair = closed_list.insert(q);
+		if (!it_pair.second) {
+			closed_list.erase(it_pair.first);
+			closed_list.insert(q);
+		}
+
+		for (const std::pair<point_i, direction>& pt : possible_children) {
+			node child = make_child_node(q, pt);
+			if (child.pos.x < 0 || child.pos.y < 0) {
+				continue;
+			}
+			if (m_tiles[static_cast<unsigned>(child.pos.x)][static_cast<unsigned>(child.pos.y)] != tiles::walkable) {
+				continue;
+			}
+
+			if (child.pos == destination) {
+				ending_node = child;
+				break;
+			}
+			{
+				auto it = std::find(open_list.begin(), open_list.end(), child);
+				if (it != open_list.end()) {
+					if (it->dist <= child.dist) {
+						continue;
+					}
+					open_list.erase(it);
+					open_list.insert(child);
+				}
+			}
+
+			auto it = closed_list.find(child);
+			if (it != closed_list.end() && it->dist <= q.dist + 1) {
+				continue;
+			}
+			open_list.insert(child);
+		}
+
+	} while (!ending_node && !open_list.empty());
+
+
+	if (ending_node) {
+		std::vector<direction> reversed;
+		node n = *ending_node;
+		while (n.pos != source) {
+			reversed.push_back(n.parent);
+			n.pos.translate_fixed(-n.parent, 1);
+			auto it = closed_list.find(n);
+			assert(it != closed_list.end());
+			n = *it;
+		}
+		ans.reserve(reversed.size());
+		std::copy(reversed.rbegin(), reversed.rend(), std::back_inserter(ans));
+	}
+	return ans;
+}
+
+std::vector<dungeep::point_i>
+map::path_to_pt(const dungeep::point_i& source, const dungeep::point_i& destination) const {
+	std::vector<dungeep::direction> dirs = path_to(source, destination);
+	std::vector<dungeep::point_i> poss;
+	poss.reserve(dirs.size() + 1);
+	poss.push_back(source);
+	for (dungeep::direction dir : dirs) {
+		poss.push_back(poss.back());
+		poss.back().translate_fixed(dir, 1);
+	}
+	return poss;
 }

@@ -23,6 +23,20 @@ namespace dungeep {
 template <typename>
 struct area;
 
+enum class direction {
+	top,
+	bot,
+	left,
+	right,
+	top_left,
+	top_right,
+	bot_left,
+	bot_right,
+	none
+};
+
+constexpr direction operator-(direction d) noexcept;
+
 template <typename T>
 struct point {
 
@@ -49,7 +63,15 @@ struct point {
 
 	constexpr point& operator*=(float val) noexcept;
 
+	constexpr bool operator==(const point& p) const noexcept;
+
+	constexpr bool operator!=(const point& p) const noexcept;
+
 	constexpr bool is_in(const area<T>&) const noexcept;
+
+	void translate(direction d, T distance) noexcept;
+
+	void translate_fixed(direction d, T distance) noexcept;
 
 	T length() const noexcept;
 
@@ -79,20 +101,11 @@ struct area {
 	constexpr void assert_well_formed() const noexcept;
 };
 
-enum class direction {
-	top,
-	bot,
-	left,
-	right,
-	top_left,
-	top_right,
-	bot_left,
-	bot_right,
-	none
-};
-
 using point_ui = point<unsigned int>;
 using area_ui = area<unsigned int>;
+
+using point_i = point<int>;
+using area_i = area<int>;
 
 using point_f = point<float>;
 using area_f = area<float>;

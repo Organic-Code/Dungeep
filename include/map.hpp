@@ -73,6 +73,10 @@ public:
 		        static_cast<unsigned int>(m_tiles.front().size())};
 	}
 
+	std::vector<dungeep::direction> path_to(const dungeep::point_i& source, const dungeep::point_i& destination) const;
+
+	std::vector<dungeep::point_i> path_to_pt(const dungeep::point_i& source, const dungeep::point_i& destination) const;
+
 
 
 private:
