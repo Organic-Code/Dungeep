@@ -307,13 +307,13 @@ function(get_files output)
 	foreach(it ${dirs})
 		if(IS_DIRECTORY ${it})
 			set(patterns
-					"${it}/*.c"
-					"${it}/*.cc"
-					"${it}/*.cpp"
-					"${it}/*.cxx"
-					"${it}/*.h"
-					"${it}/*.hpp"
-					)
+			  "${it}/*.c"
+			  "${it}/*.cc"
+			  "${it}/*.cpp"
+			  "${it}/*.cxx"
+			  "${it}/*.h"
+			  "${it}/*.hpp"
+			  )
 			file(${glob} tmp_files ${patterns})
 			list(APPEND files ${tmp_files})
 			get_filename_component(parent_dir ${it} DIRECTORY)
@@ -355,14 +355,39 @@ function(target_add_system_includes target)
 	target_include_directories(${target} SYSTEM PRIVATE ${ARGN})
 endfunction()
 
-## target_add_flag(target flag [configs...])
+## target_add_compile_definition(target definition [configs...])
+# Add a private compile definition to the target for the specified configs.
+#   {value} [in] target:       Target to add flag
+#   {value} [in] definition:   Definition to add
+#   {value} [in] configs:      Configs for the property to change (DEBUG|RELEASE|RELWITHDEBINFO)
+function(target_add_compile_definition target definition)
+	if(${ARGC} GREATER 2)
+		foreach(config ${ARGN})
+			string(TOLOWER "${config}" config_lower)
+			set(config_name)
+			foreach(valid_config IN ITEMS "Debug" "RelWithDebInfo" "Release")
+				string(TOLOWER "${valid_config}" valid_config_lower)
+				if(${config_lower} STREQUAL ${valid_config_lower})
+					set(config_name ${valid_config})
+				endif()
+			endforeach()
+			if(DEFINED config_name)
+				target_compile_definitions(${target} PRIVATE "$<$<CONFIG:${config_name}>:${definition}>")
+			endif()
+		endforeach()
+	else()
+		target_compile_definitions(${target} PRIVATE "${definition}")
+	endif()
+endfunction()
+
+## target_add_compiler_flag(target flag [configs...])
 # Add a flag to the compiler arguments of the target for the specified configs.
-# Add the flag only if the compiler support it (checked with CHECK_CXX_COMPILER_FLAG)
+# Add the flag only if the compiler support it (checked with CHECK_CXX_COMPILER_FLAG).
 #   {value} [in] target:    Target to add flag
 #   {value} [in] flag:      Flag to add
 #   {value} [in] configs:   Configs for the property to change (DEBUG|RELEASE|RELWITHDEBINFO)
-function(target_add_flag target flag)
-	CHECK_CXX_COMPILER_FLAG(${flag} has${flag})
+function(target_add_compiler_flag target flag)
+	CHECK_CXX_COMPILER_FLAG(${flag} has${flag})#FIXME: fail with C compiler
 	if(has${flag})
 		if(${ARGC} GREATER 2)
 			foreach(config ${ARGN})
@@ -384,6 +409,74 @@ function(target_add_flag target flag)
 	endif()
 endfunction()
 
+## append_to_target_property(target property [values...])
+# Append values to a target property.
+#   {value} [in] target:     Target to modify
+#   {value} [in] property:   Property to append values to
+#   {value} [in] values:     Values to append to the property
+function(append_to_target_property target property)
+	set(new_values ${ARGN})
+	get_target_property(existing_values ${target} ${property})
+	if(existing_values)
+		set(new_values "${existing_values} ${new_values}")
+	endif()
+	set_target_properties(${target} PROPERTIES ${property} ${new_values})
+endfunction()
+
+## __target_link_flag_property(target flag  [configs...])
+# Add a flag to the linker arguments of the target for the specified configs using LINK_FLAGS properties of the target.
+# Function made for CMake 3.12 or less, future CMake version will have target_link_options() with cmake-generator-expressions.
+#   {value} [in] target:    Target to add flag
+#   {value} [in] flag:      Flag to add
+#   {value} [in] configs:   Configs for the property to change (DEBUG|RELEASE|RELWITHDEBINFO)
+function(__target_link_flag_property target flag)
+	if(${ARGC} GREATER 2)
+		foreach(config ${ARGN})
+			append_to_target_property(${target} LINK_FLAGS_${config} ${flag})
+		endforeach()
+	else()
+		append_to_target_property(${target} LINK_FLAGS ${flag})
+	endif()
+endfunction()
+
+## target_add_linker_flag(target flag [configs...])
+# Add a flag to the linker arguments of the target for the specified configs.
+# Add the flag only if the linker support it (checked with CHECK_CXX_COMPILER_FLAG).
+#   {value} [in] target:    Target to add flag
+#   {value} [in] flag:      Flag to add
+#   {value} [in] configs:   Configs for the property to change (DEBUG|RELEASE|RELWITHDEBINFO)
+function(target_add_linker_flag target flag)
+	CHECK_CXX_COMPILER_FLAG(${flag} has${flag})
+	if(has${flag})
+		if(${ARGC} GREATER 2)
+			foreach(config ${ARGN})
+				string(TOLOWER "${config}" config_lower)
+				set(config_name)
+				foreach(valid_config IN ITEMS "Debug" "RelWithDebInfo" "Release")
+					string(TOLOWER "${valid_config}" valid_config_lower)
+					if(${config_lower} STREQUAL ${valid_config_lower})
+						set(config_name ${valid_config})
+					endif()
+				endforeach()
+				if(DEFINED config_name)
+					if(COMMAND target_link_options)
+						target_link_options(${target} PRIVATE "$<$<CONFIG:${config_name}>:${flag}>")
+					else()
+						string(TOUPPER "${config_name}" config_name_upper)
+						__target_link_flag_property(${target} ${flag} ${config_name_upper})
+					endif()
+				endif()
+			endforeach()
+		else()
+			if(COMMAND target_link_options)
+				target_link_options(${target} PRIVATE "${flag}")
+			else()
+				__target_link_flag_property(${target} "${flag}")
+			endif()
+		endif()
+	endif()
+endfunction()
+
 ## target_set_output_directory(target directory)
 # Set the target runtime, library and archive output directory to the input directory.
 #   {value} [in] target:      Target to configure
@@ -400,11 +493,11 @@ endfunction()
 #   {value} [in] directory:   Output directory
 function(target_set_runtime_output_directory target directory)
 	set_target_properties(${target} PROPERTIES
-			RUNTIME_OUTPUT_DIRECTORY                "${directory}"
-			RUNTIME_OUTPUT_DIRECTORY_DEBUG          "${directory}"
-			RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${directory}"
-			RUNTIME_OUTPUT_DIRECTORY_RELEASE        "${directory}"
-			)
+	  RUNTIME_OUTPUT_DIRECTORY                "${directory}"
+	  RUNTIME_OUTPUT_DIRECTORY_DEBUG          "${directory}"
+	  RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${directory}"
+	  RUNTIME_OUTPUT_DIRECTORY_RELEASE        "${directory}"
+	  )
 endfunction()
 
 ## target_set_library_output_directory(target directory)
@@ -413,11 +506,11 @@ endfunction()
 #   {value} [in] directory:   Output directory
 function(target_set_library_output_directory target directory)
 	set_target_properties(${target} PROPERTIES
-			LIBRARY_OUTPUT_DIRECTORY                "${directory}"
-			LIBRARY_OUTPUT_DIRECTORY_DEBUG          "${directory}"
-			LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${directory}"
-			LIBRARY_OUTPUT_DIRECTORY_RELEASE        "${directory}"
-			)
+	  LIBRARY_OUTPUT_DIRECTORY                "${directory}"
+	  LIBRARY_OUTPUT_DIRECTORY_DEBUG          "${directory}"
+	  LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${directory}"
+	  LIBRARY_OUTPUT_DIRECTORY_RELEASE        "${directory}"
+	  )
 endfunction()
 
 ## target_set_archive_output_directory(target directory)
@@ -426,11 +519,11 @@ endfunction()
 #   {value} [in] directory:   Output directory
 function(target_set_archive_output_directory target directory)
 	set_target_properties(${target} PROPERTIES
-			ARCHIVE_OUTPUT_DIRECTORY                "${directory}"
-			ARCHIVE_OUTPUT_DIRECTORY_DEBUG          "${directory}"
-			ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO "${directory}"
-			ARCHIVE_OUTPUT_DIRECTORY_RELEASE        "${directory}"
-			)
+	  ARCHIVE_OUTPUT_DIRECTORY                "${directory}"
+	  ARCHIVE_OUTPUT_DIRECTORY_DEBUG          "${directory}"
+	  ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO "${directory}"
+	  ARCHIVE_OUTPUT_DIRECTORY_RELEASE        "${directory}"
+	  )
 endfunction()
 
 ## setup_msvc(target [OPTIONS [static_runtime] [no_warnings] [low_warnings]])
@@ -446,13 +539,50 @@ function(setup_msvc target)
 	has_item(option_no_warnings "no_warnings" ${options})
 	has_item(option_low_warnings "low_warnings" ${options})
 
+	# set Source and Executable character sets to UTF-8
+	target_add_compiler_flag(${target} "/utf-8")
+
+	# enable parallel compilation
+	target_add_compiler_flag(${target} "/MP")
+
+	# generates complete debugging information
+	target_add_compiler_flag(${target} "/Zi" DEBUG RELWITHDEBINFO)
+	target_add_linker_flag(${target} "/DEBUG:FULL" DEBUG RELWITHDEBINFO)
+
+	# set optimization
+	target_add_compiler_flag(${target} "/Od" DEBUG)
+	target_add_compiler_flag(${target} "/O2" RELWITHDEBINFO)
+	target_add_compiler_flag(${target} "/Ox" RELEASE)
+
+	# enables automatic parallelization of loops
+	target_add_compiler_flag(${target} "/Qpar" RELEASE)
+
+	# enable runtime checks
+	target_add_compiler_flag(${target} "/RTC1" DEBUG)
+
+	# disable incremental compilations
+	target_add_linker_flag(${target} "/INCREMENTAL:NO" RELEASE RELWITHDEBINFO)
+
+	# remove unused symbols
+	target_add_linker_flag(${target} "/OPT:REF" RELEASE RELWITHDEBINFO)
+	target_add_linker_flag(${target} "/OPT:ICF" RELEASE RELWITHDEBINFO)
+
+	# disable manifests
+	target_add_linker_flag(${target} "/MANIFEST:NO" RELEASE RELWITHDEBINFO)
+
+	# enable function-level linking
+	#target_add_compiler_flag(${target} "/Gy" RELEASE RELWITHDEBINFO)
+
+	# sets the Checksum in the .exe header
+	#target_add_linker_flag(${target} "/RELEASE" RELEASE RELWITHDEBINFO)
+
 	# statically link C runtime library to static_runtime targets
 	if(option_static_runtime)
-		target_add_flag(${target} "/MTd" DEBUG)
-		target_add_flag(${target} "/MT" RELWITHDEBINFO RELEASE)
+		target_add_compiler_flag(${target} "/MTd" DEBUG)
+		target_add_compiler_flag(${target} "/MT" RELWITHDEBINFO RELEASE)
 	else()
-		target_add_flag(${target} "/MDd" DEBUG)
-		target_add_flag(${target} "/MD" RELWITHDEBINFO RELEASE)
+		target_add_compiler_flag(${target} "/MDd" DEBUG)
+		target_add_compiler_flag(${target} "/MD" RELWITHDEBINFO RELEASE)
 	endif()
 
 	# manage warnings
@@ -463,40 +593,55 @@ function(setup_msvc target)
 		set(flags "/W3")
 	else()
 		set(flags
-				## Base flags:
-				"/W4"
+		  ## Base flags:
+		  "/W4"
 
-				## Extra flags:
-				"/w44265" # 'class': class has virtual functions, but destructor is not virtual
-				"/w44287" # 'operator': unsigned/negative constant mismatch
-				"/w44289" # nonstandard extension used : 'var' : loop control variable declared in the for-loop is used outside the for-loop scope
-				"/w44296" # 'operator': expression is always false
-				"/w44355" # 'this' : used in base member initializer list
-				"/w44365" # 'action': conversion from 'type_1' to 'type_2', signed/unsigned mismatch
-				"/w44412" # 'function': function signature contains type 'type'; C++ objects are unsafe to pass between pure code and mixed or native
-				"/w44431" # missing type specifier - int assumed. Note: C no longer supports default-int
-				"/w44536" # 'type name': type-name exceeds meta-data limit of 'limit' characters
-				"/w44545" # expression before comma evaluates to a function which is missing an argument list
-				"/w44546" # function call before comma missing argument list
-				"/w44547" # 'operator': operator before comma has no effect; expected operator with side-effect
-				"/w44548" # expression before comma has no effect; expected expression with side-effect
-				"/w44549" # 'operator': operator before comma has no effect; did you intend 'operator'?
-				"/w44555" # expression has no effect; expected expression with side-effect
-				"/w44619" # #pragma warning: there is no warning number 'number'
-				#"/w44623" # 'derived class': default constructor could not be generated because a base class default constructor is inaccessible
-				#"/w44625" # 'derived class': copy constructor could not be generated because a base class copy constructor is inaccessible
-				#"/w44626" # 'derived class': assignment operator could not be generated because a base class assignment operator is inaccessible
-				#"/w44640" # 'instance': construction of local static object is not thread-safe
-				"/w44917" # 'declarator': a GUID can only be associated with a class, interface, or namespace
-				"/w44946" # reinterpret_cast used between related classes: 'class1' and 'class2'
+		  ## Extra flags:
+		  "/w44263" # 'function': member function does not override any base class virtual member function
+		  "/w44265" # 'class': class has virtual functions, but destructor is not virtual
+		  "/w44287" # 'operator': unsigned/negative constant mismatch
+		  "/w44289" # nonstandard extension used : 'var' : loop control variable declared in the for-loop is used outside the for-loop scope
+		  "/w44296" # 'operator': expression is always false
+		  "/w44355" # 'this' : used in base member initializer list
+		  "/w44365" # 'action': conversion from 'type_1' to 'type_2', signed/unsigned mismatch
+		  "/w44412" # 'function': function signature contains type 'type'; C++ objects are unsafe to pass between pure code and mixed or native
+		  "/w44431" # missing type specifier - int assumed. Note: C no longer supports default-int
+		  "/w44536" # 'type name': type-name exceeds meta-data limit of 'limit' characters
+		  "/w44545" # expression before comma evaluates to a function which is missing an argument list
+		  "/w44546" # function call before comma missing argument list
+		  "/w44547" # 'operator': operator before comma has no effect; expected operator with side-effect
+		  "/w44548" # expression before comma has no effect; expected expression with side-effect
+		  "/w44549" # 'operator': operator before comma has no effect; did you intend 'operator'?
+		  "/w44555" # expression has no effect; expected expression with side-effect
+		  "/w44619" # #pragma warning: there is no warning number 'number'
+		  #"/w44623" # 'derived class': default constructor could not be generated because a base class default constructor is inaccessible
+		  #"/w44625" # 'derived class': copy constructor could not be generated because a base class copy constructor is inaccessible
+		  #"/w44626" # 'derived class': assignment operator could not be generated because a base class assignment operator is inaccessible
+		  #"/w44640" # 'instance': construction of local static object is not thread-safe
+		  "/w44917" # 'declarator': a GUID can only be associated with a class, interface, or namespace
+		  "/w44946" # reinterpret_cast used between related classes: 'class1' and 'class2'
+		  "/w44986" # 'symbol': exception specification does not match previous declaration
+		  "/w44987" # nonstandard extension used: 'throw (...)'
+		  "/w44988" # 'symbol': variable declared outside class/function scope
+		  "/w45022" # 'type': multiple move constructors specified
+		  "/w45023" # 'type': multiple move assignment operators specified
+		  "/w45029" # nonstandard extension used: alignment attributes in C++ apply to variables, data members and tag types only
+		  "/w45031" # #pragma warning(pop): likely mismatch, popping warning state pushed in different file
+		  "/w45032" # detected #pragma warning(push) with no corresponding #pragma warning(pop)
+		  "/w45034" # use of intrinsic 'intrinsic' causes function function to be compiled as guest code
+		  "/w45035" # use of feature 'feature' causes function function to be compiled as guest code
+		  "/w45036" # varargs function pointer conversion when compiling with /hybrid:x86arm64 'type1' to 'type2'
+		  "/w45038" # data member 'member1' will be initialized after data member 'member2'
+		  "/w45039" # 'function': pointer or reference to potentially throwing function passed to extern C function under -EHc. Undefined behavior may occur if this function throws an exception.
+		  "/w45042" # 'function': function declarations at block scope cannot be specified 'inline' in standard C++; remove 'inline' specifier
 
-				## Apocalypse flags:
-				#"/Wall"
-				#"/WX"
-				)
+		  ## Apocalypse flags:
+		  #"/Wall"
+		  #"/WX"
+		  )
 	endif()
 	foreach(flag ${flags})
-		target_add_flag(${target} ${flag})
+		target_add_compiler_flag(${target} ${flag})
 	endforeach()
 endfunction()
 
@@ -517,11 +662,43 @@ function(setup_gcc target)
 	has_item(option_no_warnings "no_warnings" ${options})
 	has_item(option_low_warnings "low_warnings" ${options})
 
+	# setup ccache
+	find_program(CCACHE_PROGRAM ccache)
+	if(NOT ${CCACHE_PROGRAM} STREQUAL CCACHE_PROGRAM-NOTFOUND)
+		message(STATUS "ccache found: ${CCACHE_PROGRAM}")
+		set_target_properties(${target} PROPERTIES C_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+		set_target_properties(${target} PROPERTIES CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+		message(STATUS "Enabled ccache on target ${target}")
+	endif()
+
+	# generates complete debugging information
+	target_add_compiler_flag(${target} "-g3" DEBUG RELWITHDEBINFO)
+
+	# set optimization
+	target_add_compiler_flag(${target} "-O0" DEBUG)
+	target_add_compiler_flag(${target} "-O2" RELWITHDEBINFO)
+	target_add_compiler_flag(${target} "-O3" RELEASE)
+
 	# statically link C runtime library to static_runtime targets
 	if(option_static_runtime)
-		target_add_flag(${target} "-static-libgcc")
-		target_add_flag(${target} "-static-libstdc++")
+		target_add_compiler_flag(${target} "-static-libgcc")
+		target_add_compiler_flag(${target} "-static-libstdc++")
 	endif()
+
+	# enable sanitizers
+	#target_add_linker_flag(${target} "-fsanitize=address" DEBUG RELWITHDEBINFO)
+	#target_add_linker_flag(${target} "-fsanitize=thread" DEBUG RELWITHDEBINFO)
+	#target_add_linker_flag(${target} "-fsanitize=memory" DEBUG RELWITHDEBINFO)
+	#target_add_linker_flag(${target} "-fsanitize=undefined" DEBUG RELWITHDEBINFO)
+	#target_add_linker_flag(${target} "-fsanitize=leak" DEBUG RELWITHDEBINFO)
+
+	# enable libstdc++ "debug" mode
+	# warning: changes the size of some standard class templates
+	# you cannot pass containers between translation units compiled
+	# with and without libstdc++ "debug" mode
+	#target_add_compile_definition(${target} _GLIBCXX_DEBUG DEBUG)
+	#target_add_compile_definition(${target} _GLIBCXX_DEBUG_PEDANTIC DEBUG)
+	#target_add_compile_definition(${target} _GLIBCXX_SANITIZE_VECTOR DEBUG)
 
 	# manage warnings
 	set(flags)
@@ -533,124 +710,123 @@ function(setup_gcc target)
 		set(flags "-pedantic" "-Wall")
 	else()
 		set(flags
-				## Base flags:
-				"-pedantic"
-				"-Wall"
-				"-Wextra"
+		  ## Base flags:
+		  "-pedantic"
+		  "-pedantic-errors"
+		  "-Wall"
+		  "-Wextra"
 
-				## Extra flags:
-				"-Wdouble-promotion"
-				"-Wnull-dereference"
-				"-Wimplicit-fallthrough"
-				"-Wif-not-aligned"
-				"-Wmissing-include-dirs"
-				"-Wswitch-bool"
-				"-Wswitch-unreachable"
-				#"-Wsuggest-attribute=pure"
-				#"-Wsuggest-attribute=const"
-				#"-Wsuggest-attribute=noreturn"
-				#"-Wsuggest-final-types"
-				#"-Wsuggest-final-methods"
-				"-Walloc-zero"
-				"-Wduplicated-branches"
-				"-Wduplicated-cond"
-				"-Wfloat-equal"
-				"-Wshadow"
-				"-Wundef"
-				"-Wexpansion-to-defined"
-				#"-Wunused-macros"
-				"-Wcast-qual"
-				"-Wcast-align"
-				"-Wwrite-strings"
-				"-Wconversion"
-				"-Wsign-conversion"
-				"-Wdate-time"
-				"-Wextra-semi"
-				"-Wlogical-op"
-				"-Wmissing-declarations"
-				"-Wredundant-decls"
-				"-Wrestrict"
-				#"-Winline"
-				"-Winvalid-pch"
-				"-Woverlength-strings"
-				"-Wformat=2"
-				"-Wformat-signedness"
-				"-Winit-self"
+		  ## Extra flags:
+		  "-Wdouble-promotion"
+		  "-Wnull-dereference"
+		  "-Wimplicit-fallthrough"
+		  "-Wif-not-aligned"
+		  "-Wmissing-include-dirs"
+		  "-Wswitch-bool"
+		  "-Wswitch-unreachable"
+		  "-Walloc-zero"
+		  "-Wduplicated-branches"
+		  "-Wduplicated-cond"
+		  "-Wfloat-equal"
+		  "-Wshadow"
+		  "-Wundef"
+		  "-Wexpansion-to-defined"
+		  #"-Wunused-macros"
+		  "-Wcast-qual"
+		  "-Wcast-align"
+		  "-Wwrite-strings"
+		  "-Wconversion"
+		  "-Wsign-conversion"
+		  "-Wdate-time"
+		  "-Wextra-semi"
+		  "-Wlogical-op"
+		  "-Wmissing-declarations"
+		  "-Wredundant-decls"
+		  "-Wrestrict"
+		  #"-Winline"
+		  "-Winvalid-pch"
+		  "-Woverlength-strings"
+		  "-Wformat=2"
+		  "-Wformat-signedness"
+		  "-Winit-self"
 
-				## Optimisation dependant flags
-				"-Wstrict-overflow=5"
+		  ## Optimisation dependant flags
+		  "-Wstrict-overflow=5"
 
-				## Info flags
-				#"-Winvalid-pch"
-				#"-Wvolatile-register-var"
-				#"-Wdisabled-optimization"
-				#"-Woverlength-strings"
-				#"-Wunsuffixed-float-constants"
-				#"-Wvector-operation-performance"
+		  ## Info flags
+		  #"-Winvalid-pch"
+		  #"-Wvolatile-register-var"
+		  #"-Wdisabled-optimization"
+		  #"-Woverlength-strings"
+		  #"-Wunsuffixed-float-constants"
+		  #"-Wvector-operation-performance"
 
-				## Apocalypse flags:
-				#"-Wsystem-headers"
-				#"-Werror"
+		  ## Apocalypse flags:
+		  #"-Wsystem-headers"
+		  #"-Werror"
 
-				## Exit on first error
-				"-Wfatal-errors"
-				)
+		  ## Exit on first error
+		  "-Wfatal-errors"
+		  )
 		if(option_c)
 			set(c_flags
-					"-Wdeclaration-after-statement"
-					"-Wbad-function-cast"
-					"-Wjump-misses-init"
-					"-Wstrict-prototypes"
-					"-Wold-style-definition"
-					"-Wmissing-prototypes"
-					"-Woverride-init-side-effects"
-					"-Wnested-externs"
-					#"-Wc90-c99-compat"
-					#"-Wc99-c11-compat"
-					#"-Wc++-compat"
-					)
+			  "-Wdeclaration-after-statement"
+			  "-Wbad-function-cast"
+			  "-Wjump-misses-init"
+			  "-Wstrict-prototypes"
+			  "-Wold-style-definition"
+			  "-Wmissing-prototypes"
+			  "-Woverride-init-side-effects"
+			  "-Wnested-externs"
+			  #"-Wc90-c99-compat"
+			  #"-Wc99-c11-compat"
+			  #"-Wc++-compat"
+			  )
 		endif()
 		if(option_cxx)
 			set(cxx_flags
-					"-Wzero-as-null-pointer-constant"
-					"-Wsubobject-linkage"
-					"-Wdelete-incomplete"
-					"-Wuseless-cast"
-					"-Wctor-dtor-privacy"
-					"-Wnoexcept"
-					"-Wregister"
-					"-Wstrict-null-sentinel"
-					"-Wold-style-cast"
-					"-Woverloaded-virtual"
+			  "-Wzero-as-null-pointer-constant"
+			  "-Wsubobject-linkage"
+			  "-Wdelete-incomplete"
+			  "-Wuseless-cast"
+			  "-Wctor-dtor-privacy"
+			  "-Wnoexcept"
+			  "-Wregister"
+			  "-Wstrict-null-sentinel"
+			  "-Wold-style-cast"
+			  "-Woverloaded-virtual"
 
-					## Suggestions
-					"-Wsuggest-override"
-					#"-Wsuggest-final-types"
-					#"-Wsuggest-final-methods"
-					#"-Wsuggest-attribute=pure"
-					#"-Wsuggest-attribute=const"
-					#"-Wsuggest-attribute=noreturn"
-					#"-Wsuggest-attribute=format"
+			  ## Lifetime
+			  "-Wlifetime"
 
-					## Guidelines from Scott Meyers’ Effective C++ series of books
-					"-Weffc++"
+			  ## Suggestions
+			  "-Wsuggest-override"
+			  #"-Wsuggest-final-types"
+			  #"-Wsuggest-final-methods"
+			  #"-Wsuggest-attribute=pure"
+			  #"-Wsuggest-attribute=const"
+			  #"-Wsuggest-attribute=noreturn"
+			  #"-Wsuggest-attribute=format"
 
-					## Special purpose
-					#"-Wsign-promo"
-					#"-Wtemplates"
-					#"-Wmultiple-inheritance"
-					#"-Wvirtual-inheritance"
-					#"-Wnamespaces"
+			  ## Guidelines from Scott Meyers’ Effective C++ series of books
+			  #"-Weffc++"
 
-					## Standard versions
-					#"-Wc++11-compat"
-					#"-Wc++14-compat"
-					#"-Wc++17-compat"
-					)
+			  ## Special purpose
+			  #"-Wsign-promo"
+			  #"-Wtemplates"
+			  #"-Wmultiple-inheritance"
+			  #"-Wvirtual-inheritance"
+			  #"-Wnamespaces"
+
+			  ## Standard versions
+			  #"-Wc++11-compat"
+			  #"-Wc++14-compat"
+			  #"-Wc++17-compat"
+			  )
 		endif()
 	endif()
 	foreach(flag IN ITEMS ${flags} ${c_flags} ${cxx_flags})
-		target_add_flag(${target} ${flag})
+		target_add_compiler_flag(${target} ${flag})
 	endforeach()
 endfunction()
 
@@ -667,11 +843,43 @@ function(setup_clang target)
 	has_item(option_no_warnings "no_warnings" ${options})
 	has_item(option_low_warnings "low_warnings" ${options})
 
+	# setup ccache
+	find_program(CCACHE_PROGRAM ccache)
+	if(NOT ${CCACHE_PROGRAM} STREQUAL CCACHE_PROGRAM-NOTFOUND)
+		message(STATUS "ccache found: ${CCACHE_PROGRAM}")
+		set_target_properties(${target} PROPERTIES C_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+		set_target_properties(${target} PROPERTIES CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+		message(STATUS "Enabled ccache on target ${target}")
+	endif()
+
+	# generates complete debugging information
+	target_add_compiler_flag(${target} "-g3" DEBUG RELWITHDEBINFO)
+
+	# set optimization
+	target_add_compiler_flag(${target} "-O0" DEBUG)
+	target_add_compiler_flag(${target} "-O2" RELWITHDEBINFO)
+	target_add_compiler_flag(${target} "-O3" RELEASE)
+
 	# statically link C runtime library to static_runtime targets
 	if(option_static_runtime)
-		target_add_flag(${target} "-static-libgcc")
-		target_add_flag(${target} "-static-libstdc++")
+		target_add_compiler_flag(${target} "-static-libgcc")
+		target_add_compiler_flag(${target} "-static-libstdc++")
 	endif()
+
+	# enable sanitizers
+	#target_add_linker_flag(${target} "-fsanitize=address" DEBUG RELWITHDEBINFO)
+	#target_add_linker_flag(${target} "-fsanitize=thread" DEBUG RELWITHDEBINFO)
+	#target_add_linker_flag(${target} "-fsanitize=memory" DEBUG RELWITHDEBINFO)
+	#target_add_linker_flag(${target} "-fsanitize=undefined" DEBUG RELWITHDEBINFO)
+	#target_add_linker_flag(${target} "-fsanitize=leak" DEBUG RELWITHDEBINFO)
+
+	# enable libstdc++ "debug" mode
+	# warning: changes the size of some standard class templates
+	# you cannot pass containers between translation units compiled
+	# with and without libstdc++ "debug" mode
+	#target_add_compile_definition(${target} _GLIBCXX_DEBUG DEBUG)
+	#target_add_compile_definition(${target} _GLIBCXX_DEBUG_PEDANTIC DEBUG)
+	#target_add_compile_definition(${target} _GLIBCXX_SANITIZE_VECTOR DEBUG)
 
 	# manage warnings
 	set(flags)
@@ -681,98 +889,105 @@ function(setup_clang target)
 		set(flags "-pedantic" "-Wall")
 	else()
 		set(flags
-				## Base flags:
-				"-pedantic"
-				"-Wall"
-				"-Wextra"
+		  ## Base flags:
+		  "-pedantic"
+		  "-pedantic-errors"
+		  "-Wall"
+		  "-Wextra"
 
-				## Extra flags:
-				"-Wbad-function-cast"
-				"-Wcomplex-component-init"
-				"-Wconditional-uninitialized"
-				"-Wcovered-switch-default"
-				"-Wcstring-format-directive"
-				"-Wdelete-non-virtual-dtor"
-				"-Wdeprecated"
-				"-Wdollar-in-identifier-extension"
-				"-Wdouble-promotion"
-				"-Wduplicate-enum"
-				"-Wduplicate-method-arg"
-				"-Wembedded-directive"
-				"-Wexpansion-to-defined"
-				"-Wextended-offsetof"
-				"-Wfloat-conversion"
-				"-Wfloat-equal"
-				"-Wfor-loop-analysis"
-				"-Wformat-pedantic"
-				"-Wgnu"
-				"-Wimplicit-fallthrough"
-				"-Winfinite-recursion"
-				"-Winvalid-or-nonexistent-directory"
-				"-Wkeyword-macro"
-				"-Wmain"
-				"-Wmethod-signatures"
-				"-Wmicrosoft"
-				"-Wmismatched-tags"
-				"-Wmissing-field-initializers"
-				"-Wmissing-method-return-type"
-				"-Wmissing-prototypes"
-				"-Wmissing-variable-declarations"
-				"-Wnested-anon-types"
-				"-Wnon-virtual-dtor"
-				"-Wnonportable-system-include-path"
-				"-Wnull-pointer-arithmetic"
-				"-Wnullability-extension"
-				"-Wold-style-cast"
-				"-Woverriding-method-mismatch"
-				"-Wpacked"
-				"-Wpedantic"
-				"-Wpessimizing-move"
-				"-Wredundant-move"
-				"-Wreserved-id-macro"
-				"-Wself-assign"
-				"-Wself-move"
-				"-Wsemicolon-before-method-body"
-				"-Wshadow"
-				"-Wshadow-field"
-				"-Wshadow-field-in-constructor"
-				"-Wshadow-uncaptured-local"
-				"-Wshift-sign-overflow"
-				"-Wshorten-64-to-32"
-				#"-Wsign-compare"
-				#"-Wsign-conversion"
-				"-Wsigned-enum-bitfield"
-				"-Wstatic-in-inline"
-				#"-Wstrict-prototypes"
-				#"-Wstring-conversion"
-				#"-Wswitch-enum"
-				"-Wtautological-compare"
-				"-Wtautological-overlap-compare"
-				"-Wthread-safety"
-				"-Wundefined-reinterpret-cast"
-				"-Wuninitialized"
-				#"-Wunknown-pragmas"
-				"-Wunreachable-code"
-				"-Wunreachable-code-aggressive"
-				#"-Wunused"
-				"-Wunused-const-variable"
-				"-Wunused-lambda-capture"
-				"-Wunused-local-typedef"
-				"-Wunused-parameter"
-				"-Wunused-private-field"
-				"-Wunused-template"
-				"-Wunused-variable"
-				"-Wused-but-marked-unused"
-				"-Wzero-as-null-pointer-constant"
-				"-Wzero-length-array"
+		  ## Extra flags:
+		  "-Wbad-function-cast"
+		  "-Wcomplex-component-init"
+		  "-Wconditional-uninitialized"
+		  "-Wcovered-switch-default"
+		  "-Wcstring-format-directive"
+		  "-Wdelete-non-virtual-dtor"
+		  "-Wdeprecated"
+		  "-Wdollar-in-identifier-extension"
+		  "-Wdouble-promotion"
+		  "-Wduplicate-enum"
+		  "-Wduplicate-method-arg"
+		  "-Wembedded-directive"
+		  "-Wexpansion-to-defined"
+		  "-Wextended-offsetof"
+		  "-Wfloat-conversion"
+		  "-Wfloat-equal"
+		  "-Wfor-loop-analysis"
+		  "-Wformat-pedantic"
+		  "-Wgnu"
+		  "-Wimplicit-fallthrough"
+		  "-Winfinite-recursion"
+		  "-Winvalid-or-nonexistent-directory"
+		  "-Wkeyword-macro"
+		  "-Wmain"
+		  "-Wmethod-signatures"
+		  "-Wmicrosoft"
+		  "-Wmismatched-tags"
+		  "-Wmissing-field-initializers"
+		  "-Wmissing-method-return-type"
+		  "-Wmissing-prototypes"
+		  "-Wmissing-variable-declarations"
+		  "-Wnested-anon-types"
+		  "-Wnon-virtual-dtor"
+		  "-Wnonportable-system-include-path"
+		  "-Wnull-pointer-arithmetic"
+		  "-Wnullability-extension"
+		  "-Wold-style-cast"
+		  "-Woverriding-method-mismatch"
+		  "-Wpacked"
+		  "-Wpedantic"
+		  "-Wpessimizing-move"
+		  "-Wredundant-move"
+		  "-Wreserved-id-macro"
+		  "-Wself-assign"
+		  "-Wself-move"
+		  "-Wsemicolon-before-method-body"
+		  "-Wshadow"
+		  "-Wshadow-field"
+		  "-Wshadow-field-in-constructor"
+		  "-Wshadow-uncaptured-local"
+		  "-Wshift-sign-overflow"
+		  "-Wshorten-64-to-32"
+		  #"-Wsign-compare"
+		  #"-Wsign-conversion"
+		  "-Wsigned-enum-bitfield"
+		  "-Wstatic-in-inline"
+		  #"-Wstrict-prototypes"
+		  #"-Wstring-conversion"
+		  #"-Wswitch-enum"
+		  "-Wtautological-compare"
+		  "-Wtautological-overlap-compare"
+		  "-Wthread-safety"
+		  "-Wundefined-reinterpret-cast"
+		  "-Wuninitialized"
+		  #"-Wunknown-pragmas"
+		  "-Wunreachable-code"
+		  "-Wunreachable-code-aggressive"
+		  #"-Wunused"
+		  "-Wunused-const-variable"
+		  "-Wunused-lambda-capture"
+		  "-Wunused-local-typedef"
+		  "-Wunused-parameter"
+		  "-Wunused-private-field"
+		  "-Wunused-template"
+		  "-Wunused-variable"
+		  "-Wused-but-marked-unused"
+		  "-Wzero-as-null-pointer-constant"
+		  "-Wzero-length-array"
 
-				## Info flags
-				"-Wcomma"
-				"-Wcomment"
-				)
+		  ## Lifetime
+		  "-Wlifetime"
+
+		  ## Info flags
+		  "-Wcomma"
+		  "-Wcomment"
+
+		  ## Exit on first error
+		  "-Wfatal-errors"
+		  )
 	endif()
 	foreach(flag ${flags})
-		target_add_flag(${target} ${flag})
+		target_add_compiler_flag(${target} ${flag})
 	endforeach()
 endfunction()
 
@@ -904,74 +1119,3 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/build/lib/)
 # enable IDE folders
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "_CMake")
-
-
-# global msvc configuration
-if(MSVC)
-	# enable parallel compilation
-	add_cx_flag("/MP")
-
-	# generates complete debugging information
-	add_cx_flag(${target} "/Zi" DEBUG RELWITHDEBINFO)
-	add_linker_flag("/DEBUG:FULL" DEBUG RELWITHDEBINFO)
-
-	# set optimization
-	add_cx_flag(${target} "/Od" DEBUG)
-	add_cx_flag(${target} "/O2" RELWITHDEBINFO)
-	add_cx_flag(${target} "/Ox" RELEASE)
-
-	# enables automatic parallelization of loops
-	add_cx_flag(${target} "/Qpar" RELEASE)
-
-	# enable runtime checks
-	add_cx_flag("/RTC1" DEBUG)
-
-	# disable incremental compilations
-	remove_linker_flag("/INCREMENTAL(:(YES|NO))?" RELEASE RELWITHDEBINFO)
-	add_linker_flag("/INCREMENTAL:NO" RELEASE RELWITHDEBINFO)
-
-	# remove unused symbols
-	add_linker_flag("/OPT:REF" RELEASE RELWITHDEBINFO)
-	add_linker_flag("/OPT:ICF" RELEASE RELWITHDEBINFO)
-
-	# disable manifests
-	remove_linker_flag("/MANIFESTUAC(:(YES|NO))?" RELEASE RELWITHDEBINFO)
-	remove_linker_flag("/MANIFEST(:(YES|NO))?" RELEASE RELWITHDEBINFO)
-	add_linker_flag("/MANIFEST:NO" RELEASE RELWITHDEBINFO)
-
-	# enable function-level linking
-	add_cx_flag("/Gy" RELEASE RELWITHDEBINFO)
-
-	# sets the Checksum in the .exe header
-	#add_linker_flag("/RELEASE" RELEASE RELWITHDEBINFO)
-
-	# disable runtime link flags (and add them back per target)
-	remove_cx_flag("/(MD|MT)d" DEBUG)
-	remove_cx_flag("/(MD|MT)" RELEASE RELWITHDEBINFO)
-
-	# disable warnings (and add them back per target)
-	remove_cx_flag("/W[0-9]")
-	remove_cx_flag("/W[0-9]" RELEASE RELWITHDEBINFO DEBUG)
-endif()
-
-# global gcc configuration
-# if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
-if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCCXX)
-	# generates complete debugging information
-	add_cx_flag(${target} "-g" DEBUG RELWITHDEBINFO)
-
-	# set optimization
-	add_cx_flag(${target} "-O0" DEBUG)
-	add_cx_flag(${target} "-O2" RELWITHDEBINFO)
-	add_cx_flag(${target} "-O3" RELEASE)
-
-	# enable sanitizers and statically link their associated library
-	#add_linker_flag("-fsanitize=address" DEBUG)
-	#add_linker_flag("-static-libasan" DEBUG)
-	#add_linker_flag("-fsanitize=thread" DEBUG)
-	#add_linker_flag("-static-libtsan" DEBUG)
-	#add_linker_flag("-fsanitize=leak" DEBUG)
-	#add_linker_flag("-static-liblsan" DEBUG)
-	#add_linker_flag("-fsanitize=undefined" DEBUG)
-	#add_linker_flag("-static-libubsan" DEBUG)
-endif()
