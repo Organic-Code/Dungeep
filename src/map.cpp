@@ -381,7 +381,7 @@ std::vector<dungeep::direction> map::path_to(const dungeep::point_i& source, con
 				continue;
 			}
 			if (m_tiles[static_cast<unsigned>(child.pos.x)][static_cast<unsigned>(child.pos.y)] != tiles::walkable) {
-				continue;
+				child.heur += 10000.f;
 			}
 
 			if (child.pos == destination) {
