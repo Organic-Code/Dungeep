@@ -7,6 +7,8 @@ find_package(Catch2 REQUIRED)
 
 include(Catch)
 
+include_directories(../include ../templates)
+
 set(TEST_SOURCES quadtree_test.cpp geometry_test.cpp)
 
 add_executable(dungeep_tests main.cpp ${COMMON_SOURCES_ABS} ${TEST_SOURCES})
