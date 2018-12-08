@@ -138,8 +138,11 @@ void map::generate_tiles(const zone_gen_properties& rp, map_area tiles_area, til
 	ar.height = tiles_area.height;
 	add_fuzziness(generated_room, rp, ar, tile, zone_fuzziness, random_engine);
 
-	for (auto i = std::max(array_shift - tiles_area.x, 0u) ; i < generated_room.size() && tiles_area.x + i < m_tiles.size() + array_shift ; ++i) {
-		for (auto j = std::max(array_shift - tiles_area.y, 0u) ; j < generated_room[i].size() && tiles_area.y + j < m_tiles[i].size() + array_shift; ++j) {
+	unsigned int min_i = array_shift > tiles_area.x ? array_shift - tiles_area.x : 0u;
+	unsigned int min_j = array_shift > tiles_area.y ? array_shift - tiles_area.y : 0u;
+
+	for (auto i = min_i ; i < generated_room.size() && tiles_area.x + i < m_tiles.size() + array_shift ; ++i) {
+		for (auto j = min_j ; j < generated_room[i].size() && tiles_area.y + j < m_tiles[i].size() + array_shift; ++j) {
 			if (generated_room[i][j] != tiles::none) {
 				m_tiles[i + tiles_area.x - array_shift][j + tiles_area.y - array_shift] = generated_room[i][j];
 			}
