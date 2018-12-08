@@ -15,7 +15,6 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include <map.hpp>
 #include <random>
 #include <algorithm>
 #include <iostream>
@@ -28,7 +27,7 @@ map::map(size_type size, const std::vector<room_gen_properties>& rooms_propertie
 	assert(size.width > 0);
 	assert(!rooms_properties.empty());
 
-	std::vector<dungeep::uis_point> rooms_center;
+	std::vector<dungeep::point_ui> rooms_center;
 	rooms_center.reserve(rooms_properties.size() * static_cast<unsigned long>(rooms_properties[0].avg_rooms_n));
 
 	for (const room_gen_properties& rp : rooms_properties) {
@@ -43,12 +42,12 @@ map::map(size_type size, const std::vector<room_gen_properties>& rooms_propertie
 			);
 
 			holes_n -= static_cast<float>(hfr);
-			dungeep::uis_point room = generate_holed_room(rp, hfr, random_engine);
+			dungeep::point_ui room = generate_holed_room(rp, hfr, random_engine);
 			if (room.x != 0 && room.y != 0) {
 				rooms_center.push_back(room);
 			}
 		}
-		dungeep::uis_point room = generate_holed_room(rp, static_cast<unsigned int>(holes_n), random_engine);
+		dungeep::point_ui room = generate_holed_room(rp, static_cast<unsigned int>(holes_n), random_engine);
 		if (room.x != 0 && room.y != 0) {
 			rooms_center.push_back(room);
 		}
@@ -57,10 +56,10 @@ map::map(size_type size, const std::vector<room_gen_properties>& rooms_propertie
 	ensure_pathing(rooms_center);
 }
 
-void map::ensure_pathing(const std::vector<dungeep::uis_point>& rooms_center) {
-	using dungeep::uis_point;
-	for (const uis_point& room_1 : rooms_center) {
-		for (const uis_point& room_2 : rooms_center) {
+void map::ensure_pathing(const std::vector<dungeep::point_ui>& rooms_center) {
+	using dungeep::point_ui;
+	for (const point_ui& room_1 : rooms_center) {
+		for (const point_ui& room_2 : rooms_center) {
 			if (&room_1 == &room_2) {
 				continue;
 			}
@@ -69,16 +68,16 @@ void map::ensure_pathing(const std::vector<dungeep::uis_point>& rooms_center) {
 	}
 }
 
-void map::ensure_tworoom_path(const dungeep::uis_point& /*r1_center*/, const dungeep::uis_point& /*r2_center*/) {
+void map::ensure_tworoom_path(const dungeep::point_ui& /*r1_center*/, const dungeep::point_ui& /*r2_center*/) {
 
 }
 
-dungeep::uis_point map::generate_holed_room(const room_gen_properties& rp, unsigned int hole_count, std::mt19937_64& random_engine) {
+dungeep::point_ui map::generate_holed_room(const room_gen_properties& rp, unsigned int hole_count, std::mt19937_64& random_engine) {
 
 	bool failed;
 	int fail_count = 0;
 
-	dungeep::uis_point room_dim{}, room_pos{};
+	dungeep::point_ui room_dim{}, room_pos{};
 
 	do {
 		failed = false;
@@ -99,8 +98,8 @@ dungeep::uis_point map::generate_holed_room(const room_gen_properties& rp, unsig
 	for (auto i = 0u ; i < hole_count ; ++i) {
 		fail_count = 0;
 		do {
-			dungeep::uis_point hole_dim = generate_zone_dimensions(rp.holes_properties, random_engine);
-			dungeep::uis_point hole_pos = find_zone_filled_with(hole_dim, tiles::walkable, random_engine, room_area);
+			dungeep::point_ui hole_dim = generate_zone_dimensions(rp.holes_properties, random_engine);
+			dungeep::point_ui hole_pos = find_zone_filled_with(hole_dim, tiles::walkable, random_engine, room_area);
 			if (hole_pos.x == 0 && hole_pos.y == 0) {
 				++fail_count;
 				failed = true;
@@ -210,8 +209,8 @@ void map::add_fuzziness(std::vector<std::vector<tiles>>& generated_room, const z
 
 }
 
-dungeep::uis_point
-map::find_zone_filled_with(dungeep::uis_point zone_dim, tiles tile, std::mt19937_64& random_engine, map_area area) const noexcept {
+dungeep::point_ui
+map::find_zone_filled_with(dungeep::point_ui zone_dim, tiles tile, std::mt19937_64& random_engine, map_area area) const noexcept {
 	assert(zone_dim.x < area.width);
 	assert(zone_dim.y < area.height);
 	assert(area.x + area.width  < size().width);
@@ -220,7 +219,7 @@ map::find_zone_filled_with(dungeep::uis_point zone_dim, tiles tile, std::mt19937
 	std::uniform_int_distribution<unsigned int> uid_x(area.x, area.x + area.width);
 	std::uniform_int_distribution<unsigned int> uid_y(area.y, area.y + area.height);
 
-	auto is_good_spot = [this, &tile, &zone_dim, &area](dungeep::uis_point spot){
+	auto is_good_spot = [this, &tile, &zone_dim, &area](dungeep::point_ui spot){
 		if (spot.x < area.x || spot.y < area.y) {
 			return false;
 		}
@@ -238,7 +237,7 @@ map::find_zone_filled_with(dungeep::uis_point zone_dim, tiles tile, std::mt19937
 		return true;
 	};
 
-	dungeep::uis_point ans{};
+	dungeep::point_ui ans{};
 
 	int fail_count = 0;
 	do {
@@ -259,7 +258,7 @@ float map::gen_positive(float avg, float dev, std::mt19937_64& engine) {
 	return nbr > 0 ? nbr : 0.f;
 }
 
-dungeep::uis_point map::generate_zone_dimensions(const zone_gen_properties& zgp, std::mt19937_64& random_engine) {
+dungeep::point_ui map::generate_zone_dimensions(const zone_gen_properties& zgp, std::mt19937_64& random_engine) {
 
 	auto min_size = zgp.min_height;
 	min_size *= min_size;
@@ -269,7 +268,7 @@ dungeep::uis_point map::generate_zone_dimensions(const zone_gen_properties& zgp,
 	float room_size = std::clamp(gen_positive(zgp.avg_size, zgp.size_deviation, random_engine), static_cast<float>(min_size), static_cast<float>(max_size));
 
 	float avg_room_dim = static_cast<float>(zgp.max_height + zgp.min_height) / 2.f;
-	dungeep::uis_point room_dim{};
+	dungeep::point_ui room_dim{};
 	room_dim.x = std::clamp(static_cast<unsigned int>(gen_positive(avg_room_dim, 0.4f * avg_room_dim, random_engine)), zgp.min_height, zgp.max_height);
 	room_dim.y = static_cast<unsigned int>(room_size / static_cast<float>(room_dim.x));
 

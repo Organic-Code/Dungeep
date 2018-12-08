@@ -21,7 +21,9 @@
 #include <quadtree.hpp>
 #include <geometry.hpp>
 
-using namespace dungeep;
+using area = dungeep::area<float>;
+using point = dungeep::point<float>;
+using dungeep::quadtree;
 
 namespace {
 

@@ -794,17 +794,17 @@ auto quadtree<T, Dynamicity, Container>::children::split_from_indexed_dir(const 
 			return {top_left, center};
 
 		case dirs_struct::dirs_enum::top_right:
-			return {{center.x, top_left.y}, {bot_right.x, center.y}};
+			return {point{center.x, top_left.y}, point{bot_right.x, center.y}};
 
 		case dirs_struct::dirs_enum::bot_right:
-			return {{center}, {bot_right}};
+			return {center, bot_right};
 
 		case dirs_struct::dirs_enum::bot_left:
-			return {{top_left.x, center.x}, {center.x, bot_right.y}};
+			return {point{top_left.x, center.x}, point{center.x, bot_right.y}};
 
 		default:
 			assert(false);
-			return {{},{}};
+			return {};
 	}
 }
 }

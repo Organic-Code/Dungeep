@@ -25,48 +25,77 @@ struct area;
 
 template <typename T>
 struct point {
+
+	static_assert(std::is_fundamental_v<T>);
+
+	constexpr point() noexcept : x(0), y(0) {}
+	constexpr point(T x_, T y_) noexcept : x(x_), y(y_) {}
+
 	T x, y;
 
-	point operator+(const point& p) const noexcept;
+	constexpr point operator+(const point& p) const noexcept;
 
-	point& operator+=(const point& p) noexcept;
+	constexpr point& operator+=(const point& p) noexcept;
 
-	point operator-(const point& p) const noexcept;
+	constexpr point operator-(const point& p) const noexcept;
 
-	point& operator-=(const point& p) noexcept;
+	constexpr point& operator-=(const point& p) noexcept;
 
-	point operator/(float val) const noexcept;
+	constexpr point operator/(float val) const noexcept;
 
-	point& operator/=(float val) noexcept;
+	constexpr point& operator/=(float val) noexcept;
 
-	point operator*(float val) const noexcept;
+	constexpr point operator*(float val) const noexcept;
 
-	point& operator*=(float val) noexcept;
+	constexpr point& operator*=(float val) noexcept;
 
-	bool is_in(const area<T>&) const noexcept;
+	constexpr bool is_in(const area<T>&) const noexcept;
 
 	T length() const noexcept;
 
 };
-using uis_point = point<unsigned int>;
 
 template <typename T>
 struct area {
+
+	constexpr area() noexcept : top_left(), bot_right() {}
+	constexpr area(const point<T>& tl, const point<T>& br) noexcept : top_left(tl), bot_right(br) {}
+
 	point<T> top_left; // smallest x & y
 	point<T> bot_right; // greatest x & y
 
-	T width() const noexcept;
+	constexpr T width() const noexcept;
 
-	T height() const noexcept;
+	constexpr T height() const noexcept;
 
-	T size() const noexcept;
+	constexpr T size() const noexcept;
 
-	bool contains(const area& other) const noexcept;
+	constexpr bool contains(const area& other) const noexcept;
 
-	bool collides_with(const area& other) const noexcept;
+	constexpr bool is_in(const area& other) const noexcept;
 
-	void assert_well_formed() const noexcept;
+	constexpr bool collides_with(const area& other) const noexcept;
+
+	constexpr void assert_well_formed() const noexcept;
 };
+
+enum class direction {
+	top,
+	bot,
+	left,
+	right,
+	top_left,
+	top_right,
+	bot_left,
+	bot_right,
+	none
+};
+
+using point_ui = point<unsigned int>;
+using area_ui = area<unsigned int>;
+
+using point_f = point<float>;
+using area_f = area<float>;
 }
 
 #include "geometry.tpp"
