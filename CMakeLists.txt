@@ -19,7 +19,7 @@ foreach(source ${COMMON_SOURCES})
 endforeach()
 
 make_target(
-  dungeep "dungeep" ${COMMON_SOURCES} main.cpp
+  dungeep "dungeep" ${COMMON_SOURCES} main.cpp src/map_tester.cpp
   INCLUDES
     "${root_dir}/include"
     "${root_dir}/templates"
