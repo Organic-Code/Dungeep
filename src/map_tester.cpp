@@ -27,9 +27,9 @@ map_tester::map_tester() noexcept
   , m_texture()
   , m_from_pos()
   , wall_color(sf::Color::Blue)
-  , empty_space_color(sf::Color::Cyan)
-  , hole_color(sf::Color::Black)
-  , walkable_color(sf::Color::Green)
+  , empty_space_color(sf::Color::Black)
+  , hole_color(sf::Color(122,122,122))
+  , walkable_color(sf::Color(107,77,61))
   , none_color(sf::Color::Red)
 {
 	m_gen_properties.push_back(DEFAULT_GEN_PROPERTIES);

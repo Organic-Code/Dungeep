@@ -99,7 +99,7 @@ private:
 		current_ = std::advance(qt_->values_.begin(), qt_->values_.size() - 1);
 	}
 
-	using pair_type = std::pair<signed char, iterator_type<QuadTree, Value, SubIterator>>;
+	using pair_type = std::pair<unsigned, iterator_type<QuadTree, Value, SubIterator>>;
 	std::unique_ptr<pair_type> init_child() {
 		if (qt_->children_) {
 			return std::make_unique<pair_type>(1, (*qt_->children_)[0].begin());
