@@ -20,7 +20,7 @@ public:
 
 	void showConfigWindow();
 
-	void showViewerWindow() const;
+	void showViewerWindow();
 
 	void showViewerConfigWindow();
 
@@ -40,6 +40,7 @@ private:
 
 	sf::Image m_image;
 	sf::Texture m_texture;
+	dungeep::point_i m_from_pos;
 
 	sf::Color wall_color;
 	sf::Color empty_space_color;

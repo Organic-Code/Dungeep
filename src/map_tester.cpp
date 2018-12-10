@@ -24,6 +24,8 @@ map_tester::map_tester() noexcept
   , m_map_size{200, 100}
   , m_map(nullptr)
   , m_image()
+  , m_texture()
+  , m_from_pos()
   , wall_color(sf::Color::Blue)
   , empty_space_color(sf::Color::Cyan)
   , hole_color(sf::Color::Black)
@@ -122,7 +124,7 @@ void map_tester::showConfigWindow()
 	ImGui::End();
 }
 
-void map_tester::showViewerWindow() const
+void map_tester::showViewerWindow()
 {
 	ImGui::Begin(VIEWER_WINDOW_NAME.data());
 	ImVec2 base_size(static_cast<float>(m_texture.getSize().x),
@@ -132,22 +134,38 @@ void map_tester::showViewerWindow() const
 	ImGui::Image(m_texture, displayed_size);
 	if(ImGui::IsItemHovered())
 	{
-		ImVec2 pos = ImGui::GetCursorScreenPos();
+		ImVec2 cursor_pos = ImGui::GetCursorScreenPos();
 		ImGuiIO& io = ImGui::GetIO();
 		ImGui::BeginTooltip();
-		int pos_x = static_cast<int>((io.MousePos.x - pos.x) * base_size.x / displayed_size.x);
-		if(pos_x < 0.0f)
+		dungeep::point_i pos;
+		pos.x = static_cast<int>((io.MousePos.x - cursor_pos.x) * base_size.x / displayed_size.x);
+		if(pos.x < 0)
 		{
-			pos_x = 0;
+			pos.x = 0;
 		}
-		int pos_y =
-		  static_cast<int>(base_size.y + (io.MousePos.y - pos.y) * base_size.y / displayed_size.y);
-		if(pos_y < 0.0f)
+		pos.y = static_cast<int>(base_size.y
+		                         + (io.MousePos.y - cursor_pos.y) * base_size.y / displayed_size.y);
+		if(pos.y < 0.)
 		{
-			pos_y = 0;
+			pos.y = 0;
 		}
-		ImGui::Text("(%d, %d)", pos_x, pos_y);
+		ImGui::Text("From: (%d, %d)\nTo: (%d, %d)", m_from_pos.x, m_from_pos.y, pos.x, pos.y);
 		ImGui::EndTooltip();
+
+		if(ImGui::IsMouseClicked(0))
+		{
+			m_from_pos = pos;
+		}
+		if(ImGui::IsMouseClicked(1))
+		{
+			std::vector<dungeep::point_i> path = m_map->path_to_pt(m_from_pos, pos);
+			for(const dungeep::point_i& pt: path)
+			{
+				m_image.setPixel(
+				  static_cast<unsigned int>(pt.x), static_cast<unsigned int>(pt.y), none_color);
+			}
+			m_texture.loadFromImage(m_image);
+		}
 	}
 	ImGui::End();
 }
