@@ -125,11 +125,30 @@ void map_tester::showConfigWindow()
 void map_tester::showViewerWindow() const
 {
 	ImGui::Begin(VIEWER_WINDOW_NAME.data());
-	ImGui::Image(
-	  m_texture,
-	  {ImGui::GetWindowContentRegionWidth(),
-	   static_cast<float>(m_texture.getSize().y) / static_cast<float>(m_texture.getSize().x)
-	     * ImGui::GetWindowContentRegionWidth()});
+	ImVec2 base_size(static_cast<float>(m_texture.getSize().x),
+	                 static_cast<float>(m_texture.getSize().y));
+	ImVec2 displayed_size(ImGui::GetWindowContentRegionWidth(),
+	                      base_size.y / base_size.x * ImGui::GetWindowContentRegionWidth());
+	ImGui::Image(m_texture, displayed_size);
+	if(ImGui::IsItemHovered())
+	{
+		ImVec2 pos = ImGui::GetCursorScreenPos();
+		ImGuiIO& io = ImGui::GetIO();
+		ImGui::BeginTooltip();
+		int pos_x = static_cast<int>((io.MousePos.x - pos.x) * base_size.x / displayed_size.x);
+		if(pos_x < 0.0f)
+		{
+			pos_x = 0;
+		}
+		int pos_y =
+		  static_cast<int>(base_size.y + (io.MousePos.y - pos.y) * base_size.y / displayed_size.y);
+		if(pos_y < 0.0f)
+		{
+			pos_y = 0;
+		}
+		ImGui::Text("(%d, %d)", pos_x, pos_y);
+		ImGui::EndTooltip();
+	}
 	ImGui::End();
 }
 
