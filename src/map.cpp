@@ -20,23 +20,41 @@
 #include <iostream>
 #include <unordered_set>
 #include <set>
+#include <map.hpp>
+#include <chrono>
+#include <quadtree.hpp>
+
 
 #include "map.hpp"
 
-map::map(size_type size, const std::vector<room_gen_properties>& rooms_properties, std::mt19937_64& random_engine)
-	: m_tiles{size.width, std::vector<tiles>{size.height, tiles::empty_space}}
-{
+void map::generate(size_type size, const std::vector<room_gen_properties>& rooms_properties, const hallway_gen_properties& hgp, unsigned long seed) {
+	using std::chrono::duration_cast;
+	using std::chrono::system_clock;
+	using std::chrono::milliseconds;
+
+	std::mt19937_64 random_engine(seed);
+
+	fuzzy_generation_time = milliseconds{0};
+	expected_hole_count = expected_room_count = actual_hole_count = actual_room_count = 0;
+
+	auto starting_tp = system_clock::now();
+
+	m_tiles = {size.width, std::vector<tiles>{size.height, tiles::empty_space}};
 	assert(size.width > 0);
 	assert(!rooms_properties.empty());
 
 	std::vector<dungeep::point_ui> rooms_center;
 	rooms_center.reserve(rooms_properties.size() * static_cast<unsigned long>(rooms_properties[0].avg_rooms_n));
 
+	auto room_starting_tp = system_clock::now();
 	for (const room_gen_properties& rp : rooms_properties) {
 		auto rooms_n = gen_positive(rp.avg_rooms_n, rp.rooms_n_dev, random_engine);
 		auto holes_n = gen_positive(rp.avg_holes_n, rp.holes_n_dev, random_engine);
 
-		for (auto i = 0u ; i < static_cast<unsigned>(rooms_n - 1.f) ; ++i) {
+		expected_room_count += static_cast<unsigned>(rooms_n);
+		expected_hole_count += static_cast<unsigned>(holes_n);
+
+		for (auto i = 0 ; static_cast<float>(i) < (rooms_n - 0.3f) ; ++i) {
 
 			unsigned int hfr = std::min(
 					static_cast<unsigned int>(holes_n),
@@ -46,32 +64,161 @@ map::map(size_type size, const std::vector<room_gen_properties>& rooms_propertie
 			holes_n -= static_cast<float>(hfr);
 			dungeep::point_ui room = generate_holed_room(rp, hfr, random_engine);
 			if (room.x != 0 && room.y != 0) {
+				++actual_room_count;
 				rooms_center.push_back(room);
 			}
 		}
 		dungeep::point_ui room = generate_holed_room(rp, static_cast<unsigned int>(holes_n), random_engine);
 		if (room.x != 0 && room.y != 0) {
+			++actual_room_count;
 			rooms_center.push_back(room);
 		}
 	}
+	rooms_generation_time = duration_cast<milliseconds>(system_clock::now() - room_starting_tp);
 
-	ensure_pathing(rooms_center);
+	auto halls_tp = system_clock::now();
+	ensure_pathing(rooms_center, hgp, random_engine);
+	halls_generation_time = duration_cast<milliseconds>(system_clock::now() - halls_tp);
+
+	total_generation_time = duration_cast<milliseconds>(system_clock::now() - starting_tp);
 }
 
-void map::ensure_pathing(const std::vector<dungeep::point_ui>& rooms_center) {
-	using dungeep::point_ui;
-	for (const point_ui& room_1 : rooms_center) {
-		for (const point_ui& room_2 : rooms_center) {
-			if (&room_1 == &room_2) {
-				continue;
+void map::ensure_pathing(const std::vector<dungeep::point_ui>& rooms_center, const hallway_gen_properties& properties, std::mt19937_64& re) {
+
+	struct collider {
+		const dungeep::area_f& hitbox() const {
+			return hitbox_;
+		}
+
+		dungeep::area_f hitbox_;
+		dungeep::point_ui room_center;
+	};
+	dungeep::quadtree<collider> qt(
+			dungeep::area_f{
+					dungeep::point_f{0.f, 0.f},
+					dungeep::point_f{static_cast<float>(size().width), static_cast<float>(size().height)}
 			}
-			ensure_tworoom_path(room_1, room_2);
+	);
+
+	float avg_distance = 0.f;
+	std::vector<float> distances;
+	distances.reserve(rooms_center.size() * (rooms_center.size() - 1));
+	for (const dungeep::point_ui& center_1 : rooms_center) {
+		for (const dungeep::point_ui& center_2 : rooms_center) {
+			float distance = (dungeep::point_i{center_1} - dungeep::point_i{center_2}).length<float>();
+			avg_distance += distance;
+			distances.push_back(distance);
+		}
+
+		auto x = static_cast<float>(center_1.x);
+		auto y = static_cast<float>(center_1.y);
+		dungeep::area_f htbox{
+			dungeep::point_f{x - 1.f, y - 1.f},
+			dungeep::point_f{x + 1.f, y + 1.f}
+		};
+		qt.insert({htbox, center_1});
+	}
+
+	avg_distance /= static_cast<float>(rooms_center.size() * rooms_center.size());
+	std::sort(distances.begin(), distances.end());
+
+	float selected_distance = std::max(distances[distances.size() / 8], avg_distance / 2.f);
+	for (const dungeep::point_ui& room : rooms_center) {
+		auto x = static_cast<float>(room.x);
+		auto y = static_cast<float>(room.y);
+		dungeep::area_f htbox{
+				dungeep::point_f{x - selected_distance, y - selected_distance},
+				dungeep::point_f{x + selected_distance, y + selected_distance}
+		};
+
+		qt.visit(htbox, [this, &properties, &room, &re](dungeep::quadtree<collider>::iterator it) {
+			if (re() % 3) {
+				if (path_to(dungeep::point_i(room), dungeep::point_i(it->room_center), std::numeric_limits<float>::infinity()).empty()) {
+					ensure_tworoom_path(room, it->room_center, properties, re);
+				}
+			}
+		});
+	}
+
+	for (auto i = 0u ; i + 1 < rooms_center.size() ; ++i) {
+		if (path_to(dungeep::point_i(rooms_center[i]), dungeep::point_i(rooms_center[i + 1]), std::numeric_limits<float>::infinity()).empty()) {
+			ensure_tworoom_path(rooms_center[i], rooms_center[i + 1], properties, re);
 		}
 	}
+
 }
 
-void map::ensure_tworoom_path(const dungeep::point_ui& /*r1_center*/, const dungeep::point_ui& /*r2_center*/) {
+void map::ensure_tworoom_path(const dungeep::point_ui& r1_center, const dungeep::point_ui& r2_center, const hallway_gen_properties& properties, std::mt19937_64& re) {
+	using dungeep::point_i;
+	using dungeep::point_f;
 
+	auto place_point = [this](const point_i& point, int width) {
+		auto valid_x = [this](int idx) {
+			return idx > 0 && idx < static_cast<int>(m_tiles.size());
+		};
+		auto valid_y = [this](int idx) {
+			return idx > 0 && idx < static_cast<int>(m_tiles.front().size());
+		};
+		if (valid_x(point.x) && valid_y(point.y)) {
+			m_tiles[static_cast<unsigned>(point.x)][static_cast<unsigned>(point.y)] = tiles::walkable;
+		}
+		for (int i = width / -2 ; i < (width + 1) / 2 ; ++i) {
+			if (valid_y(point.y)) {
+				if (valid_x(point.x + i)) {
+					m_tiles[static_cast<unsigned>(point.x + i)][static_cast<unsigned>(point.y)] = tiles::walkable;
+				}
+				if (valid_x(point.x - i)) {
+					m_tiles[static_cast<unsigned>(point.x - i)][static_cast<unsigned>(point.y)] = tiles::walkable;
+				}
+			}
+			if (valid_x(point.x)) {
+				if (valid_y(point.y + i)) {
+					m_tiles[static_cast<unsigned>(point.x)][static_cast<unsigned>(point.y + i)] = tiles::walkable;
+				}
+				if (valid_y(point.y - i)) {
+					m_tiles[static_cast<unsigned>(point.x)][static_cast<unsigned>(point.y - i)] = tiles::walkable;
+				}
+			}
+		}
+	};
+
+	point_i dep{r1_center};
+	point_i arr{r2_center};
+
+	std::vector<dungeep::point_i> stop_offs;
+	stop_offs.push_back(dep);
+
+	if ((dep - arr).length<float>() >= properties.curly_min_distance) {
+		std::normal_distribution curliness(0.f, std::max(properties.curliness, 0.001f));
+		std::normal_distribution curly_size(properties.curly_segment_avg_size, std::max(properties.curly_segment_size_dev, 0.001f));
+		do {
+			point_i translate = arr - stop_offs.back();
+			float segment_size = std::max(curly_size(re), properties.curly_min_distance);
+			float segment_angle = curliness(re) * static_cast<float>(M_PI) / 4;
+
+			translate.rotate(segment_angle);
+			translate.scale_to(segment_size);
+
+			stop_offs.push_back(translate + stop_offs.back());
+
+		} while ((stop_offs.back() - arr).length<float>() >= properties.curly_min_distance);
+	}
+
+	stop_offs.push_back(arr);
+
+	std::normal_distribution width(properties.avg_width, std::max(properties.width_dev, 0.001f));
+	auto w = static_cast<int>(std::clamp(static_cast<unsigned int>(width(re)), properties.min_width, properties.max_width));
+	for (auto i = 0u ; i + 1 < stop_offs.size() ; ++i) {
+		point_i start = stop_offs[i];
+		point_i end = stop_offs[i + 1];
+		point_f translate(end - start);
+		auto segment_length = translate.length();
+		translate.scale_to(1.f);
+		for (auto j = 0u ; j < static_cast<unsigned>(segment_length + 0.9f) ; ++j) {
+			point_i current = point_i(point_f(stop_offs[i]) + static_cast<float>(j) * translate);
+			place_point(current, w);
+		}
+	}
 }
 
 dungeep::point_ui map::generate_holed_room(const room_gen_properties& rp, unsigned int hole_count, std::mt19937_64& random_engine) {
@@ -107,16 +254,19 @@ dungeep::point_ui map::generate_holed_room(const room_gen_properties& rp, unsign
 				failed = true;
 			} else {
 				generate_tiles(rp.holes_properties, {hole_pos.x, hole_pos.y, hole_dim.x, hole_dim.y}, tiles::hole, random_engine);
+				++actual_hole_count;
 				failed = false;
 			}
 		} while (failed && fail_count < 10);
 	}
 
+	room_pos.x += room_dim.x / 2;
+	room_pos.y += room_dim.y / 2;
 	return room_pos;
 }
 
 void map::generate_tiles(const zone_gen_properties& rp, map_area tiles_area, tiles tile, std::mt19937_64& random_engine) {
-	std::normal_distribution zone_fuzziness(0.f, rp.borders_fuzzy_deviation);
+	std::normal_distribution zone_fuzziness(0.f, std::max(rp.borders_fuzzy_deviation, 0.001f));
 
 	auto array_shift = static_cast<unsigned int>(rp.borders_fuzzinness + rp.borders_fuzzy_deviation * 4) * 2;
 	std::vector<std::vector<tiles>> generated_room{
@@ -137,7 +287,10 @@ void map::generate_tiles(const zone_gen_properties& rp, map_area tiles_area, til
 	ar.x = ar.y = array_shift;
 	ar.width = tiles_area.width;
 	ar.height = tiles_area.height;
+
+	auto tp = std::chrono::system_clock::now();
 	add_fuzziness(generated_room, rp, ar, tile, zone_fuzziness, random_engine);
+	fuzzy_generation_time += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - tp);
 
 	unsigned int min_i = array_shift > tiles_area.x ? array_shift - tiles_area.x : 0u;
 	unsigned int min_j = array_shift > tiles_area.y ? array_shift - tiles_area.y : 0u;
@@ -255,7 +408,7 @@ map::find_zone_filled_with(dungeep::point_ui zone_dim, tiles tile, std::mt19937_
 }
 
 float map::gen_positive(float avg, float dev, std::mt19937_64& engine) {
-	std::normal_distribution dist{avg, dev};
+	std::normal_distribution dist{avg, std::max(dev, 0.001f)};
 	float nbr = dist(engine);
 	return nbr > 0 ? nbr : 0.f;
 }
@@ -277,34 +430,7 @@ dungeep::point_ui map::generate_zone_dimensions(const zone_gen_properties& zgp, 
 	return room_dim;
 }
 
-std::ostream& operator<<(std::ostream& o, const map& m) {
-	auto size = m.size();
-	for (auto i = 0u ; i < size.height ; ++i) {
-		for (auto j = 0u ; j < size.width ; ++j) {
-			switch (m[j][i]) {
-				case tiles::wall:
-					o << '#';
-					break;
-				case tiles::empty_space:
-					o << '\'';
-					break;
-				case tiles::hole:
-					o << 'O';
-					break;
-				case tiles::walkable:
-					o << ' ';
-					break;
-				case tiles::none:
-					o << '*';
-					break;
-			}
-		}
-		o << '\n';
-	}
-	return o;
-}
-
-std::vector<dungeep::direction> map::path_to(const dungeep::point_i& source, const dungeep::point_i& destination) const {
+std::vector<dungeep::direction> map::path_to(const dungeep::point_i& source, const dungeep::point_i& destination, float wall_crossing_penalty) const {
 	using dungeep::point_i;
 	using dungeep::direction;
 
@@ -380,14 +506,19 @@ std::vector<dungeep::direction> map::path_to(const dungeep::point_i& source, con
 			if (child.pos.x < 0 || child.pos.y < 0) {
 				continue;
 			}
-			if (m_tiles[static_cast<unsigned>(child.pos.x)][static_cast<unsigned>(child.pos.y)] != tiles::walkable) {
-				child.heur += 10000.f;
-			}
 
 			if (child.pos == destination) {
 				ending_node = child;
 				break;
 			}
+
+			if (m_tiles[static_cast<unsigned>(child.pos.x)][static_cast<unsigned>(child.pos.y)] != tiles::walkable) {
+				if (std::isinf(wall_crossing_penalty) && !std::signbit(wall_crossing_penalty)) {
+					continue;
+				}
+				child.heur += wall_crossing_penalty;
+			}
+
 			{
 				auto it = std::find(open_list.begin(), open_list.end(), child);
 				if (it != open_list.end()) {
@@ -426,8 +557,8 @@ std::vector<dungeep::direction> map::path_to(const dungeep::point_i& source, con
 }
 
 std::vector<dungeep::point_i>
-map::path_to_pt(const dungeep::point_i& source, const dungeep::point_i& destination) const {
-	std::vector<dungeep::direction> dirs = path_to(source, destination);
+map::path_to_pt(const dungeep::point_i& source, const dungeep::point_i& destination, float wall_crossing_penalty) const {
+	std::vector<dungeep::direction> dirs = path_to(source, destination, wall_crossing_penalty);
 	std::vector<dungeep::point_i> poss;
 	poss.reserve(dirs.size() + 1);
 	poss.push_back(source);

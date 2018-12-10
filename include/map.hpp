@@ -21,6 +21,7 @@
 #include <iosfwd>
 #include <vector>
 #include <random>
+#include <chrono>
 #include "tiles.hpp"
 #include "geometry.hpp"
 
@@ -48,6 +49,18 @@ struct room_gen_properties {
 	float holes_n_dev;
 };
 
+struct hallway_gen_properties {
+	float curliness;
+	float curly_min_distance;
+	float curly_segment_avg_size;
+	float curly_segment_size_dev;
+
+	float avg_width;
+	float width_dev;
+	unsigned int min_width;
+	unsigned int max_width;
+};
+
 class map {
 
 public:
@@ -56,9 +69,12 @@ public:
 		unsigned int width, height;
 	};
 
-	map(size_type size
-		, const std::vector<room_gen_properties>& rooms_properties
-		, std::mt19937_64& random_engine);
+	map() = default;
+
+	void generate(size_type size
+			, const std::vector<room_gen_properties>& rooms_properties
+			, const hallway_gen_properties& hallway_properties
+			, unsigned long seed);
 
 	std::vector<tiles>& operator[](std::vector<tiles>::size_type sz) {
 		return m_tiles[sz];
@@ -73,9 +89,9 @@ public:
 		        static_cast<unsigned int>(m_tiles.front().size())};
 	}
 
-	std::vector<dungeep::direction> path_to(const dungeep::point_i& source, const dungeep::point_i& destination) const;
+	std::vector<dungeep::direction> path_to(const dungeep::point_i& source, const dungeep::point_i& destination, float wall_crossing_penalty = 75.f) const;
 
-	std::vector<dungeep::point_i> path_to_pt(const dungeep::point_i& source, const dungeep::point_i& destination) const;
+	std::vector<dungeep::point_i> path_to_pt(const dungeep::point_i& source, const dungeep::point_i& destination, float wall_crossing_penalty = 75.f) const;
 
 
 
@@ -92,9 +108,9 @@ private:
 
 	static float gen_positive(float avg, float dev, std::mt19937_64& engine);
 
-	void ensure_pathing(const std::vector<dungeep::point_ui>& rooms_center);
+	void ensure_pathing(const std::vector<dungeep::point_ui>& rooms_center, const hallway_gen_properties&, std::mt19937_64& re);
 
-	void ensure_tworoom_path(const dungeep::point_ui& r1_center, const dungeep::point_ui& r2_center);
+	void ensure_tworoom_path(const dungeep::point_ui& r1_center, const dungeep::point_ui& r2_center, const hallway_gen_properties&, std::mt19937_64&);
 
 	dungeep::point_ui generate_holed_room(const room_gen_properties& rp, unsigned int hole_count, std::mt19937_64& random_engine);
 
@@ -112,10 +128,19 @@ private:
 	dungeep::point_ui find_zone_filled_with(dungeep::point_ui zone_dim, tiles tile, std::mt19937_64& random_engine,
 	                                                     map_area sub_area) const noexcept;
 
-	std::vector<std::vector<tiles>> m_tiles;
+	std::vector<std::vector<tiles>> m_tiles{};
 
+public:
+	// debug infos:
+	std::chrono::milliseconds total_generation_time{};
+	std::chrono::milliseconds fuzzy_generation_time{};
+	std::chrono::milliseconds rooms_generation_time{};
+	std::chrono::milliseconds halls_generation_time{};
 
-	friend std::ostream& operator<<(std::ostream&, const map&);
+	unsigned int expected_room_count{};
+	unsigned int expected_hole_count{};
+	unsigned int actual_room_count{};
+	unsigned int actual_hole_count{};
 };
 
 

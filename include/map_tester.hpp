@@ -33,10 +33,11 @@ private:
 
 	bool showColorConfig(std::string_view label, sf::Color& color);
 
-	std::mt19937_64 m_mt;
+	unsigned long m_seed;
 	std::vector<room_gen_properties> m_gen_properties;
+	hallway_gen_properties m_hall_properities;
 	map::size_type m_map_size;
-	std::unique_ptr<map> m_map;
+	map m_map;
 
 	sf::Image m_image;
 	sf::Texture m_texture;

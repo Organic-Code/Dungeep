@@ -33,8 +33,8 @@ namespace dungeep {
 		dynamic_children,  // children are created when needed, deleted when unneeded
 	};
 
-	// T should have a noexcept '.hitbox()' method returning an area.
-	// T should have a '.set_hitbox(area)' method.
+	// T should have a noexcept '.hitbox()' method returning an area<float>.
+	// T should have a '.set_hitbox(area<float>)' method.
 	template <typename T, quadtree_dynamics Dynamicity = quadtree_dynamics::dynamic_children, template <typename...> typename Container = std::vector>
 	class quadtree {
 		template <typename, typename, typename>
@@ -170,7 +170,7 @@ namespace dungeep {
 		};
 
 		struct dirs_struct {
-			enum dirs_enum {
+			enum dirs_enum : unsigned {
 				top_left,
 				top_right,
 				bot_right,

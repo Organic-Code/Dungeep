@@ -10,19 +10,31 @@ namespace
 	constexpr std::string_view VIEWER_WINDOW_NAME = "Map viewer";
 	constexpr std::string_view CONFIG_WINDOW_NAME = "Map config";
 	constexpr std::string_view VIEWER_CONFIG_WINDOW_NAME = "Map viewer config";
-	constexpr room_gen_properties DEFAULT_GEN_PROPERTIES = {{100.f, 3.f, 2.f, 1.f, 4u, 5u, 20u},
+	constexpr room_gen_properties DEFAULT_ROOM_PROPERTIES = {{100.f, 3.f, 2.f, 1.f, 4u, 5u, 20u},
 	                                                        {20.f, 2.f, 1.f, 0.1f, 1u, 1u, 1u},
 	                                                        10.5f,
 	                                                        2.f,
 	                                                        2.2f,
 	                                                        0.5f};
+	constexpr hallway_gen_properties DEFAULT_HALL_PROPERTIES = {
+				0.5f,
+				4.f,
+				7.f,
+				1.f,
+
+				3.f,
+				1.f,
+				2u,
+				5u
+			};
 } // namespace
 
 map_tester::map_tester() noexcept
-  : m_mt(std::random_device()())
+  : m_seed()
   , m_gen_properties()
+  , m_hall_properities(DEFAULT_HALL_PROPERTIES)
   , m_map_size{200, 100}
-  , m_map(nullptr)
+  , m_map()
   , m_image()
   , m_texture()
   , m_from_pos()
@@ -32,7 +44,7 @@ map_tester::map_tester() noexcept
   , walkable_color(sf::Color(107,77,61))
   , none_color(sf::Color::Red)
 {
-	m_gen_properties.push_back(DEFAULT_GEN_PROPERTIES);
+	m_gen_properties.push_back(DEFAULT_ROOM_PROPERTIES);
 	updateMap();
 }
 
@@ -108,7 +120,7 @@ void map_tester::showConfigWindow()
 	                      static_cast<ImVec4>(ImColor::HSV(2.0f / 7.0f, 0.6f, 0.6f)));
 	if(ImGui::Button("+", ImVec2(ImGui::GetWindowContentRegionWidth(), 20)))
 	{
-		m_gen_properties.push_back(DEFAULT_GEN_PROPERTIES);
+		m_gen_properties.push_back(DEFAULT_ROOM_PROPERTIES);
 	}
 	ImGui::PopStyleColor();
 
@@ -158,7 +170,7 @@ void map_tester::showViewerWindow()
 		}
 		if(ImGui::IsMouseClicked(1))
 		{
-			std::vector<dungeep::point_i> path = m_map->path_to_pt(m_from_pos, pos);
+			std::vector<dungeep::point_i> path = m_map.path_to_pt(m_from_pos, pos);
 			updateMapView(); // clear last path
 			for(const dungeep::point_i& pt: path)
 			{
@@ -190,7 +202,8 @@ void map_tester::showViewerConfigWindow()
 
 void map_tester::updateMap()
 {
-	m_map = std::make_unique<map>(m_map_size, m_gen_properties, m_mt);
+	m_seed = std::random_device()();
+	m_map.generate(m_map_size, m_gen_properties, DEFAULT_HALL_PROPERTIES, m_seed);
 	updateMapView();
 }
 
@@ -201,7 +214,7 @@ void map_tester::updateMapView()
 	{
 		for(unsigned int j = 0; j < m_map_size.height; ++j)
 		{
-			switch((*m_map)[i][j])
+			switch(m_map[i][j])
 			{
 				case tiles::wall:
 					m_image.setPixel(i, j, wall_color);

@@ -387,7 +387,7 @@ endfunction()
 #   {value} [in] flag:      Flag to add
 #   {value} [in] configs:   Configs for the property to change (DEBUG|RELEASE|RELWITHDEBINFO)
 function(target_add_compiler_flag target flag)
-	CHECK_CXX_COMPILER_FLAG(${flag} has${flag})#FIXME: fail with C compiler
+	CHECK_CXX_COMPILER_FLAG(${flag} has${flag})
 	if(has${flag})
 		if(${ARGC} GREATER 2)
 			foreach(config ${ARGN})
