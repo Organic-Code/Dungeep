@@ -159,6 +159,7 @@ void map_tester::showViewerWindow()
 		if(ImGui::IsMouseClicked(1))
 		{
 			std::vector<dungeep::point_i> path = m_map->path_to_pt(m_from_pos, pos);
+			updateMapView(); // clear last path
 			for(const dungeep::point_i& pt: path)
 			{
 				m_image.setPixel(
@@ -179,6 +180,7 @@ void map_tester::showViewerConfigWindow()
 	changed |= showColorConfig("Hole", hole_color);
 	changed |= showColorConfig("Walkable", walkable_color);
 	changed |= showColorConfig("None", none_color);
+	changed |= ImGui::Button("Clear path");
 	if(changed)
 	{
 		updateMapView();
