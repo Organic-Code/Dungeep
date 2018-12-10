@@ -44,11 +44,6 @@ constexpr dungeep::direction dungeep::operator-(direction d) noexcept {
 }
 
 template <typename T>
-T dungeep::point<T>::length() const noexcept {
-	return std::hypot(x,y);
-}
-
-template <typename T>
 constexpr dungeep::point<T> dungeep::point<T>::operator+(const point& p) const noexcept {
 	point tmp(*this);
 	tmp += p;
@@ -78,28 +73,28 @@ constexpr dungeep::point<T>& dungeep::point<T>::operator-=(const point& p) noexc
 }
 
 template <typename T>
-constexpr dungeep::point<T> dungeep::point<T>::operator/(float val) const noexcept {
+constexpr dungeep::point<T> dungeep::point<T>::operator/(T val) const noexcept {
 	point tmp(*this);
 	tmp /= val;
 	return tmp;
 }
 
 template <typename T>
-constexpr dungeep::point<T>& dungeep::point<T>::operator/=(float val) noexcept {
+constexpr dungeep::point<T>& dungeep::point<T>::operator/=(T val) noexcept {
 	x /= val;
 	y /= val;
 	return *this;
 }
 
 template <typename T>
-constexpr dungeep::point<T> dungeep::point<T>::operator*(float val) const noexcept {
+constexpr dungeep::point<T> dungeep::point<T>::operator*(T val) const noexcept {
 	point tmp(*this);
 	tmp *= val;
 	return tmp;
 }
 
 template <typename T>
-constexpr dungeep::point<T>& dungeep::point<T>::operator*=(float val) noexcept {
+constexpr dungeep::point<T>& dungeep::point<T>::operator*=(T val) noexcept {
 	x *= val;
 	y *= val;
 	return *this;
@@ -195,6 +190,27 @@ constexpr bool dungeep::point<T>::operator==(const point& p) const noexcept {
 template<typename T>
 constexpr bool dungeep::point<T>::operator!=(const point& p) const noexcept {
 	return !(*this == p);
+}
+
+template<typename T>
+template<typename U>
+void dungeep::point<T>::rotate(U angle) {
+	auto cos = std::cos(angle);
+	auto sin = std::sin(angle);
+
+	using trigo_t = decltype(cos);
+
+	T new_x = static_cast<T>(static_cast<trigo_t>(x) * cos - static_cast<trigo_t>(y) * sin);
+	y = static_cast<T>(static_cast<trigo_t>(x) * sin + static_cast<trigo_t>(y) * cos);
+	x = new_x;
+}
+
+template<typename T>
+template<typename U>
+void dungeep::point<T>::scale_to(U new_size) {
+	auto scale_factor = new_size / static_cast<U>(length());
+	x = static_cast<T>(static_cast<U>(x) * scale_factor);
+	y = static_cast<T>(static_cast<U>(y) * scale_factor);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

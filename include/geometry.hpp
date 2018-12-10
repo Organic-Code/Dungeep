@@ -44,6 +44,10 @@ struct point {
 
 	constexpr point() noexcept : x(0), y(0) {}
 	constexpr point(T x_, T y_) noexcept : x(x_), y(y_) {}
+	constexpr point(const point&) noexcept = default;
+
+	template <typename U, typename = std::enable_if_t<!std::is_same_v<T, U>>>
+	explicit constexpr point(const point<U>& o) noexcept : x(static_cast<T>(o.x)), y(static_cast<T>(o.y)) {}
 
 	T x, y;
 
@@ -55,13 +59,13 @@ struct point {
 
 	constexpr point& operator-=(const point& p) noexcept;
 
-	constexpr point operator/(float val) const noexcept;
+	constexpr point operator/(T val) const noexcept;
 
-	constexpr point& operator/=(float val) noexcept;
+	constexpr point& operator/=(T val) noexcept;
 
-	constexpr point operator*(float val) const noexcept;
+	constexpr point operator*(T val) const noexcept;
 
-	constexpr point& operator*=(float val) noexcept;
+	constexpr point& operator*=(T val) noexcept;
 
 	constexpr bool operator==(const point& p) const noexcept;
 
@@ -69,13 +73,27 @@ struct point {
 
 	constexpr bool is_in(const area<T>&) const noexcept;
 
+	template <typename U>
+	void rotate(U angle);
+
+	template <typename U>
+	void scale_to(U new_size);
+
 	void translate(direction d, T distance) noexcept;
 
 	void translate_fixed(direction d, T distance) noexcept;
 
-	T length() const noexcept;
+	template <typename U = T>
+	auto length() const noexcept {
+		return std::hypot(static_cast<U>(x), static_cast<U>(y));
+	}
 
 };
+
+template <typename T>
+constexpr point<T> operator*(T val, const point<T>& p) {
+	return p * val;
+}
 
 template <typename T>
 struct area {
