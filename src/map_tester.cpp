@@ -10,12 +10,13 @@ namespace
 	constexpr std::string_view VIEWER_WINDOW_NAME = "Map viewer";
 	constexpr std::string_view CONFIG_WINDOW_NAME = "Map config";
 	constexpr std::string_view VIEWER_CONFIG_WINDOW_NAME = "Map viewer config";
-	constexpr room_gen_properties DEFAULT_ROOM_PROPERTIES = {{100.f, 3.f, 2.f, 1.f, 4u, 5u, 20u},
-	                                                        {20.f, 2.f, 1.f, 0.1f, 1u, 1u, 1u},
+	constexpr room_gen_properties DEFAULT_ROOM_PROPERTIES = {{600.f, 24.f, 2.f, 1.f, 4u, 15u, 45u},
+	                                                        {27.f, 2.f, 1.f, 0.1f, 1u, 2u, 24u},
+	                                                        85.5f,
 	                                                        10.5f,
-	                                                        2.f,
-	                                                        2.2f,
-	                                                        0.5f};
+	                                                        35.0f,
+	                                                        5.f};
+
 	constexpr hallway_gen_properties DEFAULT_HALL_PROPERTIES = {
 				0.5f,
 				4.f,
@@ -33,7 +34,7 @@ map_tester::map_tester() noexcept
   : m_seed()
   , m_gen_properties()
   , m_hall_properities(DEFAULT_HALL_PROPERTIES)
-  , m_map_size{200, 100}
+  , m_map_size{500, 280}
   , m_map()
   , m_image()
   , m_texture()
@@ -81,7 +82,7 @@ void map_tester::showConfigWindow()
 	{
 		const std::string properties_name =
 		  std::string("Generation properties ") + std::to_string(++properties_number);
-		ImGui::PushID(&properties_number);
+		ImGui::PushID(properties_number);
 		if(ImGui::CollapsingHeader(properties_name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			if(ImGui::TreeNodeEx("Room properties", ImGuiTreeNodeFlags_DefaultOpen))

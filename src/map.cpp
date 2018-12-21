@@ -467,9 +467,12 @@ std::vector<dungeep::direction> map::path_to(const dungeep::point_i& source, con
 	auto make_node = [&cost_of](const point_i& p, float distance) {
 		return node{p, distance, cost_of(p)};
 	};
-	auto make_child_node = [&cost_of](const node& parent, const std::pair<point_i, direction>& translation) {
+	auto make_child_node = [&cost_of, this, &wall_crossing_penalty](const node& parent, const std::pair<point_i, direction>& translation) {
 		dungeep::point_i new_pos = parent.pos + translation.first;
-		return node{new_pos, parent.dist + std::hypot(static_cast<float>(translation.first.x), static_cast<float>(translation.first.y))
+		auto tile = m_tiles[std::clamp(new_pos.x, 0, static_cast<int>(m_tiles.size() - 1))][std::clamp(new_pos.y, 0, static_cast<int>(m_tiles[0].size() - 1))];
+		float penalty = tile != tiles::walkable ? wall_crossing_penalty : 0.f;
+
+		return node{new_pos, parent.dist + std::hypot(static_cast<float>(translation.first.x), static_cast<float>(translation.first.y)) + penalty
 			  , cost_of(new_pos), translation.second};
 	};
 
