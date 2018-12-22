@@ -248,6 +248,8 @@ dungeep::point_ui map::generate_holed_room(const room_gen_properties& rp, unsign
 		fail_count = 0;
 		do {
 			dungeep::point_ui hole_dim = generate_zone_dimensions(rp.holes_properties, random_engine);
+			hole_dim.x = std::min(hole_dim.x, room_area.width - 1);
+			hole_dim.y = std::min(hole_dim.x, room_area.height - 1);
 			dungeep::point_ui hole_pos = find_zone_filled_with(hole_dim, tiles::walkable, random_engine, room_area);
 			if (hole_pos.x == 0 && hole_pos.y == 0) {
 				++fail_count;
