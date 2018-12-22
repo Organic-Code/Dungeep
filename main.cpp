@@ -61,6 +61,7 @@ int main()
 		tester.showViewerWindow();
 		tester.showConfigWindow();
 		tester.showViewerConfigWindow();
+		tester.showDebugInfoWindow();
 
 		window.clear();
 		ImGui::SFML::Render(window);

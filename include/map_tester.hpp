@@ -24,6 +24,8 @@ public:
 
 	void showViewerConfigWindow();
 
+	void showDebugInfoWindow();
+
 private:
 	void updateMap();
 
@@ -33,9 +35,9 @@ private:
 
 	bool showColorConfig(std::string_view label, sf::Color& color);
 
-	unsigned long m_seed;
+	unsigned int m_seed;
 	std::vector<room_gen_properties> m_gen_properties;
-	hallway_gen_properties m_hall_properities;
+	hallway_gen_properties m_hall_properties;
 	map::size_type m_map_size;
 	map m_map;
 

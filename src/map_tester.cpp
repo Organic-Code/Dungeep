@@ -4,36 +4,38 @@
 #include <imgui_internal.h>
 #include <imgui-SFML.h>
 #include <SFML/Graphics/Color.hpp>
+#include <map_tester.hpp>
+#include <sstream>
+#include <iomanip>
 
 namespace
 {
 	constexpr std::string_view VIEWER_WINDOW_NAME = "Map viewer";
 	constexpr std::string_view CONFIG_WINDOW_NAME = "Map config";
 	constexpr std::string_view VIEWER_CONFIG_WINDOW_NAME = "Map viewer config";
+	constexpr std::string_view DEBUG_INFO_WINDOW_NAME = "Map debug info";
 	constexpr room_gen_properties DEFAULT_ROOM_PROPERTIES = {{600.f, 24.f, 2.f, 1.f, 4u, 15u, 45u},
-	                                                        {27.f, 2.f, 1.f, 0.1f, 1u, 2u, 24u},
-	                                                        85.5f,
-	                                                        10.5f,
-	                                                        35.0f,
-	                                                        5.f};
+	                                                         {27.f, 2.f, 1.f, 0.1f, 1u, 2u, 24u},
+	                                                         85.5f,
+	                                                         10.5f,
+	                                                         35.0f,
+	                                                         5.f};
 
-	constexpr hallway_gen_properties DEFAULT_HALL_PROPERTIES = {
-				0.5f,
-				4.f,
-				7.f,
-				1.f,
+	constexpr hallway_gen_properties DEFAULT_HALL_PROPERTIES = {0.5f,
+	                                                            4.f,
+	                                                            7.f,
+	                                                            1.f,
 
-				3.f,
-				1.f,
-				2u,
-				5u
-			};
+	                                                            3.f,
+	                                                            1.f,
+	                                                            2u,
+	                                                            5u};
 } // namespace
 
 map_tester::map_tester() noexcept
-  : m_seed()
+  : m_seed(std::random_device()())
   , m_gen_properties()
-  , m_hall_properities(DEFAULT_HALL_PROPERTIES)
+  , m_hall_properties(DEFAULT_HALL_PROPERTIES)
   , m_map_size{500, 280}
   , m_map()
   , m_image()
@@ -41,8 +43,8 @@ map_tester::map_tester() noexcept
   , m_from_pos()
   , wall_color(sf::Color::Blue)
   , empty_space_color(sf::Color::Black)
-  , hole_color(sf::Color(122,122,122))
-  , walkable_color(sf::Color(107,77,61))
+  , hole_color(sf::Color(122, 122, 122))
+  , walkable_color(sf::Color(107, 77, 61))
   , none_color(sf::Color::Red)
 {
 	m_gen_properties.push_back(DEFAULT_ROOM_PROPERTIES);
@@ -57,12 +59,15 @@ void map_tester::configureDockspace(ImGuiID dockspace_id) const
 	ImGuiID dock_main_id = dockspace_id;
 	ImGuiID dock_id_left =
 	  ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.20f, nullptr, &dock_main_id);
-	ImGuiID dock_id_down =
+	ImGuiID dock_id_down_right =
 	  ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Down, 0.20f, nullptr, &dock_main_id);
+	ImGuiID dock_id_down_left = ImGui::DockBuilderSplitNode(
+	  dock_id_down_right, ImGuiDir_Left, 0.5f, nullptr, &dock_id_down_right);
 
 	ImGui::DockBuilderDockWindow(VIEWER_WINDOW_NAME.data(), dock_main_id);
 	ImGui::DockBuilderDockWindow(CONFIG_WINDOW_NAME.data(), dock_id_left);
-	ImGui::DockBuilderDockWindow(VIEWER_CONFIG_WINDOW_NAME.data(), dock_id_down);
+	ImGui::DockBuilderDockWindow(VIEWER_CONFIG_WINDOW_NAME.data(), dock_id_down_right);
+	ImGui::DockBuilderDockWindow(DEBUG_INFO_WINDOW_NAME.data(), dock_id_down_left);
 	ImGui::DockBuilderFinish(dockspace_id);
 }
 
@@ -70,18 +75,41 @@ void map_tester::showConfigWindow()
 {
 	ImGui::Begin(CONFIG_WINDOW_NAME.data());
 
-	int tmp = static_cast<int>(m_map_size.width);
+	int tmp = static_cast<int>(m_seed);
+	ImGui::InputInt("Seed", &tmp);
+	m_seed = static_cast<unsigned int>(tmp);
+	tmp = static_cast<int>(m_map_size.width);
 	ImGui::InputInt("Map width", &tmp);
 	m_map_size.width = static_cast<unsigned int>(tmp);
 	tmp = static_cast<int>(m_map_size.height);
 	ImGui::InputInt("Map height", &tmp);
 	m_map_size.height = static_cast<unsigned int>(tmp);
 
+	if(ImGui::CollapsingHeader("Hallways generation properties", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		ImGui::PushItemWidth(-14.0f * ImGui::GetFontSize());
+		ImGui::SliderAngle("curliness", &m_hall_properties.curliness, -90.f, 90.0f);
+		ImGui::SliderFloat("curly min distance", &m_hall_properties.curly_min_distance, 0.f, 20.f);
+		ImGui::SliderFloat(
+		  "curly segment avg size", &m_hall_properties.curly_segment_avg_size, 0.f, 20.f);
+		ImGui::SliderFloat(
+		  "curly segment size dev", &m_hall_properties.curly_segment_size_dev, 0.f, 20.f);
+		ImGui::SliderFloat("average width", &m_hall_properties.avg_width, 0.f, 20.f);
+		ImGui::SliderFloat("width dev", &m_hall_properties.width_dev, 0.f, 20.f);
+		tmp = static_cast<int>(m_hall_properties.min_width);
+		ImGui::InputInt("Min width", &tmp);
+		m_hall_properties.min_width = static_cast<unsigned int>(tmp);
+		tmp = static_cast<int>(m_hall_properties.max_width);
+		ImGui::InputInt("Max width", &tmp);
+		m_hall_properties.max_width = static_cast<unsigned int>(tmp);
+		ImGui::PopItemWidth();
+	}
+
 	int properties_number = 0;
 	for(room_gen_properties& properties: m_gen_properties)
 	{
 		const std::string properties_name =
-		  std::string("Generation properties ") + std::to_string(++properties_number);
+		  std::string("Room generation properties ") + std::to_string(++properties_number);
 		ImGui::PushID(properties_number);
 		if(ImGui::CollapsingHeader(properties_name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
 		{
@@ -128,11 +156,19 @@ void map_tester::showConfigWindow()
 	ImGui::PushStyleColor(ImGuiCol_Button,
 	                      static_cast<ImVec4>(ImColor::HSV(3.0f / 7.0f, 0.6f, 0.6f)));
 	ImGui::Separator();
-	if(ImGui::Button("Generate", ImVec2(ImGui::GetWindowContentRegionWidth(), 30)))
+	if(ImGui::Button("Update", ImVec2(ImGui::GetWindowContentRegionWidth() / 2, 30)))
 	{
 		updateMap();
 	}
-	ImGui::PopStyleColor();
+	ImGui::SameLine(0, 0);
+	ImGui::PushStyleColor(ImGuiCol_Button,
+	                      static_cast<ImVec4>(ImColor::HSV(6.0f / 7.0f, 0.6f, 0.6f)));
+	if(ImGui::Button("Random", ImVec2(ImGui::GetWindowContentRegionWidth() / 2, 30)))
+	{
+		m_seed = std::random_device()();
+		updateMap();
+	}
+	ImGui::PopStyleColor(2);
 
 	ImGui::End();
 }
@@ -203,8 +239,7 @@ void map_tester::showViewerConfigWindow()
 
 void map_tester::updateMap()
 {
-	m_seed = std::random_device()();
-	m_map.generate(m_map_size, m_gen_properties, DEFAULT_HALL_PROPERTIES, m_seed);
+	m_map.generate(m_map_size, m_gen_properties, m_hall_properties, m_seed);
 	updateMapView();
 }
 
@@ -270,4 +305,32 @@ bool map_tester::showColorConfig(const std::string_view label, sf::Color& color)
 	color.g = static_cast<sf::Uint8>(color_array[1] * 255.0f);
 	color.b = static_cast<sf::Uint8>(color_array[2] * 255.0f);
 	return changed;
+}
+
+void map_tester::showDebugInfoWindow()
+{
+	ImGui::Begin(DEBUG_INFO_WINDOW_NAME.data());
+	if(ImGui::TreeNodeEx("Times", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		auto print = [](std::string_view txt, std::chrono::milliseconds time) {
+			std::stringstream stringstream;
+			stringstream << txt << ": " << std::fixed << std::setprecision(3) << std::setw(6)
+			             << std::setfill(' ') << static_cast<float>(time.count()) / 1000.f;
+			ImGui::TextUnformatted(stringstream.str().c_str());
+		};
+		print("Total generation time", m_map.total_generation_time);
+		print("Halls generation time", m_map.halls_generation_time);
+		print("Rooms generation time", m_map.rooms_generation_time);
+		print("Fuzzy generation time", m_map.fuzzy_generation_time);
+		ImGui::TreePop();
+	}
+	if(ImGui::TreeNodeEx("Counts", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		ImGui::Text("Expected room count: %u", m_map.expected_room_count);
+		ImGui::Text("Actual room count:   %u", m_map.expected_hole_count);
+		ImGui::Text("Expected hole count: %u", m_map.actual_room_count);
+		ImGui::Text("Actual hole count:   %u", m_map.actual_hole_count);
+		ImGui::TreePop();
+	}
+	ImGui::End();
 }
