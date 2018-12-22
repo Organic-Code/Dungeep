@@ -14,6 +14,7 @@ namespace
 	constexpr std::string_view CONFIG_WINDOW_NAME = "Map config";
 	constexpr std::string_view VIEWER_CONFIG_WINDOW_NAME = "Map viewer config";
 	constexpr std::string_view DEBUG_INFO_WINDOW_NAME = "Map debug info";
+
 	constexpr room_gen_properties DEFAULT_ROOM_PROPERTIES = {{600.f, 24.f, 2.f, 1.f, 4u, 15u, 45u},
 	                                                         {27.f, 2.f, 1.f, 0.1f, 1u, 3u, 10u},
 	                                                         80.f,
@@ -21,14 +22,12 @@ namespace
 	                                                         35.0f,
 	                                                         5.f};
 
-	constexpr room_gen_properties HOLED_ROOM_PROPERTIES = {
-			{600.f, 24.f, 2.f, 1.f, 4u, 15u, 45u},
-			{100.f, 15.f, 10.f, 2.f, 15u, 5u, 20u},
-			25.f,
-			10.f,
-			50.f,
-			3.f
-	};
+	constexpr room_gen_properties HOLED_ROOM_PROPERTIES = {{600.f, 24.f, 2.f, 1.f, 4u, 15u, 45u},
+	                                                       {100.f, 15.f, 10.f, 2.f, 15u, 5u, 20u},
+	                                                       25.f,
+	                                                       10.f,
+	                                                       50.f,
+	                                                       3.f};
 
 	constexpr hallway_gen_properties DEFAULT_HALL_PROPERTIES = {0.5f,
 	                                                            4.f,
@@ -50,11 +49,14 @@ map_tester::map_tester() noexcept
   , m_image()
   , m_texture()
   , m_from_pos()
-  , wall_color(sf::Color::Blue)
-  , empty_space_color(sf::Color::Black)
-  , hole_color(sf::Color(122, 122, 122))
-  , walkable_color(sf::Color(107, 77, 61))
-  , none_color(sf::Color::Red)
+  , m_lats_pos()
+  , m_show_zoom()
+  , m_zoom_region_size(32.f)
+  , m_wall_color(sf::Color::Blue)
+  , m_empty_space_color(sf::Color::Black)
+  , m_hole_color(sf::Color(122, 122, 122))
+  , m_walkable_color(sf::Color(107, 77, 61))
+  , m_none_color(sf::Color::Red)
 {
 	m_gen_properties.push_back(DEFAULT_ROOM_PROPERTIES);
 	m_gen_properties.push_back(HOLED_ROOM_PROPERTIES);
@@ -208,7 +210,34 @@ void map_tester::showViewerWindow()
 		{
 			pos.y = 0;
 		}
+
+		if(pos != m_lats_pos)
+		{
+			m_image.setPixel(
+			  static_cast<unsigned int>(m_lats_pos.x),
+			  static_cast<unsigned int>(m_lats_pos.y),
+			  tileColor(
+			    m_map[static_cast<size_t>(m_lats_pos.x)][static_cast<size_t>(m_lats_pos.y)]));
+			m_image.setPixel(static_cast<unsigned int>(pos.x),
+			                 static_cast<unsigned int>(pos.y),
+			                 tileColor(tiles::none));
+			m_texture.loadFromImage(m_image);
+			m_lats_pos = pos;
+		}
+
 		ImGui::Text("From: (%d, %d)\nTo: (%d, %d)", m_from_pos.x, m_from_pos.y, pos.x, pos.y);
+		if(m_show_zoom)
+		{
+			sf::FloatRect zone(std::max(0.f,
+			                            std::min(pos.x - ((m_zoom_region_size - 1) / 2),
+			                                     base_size.x - (m_zoom_region_size - 1))),
+			                   std::max(0.f,
+			                            std::min(pos.y - ((m_zoom_region_size - 1) / 2),
+			                                     base_size.y - (m_zoom_region_size - 1))),
+			                   (m_zoom_region_size),
+			                   (m_zoom_region_size));
+			ImGui::Image(m_texture, ImVec2(128.f, 128.f), zone);
+		}
 		ImGui::EndTooltip();
 
 		if(ImGui::IsMouseClicked(0))
@@ -217,12 +246,13 @@ void map_tester::showViewerWindow()
 		}
 		if(ImGui::IsMouseClicked(1))
 		{
-			std::vector<dungeep::point_i> path = m_map.path_to_pt(m_from_pos, pos, std::numeric_limits<float>::infinity());
+			std::vector<dungeep::point_i> path =
+			  m_map.path_to_pt(m_from_pos, pos, std::numeric_limits<float>::infinity());
 			updateMapView(); // clear last path
 			for(const dungeep::point_i& pt: path)
 			{
 				m_image.setPixel(
-				  static_cast<unsigned int>(pt.x), static_cast<unsigned int>(pt.y), none_color);
+				  static_cast<unsigned int>(pt.x), static_cast<unsigned int>(pt.y), m_none_color);
 			}
 			m_texture.loadFromImage(m_image);
 		}
@@ -233,12 +263,15 @@ void map_tester::showViewerWindow()
 void map_tester::showViewerConfigWindow()
 {
 	ImGui::Begin(VIEWER_CONFIG_WINDOW_NAME.data());
+	ImGui::Checkbox("Show zoom", &m_show_zoom);
+	ImGui::SliderFloat("Zoom region", &m_zoom_region_size, 4.f, 64.f);
+
 	bool changed = false;
-	changed |= showColorConfig("Wall", wall_color);
-	changed |= showColorConfig("Empty space", empty_space_color);
-	changed |= showColorConfig("Hole", hole_color);
-	changed |= showColorConfig("Walkable", walkable_color);
-	changed |= showColorConfig("None", none_color);
+	changed |= showColorConfig("Wall", m_wall_color);
+	changed |= showColorConfig("Empty space", m_empty_space_color);
+	changed |= showColorConfig("Hole", m_hole_color);
+	changed |= showColorConfig("Walkable", m_walkable_color);
+	changed |= showColorConfig("None", m_none_color);
 	changed |= ImGui::Button("Clear path");
 	if(changed)
 	{
@@ -260,24 +293,7 @@ void map_tester::updateMapView()
 	{
 		for(unsigned int j = 0; j < m_map_size.height; ++j)
 		{
-			switch(m_map[i][j])
-			{
-				case tiles::wall:
-					m_image.setPixel(i, j, wall_color);
-					break;
-				case tiles::empty_space:
-					m_image.setPixel(i, j, empty_space_color);
-					break;
-				case tiles::hole:
-					m_image.setPixel(i, j, hole_color);
-					break;
-				case tiles::walkable:
-					m_image.setPixel(i, j, walkable_color);
-					break;
-				case tiles::none:
-					m_image.setPixel(i, j, none_color);
-					break;
-			}
+			m_image.setPixel(i, j, tileColor(m_map[i][j]));
 		}
 	}
 	m_texture.loadFromImage(m_image);
@@ -343,4 +359,21 @@ void map_tester::showDebugInfoWindow()
 		ImGui::TreePop();
 	}
 	ImGui::End();
+}
+
+const sf::Color& map_tester::tileColor(const tiles& tile) const
+{
+	switch(tile)
+	{
+		case tiles::wall:
+			return m_wall_color;
+		case tiles::empty_space:
+			return m_empty_space_color;
+		case tiles::hole:
+			return m_hole_color;
+		case tiles::walkable:
+			return m_walkable_color;
+		case tiles::none:
+			return m_none_color;
+	}
 }
