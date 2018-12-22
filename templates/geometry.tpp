@@ -37,10 +37,9 @@ constexpr dungeep::direction dungeep::operator-(direction d) noexcept {
 		case direction::bot_right:
 			return direction::top_left;
 		case direction::none:
-			[[fallthrough]];
-		default:
 			return direction::none;
 	}
+	return direction::none;
 }
 
 template <typename T>

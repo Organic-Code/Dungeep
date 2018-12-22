@@ -143,8 +143,8 @@ void map::ensure_pathing(const std::vector<dungeep::point_ui>& rooms_center, con
 		auto x = static_cast<float>(room.x);
 		auto y = static_cast<float>(room.y);
 		dungeep::area_f htbox{
-				dungeep::point_f{x - size().width / 10, y - size().height / 10},
-				dungeep::point_f{x + size().width / 10, y + size().height / 10}
+				dungeep::point_f{x - static_cast<float>(size().width) / 10.f, y - static_cast<float>(size().height) / 10.f},
+				dungeep::point_f{x + static_cast<float>(size().width) / 10.f, y + static_cast<float>(size().height) / 10.f}
 		};
 
 		qt.visit(htbox, [this, &properties, &room, &re, &selected_distance](dungeep::quadtree<collider>::iterator it) {
