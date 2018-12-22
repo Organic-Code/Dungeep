@@ -49,6 +49,8 @@ struct point {
 	template <typename U, typename = std::enable_if_t<!std::is_same_v<T, U>>>
 	explicit constexpr point(const point<U>& o) noexcept : x(static_cast<T>(o.x)), y(static_cast<T>(o.y)) {}
 
+	constexpr point& operator=(const point&) noexcept = default;
+
 	T x, y;
 
 	constexpr point operator+(const point& p) const noexcept;

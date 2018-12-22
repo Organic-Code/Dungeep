@@ -92,11 +92,13 @@ void map::ensure_pathing(const std::vector<dungeep::point_ui>& rooms_center, con
 		dungeep::area_f hitbox_;
 		dungeep::point_ui room_center;
 	};
-	dungeep::quadtree<collider> qt(
+	dungeep::quadtree<collider, dungeep::quadtree_dynamics::static_children> qt(
 			dungeep::area_f{
 					dungeep::point_f{0.f, 0.f},
 					dungeep::point_f{static_cast<float>(size().width), static_cast<float>(size().height)}
-			}
+			},
+			3,
+			5
 	);
 
 	float avg_distance = 0.f;
@@ -130,7 +132,7 @@ void map::ensure_pathing(const std::vector<dungeep::point_ui>& rooms_center, con
 				dungeep::point_f{x + selected_distance, y + selected_distance}
 		};
 
-		qt.visit(htbox, [this, &properties, &room, &re, &selected_distance](dungeep::quadtree<collider>::iterator it) {
+		qt.visit(htbox, [this, &properties, &room, &re, &selected_distance](auto it) {
 			if (re() % 2) {
 				if (path_to(dungeep::point_i(room), dungeep::point_i(it->room_center), std::numeric_limits<float>::infinity(), static_cast<int>(selected_distance * 2.f)).empty()) {
 					ensure_tworoom_path(room, it->room_center, properties, re);
@@ -147,11 +149,20 @@ void map::ensure_pathing(const std::vector<dungeep::point_ui>& rooms_center, con
 				dungeep::point_f{x + static_cast<float>(size().width) / 10.f, y + static_cast<float>(size().height) / 10.f}
 		};
 
-		qt.visit(htbox, [this, &properties, &room, &re, &selected_distance](dungeep::quadtree<collider>::iterator it) {
+		qt.visit(htbox, [this, &properties, &room, &re, &selected_distance](auto it) {
 			if (path_to(dungeep::point_i(room), dungeep::point_i(it->room_center), std::numeric_limits<float>::infinity(), static_cast<int>(selected_distance * 2.f)).empty()) {
 				ensure_tworoom_path(room, it->room_center, properties, re);
 			}
 		});
+	}
+
+	for (auto i1 = qt.begin(), i2 = std::next(i1) ; !i2.is_at_end() && !i1.is_at_end() ; ++i1, ++i2) {
+		if (re() % 3) {
+			if (path_to(dungeep::point_i(i1->room_center), dungeep::point_i(i2->room_center),
+			            std::numeric_limits<float>::infinity()).empty()) {
+				ensure_tworoom_path(i1->room_center, i2->room_center, properties, re);
+			}
+		}
 	}
 }
 
