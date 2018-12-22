@@ -15,7 +15,7 @@ namespace
 	constexpr std::string_view VIEWER_CONFIG_WINDOW_NAME = "Map viewer config";
 	constexpr std::string_view DEBUG_INFO_WINDOW_NAME = "Map debug info";
 	constexpr room_gen_properties DEFAULT_ROOM_PROPERTIES = {{600.f, 24.f, 2.f, 1.f, 4u, 15u, 45u},
-	                                                         {27.f, 2.f, 1.f, 0.1f, 1u, 2u, 24u},
+	                                                         {27.f, 2.f, 1.f, 0.1f, 1u, 3u, 10u},
 	                                                         85.5f,
 	                                                         10.5f,
 	                                                         35.0f,
@@ -207,7 +207,7 @@ void map_tester::showViewerWindow()
 		}
 		if(ImGui::IsMouseClicked(1))
 		{
-			std::vector<dungeep::point_i> path = m_map.path_to_pt(m_from_pos, pos);
+			std::vector<dungeep::point_i> path = m_map.path_to_pt(m_from_pos, pos, std::numeric_limits<float>::infinity());
 			updateMapView(); // clear last path
 			for(const dungeep::point_i& pt: path)
 			{

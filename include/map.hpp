@@ -89,7 +89,8 @@ public:
 		        static_cast<unsigned int>(m_tiles.front().size())};
 	}
 
-	std::vector<dungeep::direction> path_to(const dungeep::point_i& source, const dungeep::point_i& destination, float wall_crossing_penalty = 30.f) const;
+	std::vector<dungeep::direction> path_to(const dungeep::point_i& source, const dungeep::point_i& destination
+			, float wall_crossing_penalty = 30.f, int max_depth = std::numeric_limits<int>::max()) const;
 
 	std::vector<dungeep::point_i> path_to_pt(const dungeep::point_i& source, const dungeep::point_i& destination, float wall_crossing_penalty = 30.f) const;
 

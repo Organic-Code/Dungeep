@@ -17,7 +17,6 @@
 
 #include <random>
 #include <algorithm>
-#include <iostream>
 #include <unordered_set>
 #include <set>
 #include <map.hpp>
@@ -51,7 +50,7 @@ void map::generate(size_type size, const std::vector<room_gen_properties>& rooms
 		auto rooms_n = gen_positive(rp.avg_rooms_n, rp.rooms_n_dev, random_engine);
 		auto holes_n = gen_positive(rp.avg_holes_n, rp.holes_n_dev, random_engine);
 
-		expected_room_count += static_cast<unsigned>(rooms_n);
+		expected_room_count += static_cast<unsigned>(rooms_n - 0.3f) + 2;
 		expected_hole_count += static_cast<unsigned>(holes_n);
 
 		for (auto i = 0 ; static_cast<float>(i) < (rooms_n - 0.3f) ; ++i) {
@@ -119,10 +118,10 @@ void map::ensure_pathing(const std::vector<dungeep::point_ui>& rooms_center, con
 		qt.insert({htbox, center_1});
 	}
 
-	avg_distance /= static_cast<float>(rooms_center.size() * rooms_center.size());
+	avg_distance /= static_cast<float>(rooms_center.size() * (rooms_center.size() - 1));
 	std::sort(distances.begin(), distances.end());
 
-	float selected_distance = std::max(distances[distances.size() / 8], avg_distance / 2.f);
+	float selected_distance = std::max(distances[distances.size() / 30], avg_distance / 30.f);
 	for (const dungeep::point_ui& room : rooms_center) {
 		auto x = static_cast<float>(room.x);
 		auto y = static_cast<float>(room.y);
@@ -131,21 +130,29 @@ void map::ensure_pathing(const std::vector<dungeep::point_ui>& rooms_center, con
 				dungeep::point_f{x + selected_distance, y + selected_distance}
 		};
 
-		qt.visit(htbox, [this, &properties, &room, &re](dungeep::quadtree<collider>::iterator it) {
-			if (re() % 3) {
-				if (path_to(dungeep::point_i(room), dungeep::point_i(it->room_center), std::numeric_limits<float>::infinity()).empty()) {
+		qt.visit(htbox, [this, &properties, &room, &re, &selected_distance](dungeep::quadtree<collider>::iterator it) {
+			if (re() % 2) {
+				if (path_to(dungeep::point_i(room), dungeep::point_i(it->room_center), std::numeric_limits<float>::infinity(), static_cast<int>(selected_distance * 2.f)).empty()) {
 					ensure_tworoom_path(room, it->room_center, properties, re);
 				}
 			}
 		});
 	}
 
-	for (auto i = 0u ; i + 1 < rooms_center.size() ; ++i) {
-		if (path_to(dungeep::point_i(rooms_center[i]), dungeep::point_i(rooms_center[i + 1]), std::numeric_limits<float>::infinity()).empty()) {
-			ensure_tworoom_path(rooms_center[i], rooms_center[i + 1], properties, re);
-		}
-	}
+	for (const dungeep::point_ui& room : rooms_center) {
+		auto x = static_cast<float>(room.x);
+		auto y = static_cast<float>(room.y);
+		dungeep::area_f htbox{
+				dungeep::point_f{x - size().width / 10, y - size().height / 10},
+				dungeep::point_f{x + size().width / 10, y + size().height / 10}
+		};
 
+		qt.visit(htbox, [this, &properties, &room, &re, &selected_distance](dungeep::quadtree<collider>::iterator it) {
+			if (path_to(dungeep::point_i(room), dungeep::point_i(it->room_center), std::numeric_limits<float>::infinity(), static_cast<int>(selected_distance * 2.f)).empty()) {
+				ensure_tworoom_path(room, it->room_center, properties, re);
+			}
+		});
+	}
 }
 
 void map::ensure_tworoom_path(const dungeep::point_ui& r1_center, const dungeep::point_ui& r2_center, const hallway_gen_properties& properties, std::mt19937_64& re) {
@@ -249,7 +256,7 @@ dungeep::point_ui map::generate_holed_room(const room_gen_properties& rp, unsign
 		do {
 			dungeep::point_ui hole_dim = generate_zone_dimensions(rp.holes_properties, random_engine);
 			hole_dim.x = std::min(hole_dim.x, room_area.width - 1);
-			hole_dim.y = std::min(hole_dim.x, room_area.height - 1);
+			hole_dim.y = std::min(hole_dim.y, room_area.height - 1);
 			dungeep::point_ui hole_pos = find_zone_filled_with(hole_dim, tiles::walkable, random_engine, room_area);
 			if (hole_pos.x == 0 && hole_pos.y == 0) {
 				++fail_count;
@@ -417,22 +424,22 @@ float map::gen_positive(float avg, float dev, std::mt19937_64& engine) {
 
 dungeep::point_ui map::generate_zone_dimensions(const zone_gen_properties& zgp, std::mt19937_64& random_engine) {
 
-	auto min_size = zgp.min_height;
-	min_size *= min_size;
-	auto max_size = zgp.max_height;
-	max_size *= max_size;
+	auto min_area = zgp.min_height;
+	min_area *= min_area;
+	auto max_area = zgp.max_height;
+	max_area *= max_area;
 
-	float room_size = std::clamp(gen_positive(zgp.avg_size, zgp.size_deviation, random_engine), static_cast<float>(min_size), static_cast<float>(max_size));
+	float room_area = std::clamp(gen_positive(zgp.avg_size, zgp.size_deviation, random_engine), static_cast<float>(min_area), static_cast<float>(max_area));
 
 	float avg_room_dim = static_cast<float>(zgp.max_height + zgp.min_height) / 2.f;
 	dungeep::point_ui room_dim{};
 	room_dim.x = std::clamp(static_cast<unsigned int>(gen_positive(avg_room_dim, 0.4f * avg_room_dim, random_engine)), zgp.min_height, zgp.max_height);
-	room_dim.y = static_cast<unsigned int>(room_size / static_cast<float>(room_dim.x));
+	room_dim.y = static_cast<unsigned int>(room_area / static_cast<float>(room_dim.x));
 
 	return room_dim;
 }
 
-std::vector<dungeep::direction> map::path_to(const dungeep::point_i& source, const dungeep::point_i& destination, float wall_crossing_penalty) const {
+std::vector<dungeep::direction> map::path_to(const dungeep::point_i& source, const dungeep::point_i& destination, float wall_crossing_penalty, int max_depth) const {
 	using dungeep::point_i;
 	using dungeep::direction;
 
@@ -447,6 +454,7 @@ std::vector<dungeep::direction> map::path_to(const dungeep::point_i& source, con
 		float heur{};
 
 		direction parent{direction::none};
+		int depth{0};
 
 		float cost() const {
 			return dist + heur;
@@ -469,13 +477,11 @@ std::vector<dungeep::direction> map::path_to(const dungeep::point_i& source, con
 	auto make_node = [&cost_of](const point_i& p, float distance) {
 		return node{p, distance, cost_of(p)};
 	};
-	auto make_child_node = [&cost_of, this, &wall_crossing_penalty](const node& parent, const std::pair<point_i, direction>& translation) {
+	auto make_child_node = [&cost_of](const node& parent, const std::pair<point_i, direction>& translation) {
 		dungeep::point_i new_pos = parent.pos + translation.first;
-		auto tile = m_tiles[std::clamp(new_pos.x, 0, static_cast<int>(m_tiles.size() - 1))][std::clamp(new_pos.y, 0, static_cast<int>(m_tiles[0].size() - 1))];
-		float penalty = tile != tiles::walkable ? wall_crossing_penalty : 0.f;
 
-		return node{new_pos, parent.dist + std::hypot(static_cast<float>(translation.first.x), static_cast<float>(translation.first.y)) + penalty
-			  , cost_of(new_pos), translation.second};
+		return node{new_pos, parent.dist + std::hypot(static_cast<float>(translation.first.x), static_cast<float>(translation.first.y))
+			  , cost_of(new_pos), translation.second, parent.depth + 1};
 	};
 
 	std::unordered_set<node, decltype(hash)> closed_list{0, std::move(hash)};
@@ -508,7 +514,8 @@ std::vector<dungeep::direction> map::path_to(const dungeep::point_i& source, con
 
 		for (const std::pair<point_i, direction>& pt : possible_children) {
 			node child = make_child_node(q, pt);
-			if (child.pos.x < 0 || child.pos.y < 0) {
+			if (child.pos.x < 0 || child.pos.y < 0 || static_cast<unsigned>(child.pos.x) >= size().width
+			        || static_cast<unsigned>(child.pos.y) >= size().height || child.depth > max_depth) {
 				continue;
 			}
 
@@ -521,7 +528,7 @@ std::vector<dungeep::direction> map::path_to(const dungeep::point_i& source, con
 				if (std::isinf(wall_crossing_penalty) && !std::signbit(wall_crossing_penalty)) {
 					continue;
 				}
-				child.heur += wall_crossing_penalty;
+				child.dist += wall_crossing_penalty;
 			}
 
 			{
