@@ -103,9 +103,12 @@ namespace dungeep {
 		 * Do not attempt to call quatree::erase() while visiting. To delete current value, return true instead.
 		 */
 		template <typename FuncT>
-		void visit(const area& target, FuncT&& visitor) noexcept(std::is_nothrow_invocable_v<FuncT, iterator>);
+		std::enable_if_t<std::is_invocable_v<FuncT, iterator>>
+		visit(const area& target, FuncT&& visitor) noexcept(std::is_nothrow_invocable_v<FuncT, iterator>);
+
 		template <typename FuncT>
-		void visit(const area& target, FuncT&& visitor) const noexcept(std::is_nothrow_invocable_v<FuncT, const_iterator>);
+		std::enable_if_t<std::is_invocable_v<FuncT, const_iterator>>
+		visit(const area& target, FuncT&& visitor) const noexcept(std::is_nothrow_invocable_v<FuncT, const_iterator>);
 
 
 		[[nodiscard]] bool empty() const noexcept;

@@ -80,12 +80,9 @@ struct quadtree<T,D,U>::iterator_type {
 		if (!child_it_->second.is_at_end()) {
 			return false;
 		}
-		if (child_it_->first == 4) {
-			return true;
-		}
 
-		for (unsigned char i = 0 ; i + child_it_->first < 4 ; ++i) {
-			if (!(*qt_->children_)[i + child_it_->first].empty()) {
+		for (auto i = child_it_->first ; i < 4 ; ++i) {
+			if (!(*qt_->children_)[i].empty()) {
 				return false;
 			}
 		}
@@ -96,13 +93,18 @@ private:
 	friend quadtree<T,D,U>;
 
 	void seek_last() noexcept {
-		current_ = std::advance(qt_->values_.begin(), qt_->values_.size() - 1);
+		current_ = std::next(qt_->values_.begin(), static_cast<long>(qt_->values_.size() - 1));
 	}
 
 	using pair_type = std::pair<unsigned, iterator_type<QuadTree, Value, SubIterator>>;
 	std::unique_ptr<pair_type> init_child() {
 		if (qt_->children_) {
-			return std::make_unique<pair_type>(1, (*qt_->children_)[0].begin());
+			for (auto i = 0u ; i < 4 ; ++i) {
+				if (!(*qt_->children_)[i].empty()) {
+					return std::make_unique<pair_type>(i + 1, (*qt_->children_)[i].begin());
+				}
+			}
+			return std::make_unique<pair_type>(4, (*qt_->children_)[3].end());
 		} else {
 			return {nullptr};
 		}
@@ -154,16 +156,18 @@ auto quadtree<T,D,U>::iterator_type<Q,V,S>::operator++() noexcept -> iterator_ty
 		assert(child_it_);
 		assert(qt_->size() > qt_->values_.size());
 
-		++child_it_->second;
-		while (child_it_->second == iterator_type<Q,V,S>{}) {
+		if (!child_it_->second.is_at_end()) {
+			++child_it_->second;
+		}
+		while (child_it_->second.is_at_end() && child_it_->first < 4) {
 			child_it_->second = {(*qt_->children_)[child_it_->first]};
 			++child_it_->first;
-			assert(child_it_->first <= 4);
 		}
 		return *this;
+	} else {
+		++current_;
+		return *this;
 	}
-	++current_;
-	return *this;
 }
 
 
@@ -184,11 +188,11 @@ auto quadtree<T,D,U>::iterator_type<Q,V,S>::operator--() noexcept -> iterator_ty
 			return *this;
 		}
 
-		while (child_it_->first > 0 && (qt_->children_)[child_it_->first - 1].empty()) {
+		while (child_it_->first > 0 && (*(qt_->children_))[child_it_->first - 1].empty()) {
 			--child_it_->first;
 		}
 
-		child_it_->second = {&(*qt_->children_)[child_it_->first]};
+		child_it_->second = {(*qt_->children_)[child_it_->first]};
 		if (child_it_->first == 0) {
 			--current_;
 		} else {
@@ -288,6 +292,7 @@ auto quadtree<T,D,U>::iterator_type<Q,V,S>::operator*() noexcept -> value_type& 
 	if (current_ != qt_->values_.end()) {
 		return *current_;
 	} else {
+		assert(child_it_);
 		return *child_it_->second;
 	}
 }
@@ -337,7 +342,9 @@ quadtree<T, Dynamicity, Container>::quadtree(const area& ar, size_type max_depth
 	, children_{nullptr}
 {
 	if constexpr (Dynamicity == quadtree_dynamics::static_children) {
-		children_ = std::make_unique<children>(area_, max_depth_ - 1, max_size_);
+		if (max_depth_ > 0) {
+			children_ = std::make_unique<children>(area_, max_depth_ - 1, max_size_);
+		}
 	}
 	values_.reserve(max_size);
 }
@@ -587,17 +594,21 @@ IteratorType quadtree<T, D, Container>::erase_impl(IteratorType it) {
 		while (it.current_ != this->values_.end()) { \
 			if (target.collides_with(it->hitbox())) { \
 				/* if non const context AND visitor returns a boolean */\
-				if constexpr (std::is_same_v<iterator_type, iterator> && std::is_same_v<std::invoke_result_t<FuncT, iterator>, bool>) { \
-					if (visitor(it)) { \
-						if (it.current_ + 1 != this->values_.end()) { \
-							*it.current_ = this->values_.back(); \
-							this->values_.pop_back(); \
-						} else { \
-							this->values_.pop_back(); \
-							it.current_ = values_.end(); /* it is otherwise invalid and thus cannot be safely compared to .end() */ \
-						} \
-						continue; \
-					} \
+				if constexpr (std::is_same_v<iterator_type, iterator>) { \
+                    if constexpr (std::is_same_v<std::invoke_result_t<FuncT, iterator>, bool>) { \
+                        if (visitor(it)) { \
+                            if (it.current_ + 1 != this->values_.end()) { \
+                                *it.current_ = this->values_.back(); \
+                                this->values_.pop_back(); \
+                            } else { \
+                                this->values_.pop_back(); \
+                                it.current_ = values_.end(); /* it is otherwise invalid and thus cannot be safely compared to .end() */ \
+                            } \
+                            continue; \
+                        } \
+                    } else { \
+                        visitor(it); \
+                    } \
 				} else { \
 					visitor(it); \
 				} \
@@ -614,13 +625,15 @@ IteratorType quadtree<T, D, Container>::erase_impl(IteratorType it) {
 
 template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 template <typename FuncT>
-void quadtree<T, D, Container>::visit(const area& target, FuncT&& visitor) noexcept(std::is_nothrow_invocable_v<FuncT, iterator>) {
+std::enable_if_t<std::is_invocable_v<FuncT, typename quadtree<T,D,Container>::iterator>>
+quadtree<T, D, Container>::visit(const area& target, FuncT&& visitor) noexcept(std::is_nothrow_invocable_v<FuncT, iterator>) {
 	DUNGEEP_QTREE_VISIT_IMPL(iterator, target, visitor);
 }
 
 template<typename T,quadtree_dynamics D, template <typename...> typename Container>
 template <typename FuncT>
-void quadtree<T, D, Container>::visit(const area& target, FuncT&& visitor) const noexcept(std::is_nothrow_invocable_v<FuncT, const_iterator>) {
+std::enable_if_t<std::is_invocable_v<FuncT, typename quadtree<T,D,Container>::const_iterator>>
+quadtree<T, D, Container>::visit(const area& target, FuncT&& visitor) const noexcept(std::is_nothrow_invocable_v<FuncT, const_iterator>) {
 	DUNGEEP_QTREE_VISIT_IMPL(const_iterator, target, visitor)
 }
 
