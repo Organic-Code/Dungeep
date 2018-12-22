@@ -24,6 +24,7 @@
 #include <map_tester.hpp>
 #include <sstream>
 #include <iomanip>
+#include <utils.hpp>
 
 namespace
 {
@@ -299,7 +300,8 @@ void map_tester::showViewerConfigWindow()
 
 void map_tester::updateMap()
 {
-	m_map.generate(m_map_size, m_gen_properties, m_hall_properties, m_seed);
+	dungeep::random_engine.seed(m_seed);
+	m_map.generate(m_map_size, m_gen_properties, m_hall_properties);
 	updateMapView();
 }
 

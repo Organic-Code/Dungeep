@@ -73,8 +73,7 @@ public:
 
 	void generate(size_type size
 			, const std::vector<room_gen_properties>& rooms_properties
-			, const hallway_gen_properties& hallway_properties
-			, unsigned long seed);
+			, const hallway_gen_properties& hallway_properties);
 
 	std::vector<tiles>& operator[](std::vector<tiles>::size_type sz) {
 		return m_tiles[sz];
@@ -104,30 +103,28 @@ private:
 	};
 
 	static void add_fuzziness(std::vector<std::vector<tiles>>& generated_room, const zone_gen_properties& rp
-			, const map_area& tiles_area, tiles tile, std::normal_distribution<float>& zone_fuzziness
-			, std::mt19937_64& random_engine);
+			, const map_area& tiles_area, tiles tile, std::normal_distribution<float>& zone_fuzziness);
 
-	static float gen_positive(float avg, float dev, std::mt19937_64& engine);
+	static float gen_positive(float avg, float dev);
 
-	void ensure_pathing(const std::vector<dungeep::point_ui>& rooms_center, const hallway_gen_properties&, std::mt19937_64& re);
+	void ensure_pathing(const std::vector<dungeep::point_ui>& rooms_center, const hallway_gen_properties&);
 
-	void ensure_tworoom_path(const dungeep::point_ui& r1_center, const dungeep::point_ui& r2_center, const hallway_gen_properties&, std::mt19937_64&);
+	void ensure_tworoom_path(const dungeep::point_ui& r1_center, const dungeep::point_ui& r2_center, const hallway_gen_properties&);
 
-	dungeep::point_ui generate_holed_room(const room_gen_properties& rp, unsigned int hole_count, std::mt19937_64& random_engine);
+	dungeep::point_ui generate_holed_room(const room_gen_properties& rp, unsigned int hole_count);
 
-	static dungeep::point_ui generate_zone_dimensions(const zone_gen_properties& zgp, std::mt19937_64& random_engine);
+	static dungeep::point_ui generate_zone_dimensions(const zone_gen_properties& zgp);
 
 
-	void generate_tiles(const zone_gen_properties& rp, map_area tiles_area, tiles tile, std::mt19937_64& random_engine);
+	void generate_tiles(const zone_gen_properties& rp, map_area tiles_area, tiles tile);
 
 	dungeep::point_ui
-	find_zone_filled_with(dungeep::point_ui zone_dim, tiles tile, std::mt19937_64& random_engine)
+	find_zone_filled_with(dungeep::point_ui zone_dim, tiles tile)
 	const noexcept {
-		return find_zone_filled_with(zone_dim, tile, random_engine, {0,0, size().width - 1, size().height - 1});
+		return find_zone_filled_with(zone_dim, tile, {0,0, size().width - 1, size().height - 1});
 	}
 
-	dungeep::point_ui find_zone_filled_with(dungeep::point_ui zone_dim, tiles tile, std::mt19937_64& random_engine,
-	                                                     map_area sub_area) const noexcept;
+	dungeep::point_ui find_zone_filled_with(dungeep::point_ui zone_dim, tiles tile, map_area sub_area) const noexcept;
 
 	std::vector<std::vector<tiles>> m_tiles{};
 
