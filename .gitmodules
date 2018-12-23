@@ -11,3 +11,6 @@
 [submodule "external/imgui-sfml"]
 	path = external/imgui-sfml
 	url = https://github.com/eliasdaler/imgui-sfml
+[submodule "external/jsoncpp"]
+	path = external/jsoncpp
+	url = https://github.com/open-source-parsers/jsoncpp

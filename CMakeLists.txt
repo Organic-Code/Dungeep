@@ -7,6 +7,7 @@ include(cmake/breep.cmake)
 include(cmake/opengl.cmake)
 include(cmake/SFML.cmake)
 include(cmake/imgui-sfml.cmake)
+include(cmake/jsoncpp.cmake)
 
 # Variables
 get_filename_component(root_dir ${CMAKE_SOURCE_DIR} REALPATH)
@@ -29,6 +30,7 @@ make_target(
     "${SFML_INCLUDE_DIR}"
     "${IMGUI_INCLUDE_DIR}"
     "${IMGUI_SFML_INCLUDE_DIR}"
+    "${JSONCPP_INCLUDE_DIR}"
   OPTIONS
     cxx
     executable
@@ -43,6 +45,7 @@ target_link_libraries(
   ${OPENGL_LIBRARY}
   ${SFML_LIBRARY}
   ${IMGUI_SFML_LIBRARY}
+  ${JSONCPP_LIBRARY}
 )
 
 set_property(TARGET dungeep PROPERTY CXX_STANDARD 17)
