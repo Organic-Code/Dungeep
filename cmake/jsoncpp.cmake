@@ -10,9 +10,9 @@ endif()
 
 add_subdirectory(${JSONCPP_DIR})
 
-set_target_properties(jsoncpp_lib PROPERTIES FOLDER external/SFML)
+set_target_properties(jsoncpp_lib PROPERTIES FOLDER external/jsoncpp)
 
-target_set_output_directory(jsoncpp_lib "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+target_set_output_directory(jsoncpp_lib "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 get_filename_component(JSONCPP_INCLUDE_DIR  ${JSONCPP_DIR}/include  ABSOLUTE)
 
 set(JSONCPP_LIBRARY jsoncpp_lib)
