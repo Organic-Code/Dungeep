@@ -26,6 +26,8 @@
 #include <iomanip>
 #include <utils.hpp>
 
+#include "resource_manager.hpp"
+
 namespace
 {
 	constexpr std::string_view VIEWER_WINDOW_NAME = "Map viewer";
@@ -33,36 +35,29 @@ namespace
 	constexpr std::string_view VIEWER_CONFIG_WINDOW_NAME = "Map viewer config";
 	constexpr std::string_view DEBUG_INFO_WINDOW_NAME = "Map debug info";
 
-	constexpr room_gen_properties DEFAULT_ROOM_PROPERTIES = {{600.f, 24.f, 2.f, 1.f, 4u, 15u, 45u},
-	                                                         {27.f, 2.f, 1.f, 0.1f, 1u, 3u, 10u},
-	                                                         80.f,
-	                                                         5.f,
-	                                                         35.0f,
-	                                                         5.f};
+	constexpr room_gen_properties DEFAULT_ROOM_PROPERTIES = {{10.f, 0.1f, 0.f, 0.1f, 1u, 1u, 4u},
+	                                                         {10.f, 0.1f, 0.f, 0.1f, 1u, 1u, 4u},
+	                                                         2.f,
+	                                                         0.1f,
+	                                                         0.0f,
+	                                                         0.1f};
 
-	constexpr room_gen_properties HOLED_ROOM_PROPERTIES = {{600.f, 24.f, 2.f, 1.f, 4u, 15u, 45u},
-	                                                       {100.f, 15.f, 10.f, 2.f, 15u, 5u, 20u},
-	                                                       25.f,
-	                                                       10.f,
-	                                                       50.f,
-	                                                       3.f};
+	constexpr hallway_gen_properties DEFAULT_HALL_PROPERTIES = {0.f,
+	                                                            10.f,
+	                                                            10.f,
+	                                                            0.1f,
 
-	constexpr hallway_gen_properties DEFAULT_HALL_PROPERTIES = {0.5f,
-	                                                            4.f,
-	                                                            7.f,
-	                                                            1.f,
-
-	                                                            3.f,
-	                                                            1.f,
-	                                                            2u,
-	                                                            5u};
+	                                                            1.5f,
+	                                                            0.1f,
+	                                                            1u,
+	                                                            2u};
 } // namespace
 
 map_tester::map_tester() noexcept
   : m_seed(std::random_device()())
   , m_gen_properties()
   , m_hall_properties(DEFAULT_HALL_PROPERTIES)
-  , m_map_size{500, 280}
+  , m_map_size({20u,20u})
   , m_map()
   , m_image()
   , m_texture()
@@ -77,7 +72,6 @@ map_tester::map_tester() noexcept
   , m_none_color(sf::Color::Red)
 {
 	m_gen_properties.push_back(DEFAULT_ROOM_PROPERTIES);
-	m_gen_properties.push_back(HOLED_ROOM_PROPERTIES);
 	updateMap();
 }
 

@@ -9,6 +9,12 @@ include(cmake/SFML.cmake)
 include(cmake/imgui-sfml.cmake)
 include(cmake/jsoncpp.cmake)
 
+configure_folder(
+        ${CMAKE_SOURCE_DIR}/resources/
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/
+        COPYONLY
+)
+
 # Variables
 get_filename_component(root_dir ${CMAKE_SOURCE_DIR} REALPATH)
 
@@ -20,7 +26,7 @@ foreach(source ${COMMON_SOURCES})
 endforeach()
 
 make_target(
-  dungeep "dungeep" ${COMMON_SOURCES} main.cpp src/map_tester.cpp
+  dungeep "dungeep" ${COMMON_SOURCES} main.cpp src/map_tester.cpp src/resource_manager.cpp
   INCLUDES
     "${root_dir}/include"
     "${root_dir}/templates"

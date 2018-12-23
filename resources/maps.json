@@ -1,0 +1,77 @@
+{
+  "caves" :
+  {
+    "width" : 500,
+    "height" : 280,
+    "zones properties" :
+    [
+      {
+        "rooms properties" :
+        {
+          "average size" : 600.0,
+          "size deviation" : 24.0,
+          "borders fuzziness" : 2.0,
+          "borders fuzzy deviation" : 1.0,
+          "borders fuzzy distance" : 4,
+          "minimum height" : 15,
+          "maximum height" : 45
+        },
+
+        "holes properties" :
+        {
+          "average size" : 27.0,
+          "size deviation" : 2.0,
+          "borders fuzziness" : 1.0,
+          "borders fuzzy deviation" : 0.1,
+          "borders fuzzy distance" : 1,
+          "minimum height" : 3,
+          "maximum height" : 10
+        },
+
+        "average room count" : 80.0,
+        "room count deviation" : 5.0,
+        "average hole count" : 35.0,
+        "hole count deviation" : 5.0
+      },
+      {
+        "rooms properties" :
+        {
+          "average size" : 600.0,
+          "size deviation" : 24.0,
+          "borders fuzziness" : 2.0,
+          "borders fuzzy deviation" : 1.0,
+          "borders fuzzy distance" : 4,
+          "minimum height" : 15,
+          "maximum height" : 45
+        },
+
+        "holes properties" :
+        {
+          "average size" : 100.0,
+          "size deviation" : 24.0,
+          "borders fuzziness" : 2.0,
+          "borders fuzzy deviation" : 1.0,
+          "borders fuzzy distance" : 4,
+          "minimum height" : 15,
+          "maximum height" : 45
+        },
+
+        "average room count" : 25.0,
+        "room count deviation" : 10.0,
+        "average hole count" : 50.0,
+        "hole count deviation" : 3.0
+      }
+    ],
+    "halls properties" :
+    {
+      "curliness" : 0.5,
+      "curly minimum distance" : 4.0,
+      "curly segment average size" : 7.0,
+      "curly segment size deviation" : 1.0,
+      "average width" : 3.0,
+      "width deviation" : 1.0,
+      "minimum width" : 2,
+      "maximum width" : 5
+    }
+  }
+}
