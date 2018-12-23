@@ -102,6 +102,8 @@ struct area {
 
 	constexpr area() noexcept : top_left(), bot_right() {}
 	constexpr area(const point<T>& tl, const point<T>& br) noexcept : top_left(tl), bot_right(br) {}
+	constexpr area(const area&) noexcept = default;
+	constexpr area& operator=(const area&) noexcept = default;
 
 	point<T> top_left; // smallest x & y
 	point<T> bot_right; // greatest x & y

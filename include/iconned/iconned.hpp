@@ -1,5 +1,5 @@
-#ifndef DUNGEEP_UTILS_HPP
-#define DUNGEEP_UTILS_HPP
+#ifndef DUNGEEP_EFFECT_HPP
+#define DUNGEEP_EFFECT_HPP
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///                                                                                                                                     ///
@@ -13,23 +13,23 @@
 ///                                                                                                                                     ///
 ///  The Software is provided “as is”, without warranty of any kind, express or implied, including but not limited to the               ///
 ///  warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or              ///
-///  copyright holders X be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise,      ///
+///  copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise,        ///
 ///  arising from, out of or in connection with the software or the use or other dealings in the Software.                              ///
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include <memory>
-#include <random>
+#include <string_view>
 
-namespace dungeep {
-
-	inline std::mt19937_64 random_engine(std::random_device{}());
-
-	template<typename Base, typename Child, typename... Args>
-	std::enable_if_t<std::has_virtual_destructor_v<Base>, std::unique_ptr<Base>>
-	make_unique_poly(Args&&... args) {
-		return std::unique_ptr<Base>(new Child(std::forward<Args>(args)...));
-	}
+namespace sf {
+	class RenderWindow;
 }
 
-#endif //DUNGEEP_UTILS_HPP
+class iconned {
+
+public:
+	virtual std::string_view get_tooltip() const noexcept = 0;
+	virtual void print_at(sf::RenderWindow&) const noexcept = 0;
+
+};
+
+#endif //DUNGEEP_EFFECT_HPP

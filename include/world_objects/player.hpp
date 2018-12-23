@@ -1,5 +1,5 @@
-#ifndef DUNGEEP_UTILS_HPP
-#define DUNGEEP_UTILS_HPP
+#ifndef DUNGEEP_PLAYER_HPP
+#define DUNGEEP_PLAYER_HPP
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///                                                                                                                                     ///
@@ -13,23 +13,55 @@
 ///                                                                                                                                     ///
 ///  The Software is provided “as is”, without warranty of any kind, express or implied, including but not limited to the               ///
 ///  warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or              ///
-///  copyright holders X be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise,      ///
+///  copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise,        ///
 ///  arising from, out of or in connection with the software or the use or other dealings in the Software.                              ///
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include <memory>
-#include <random>
+#include <vector>
 
-namespace dungeep {
+#include "world_objects/creature.hpp"
+#include "geometry.hpp"
 
-	inline std::mt19937_64 random_engine(std::random_device{}());
+class fixed;
+class dynamic_effect;
 
-	template<typename Base, typename Child, typename... Args>
-	std::enable_if_t<std::has_virtual_destructor_v<Base>, std::unique_ptr<Base>>
-	make_unique_poly(Args&&... args) {
-		return std::unique_ptr<Base>(new Child(std::forward<Args>(args)...));
-	}
-}
+class player final : public creature {
+public:
+	void tick(world_proxy& world) noexcept override;
 
-#endif //DUNGEEP_UTILS_HPP
+	void print(sf::RenderWindow&) const noexcept override;
+
+	void true_hit(float damage) noexcept override;
+
+	void move(dungeep::area_f) noexcept;
+
+	void drop_item(unsigned int item_index) noexcept;
+
+	void lose_item(unsigned int item_index) noexcept;
+
+	void gain_item(std::unique_ptr<fixed>&&) noexcept;
+
+	void gain_gold(unsigned int gold) noexcept;
+
+	void lose_gold(unsigned int gold) noexcept;
+
+	unsigned int get_current_gold() const noexcept;
+
+	void set_armor(int) noexcept;
+
+	void set_resist(int) noexcept;
+
+	void set_max_hp(int) noexcept;
+
+	void set_hp(int) noexcept;
+
+	int get_mana() const noexcept;
+
+private:
+
+	std::vector<std::unique_ptr<fixed>> fixed_items;
+	std::vector<std::unique_ptr<dynamic_effect>> dynamic_items;
+};
+
+#endif //DUNGEEP_PLAYER_HPP
