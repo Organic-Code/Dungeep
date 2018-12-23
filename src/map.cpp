@@ -481,7 +481,7 @@ std::vector<dungeep::direction> map::path_to(const dungeep::point_i& source, con
 		}
 	};
 	auto cost_of = [&destination](const point_i& p) {
-		return std::hypot(static_cast<float>(destination.x - p.x), static_cast<float>(destination.y - p.y));
+		return std::abs(std::hypot(static_cast<float>(destination.x - p.x), static_cast<float>(destination.y - p.y)));
 	};
 	auto hash = [](const node& n) noexcept {
 		return n.pos.x + n.pos.y;
