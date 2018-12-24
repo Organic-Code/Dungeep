@@ -65,6 +65,9 @@ private:
 	dungeep::point_i m_from_pos;
 	dungeep::point_i m_lats_pos;
 
+	int m_selected_load_map;
+	std::array<char, 2048> m_save_map_name;
+
 	bool m_show_zoom;
 	float m_zoom_region_size;
 	sf::Color m_wall_color;

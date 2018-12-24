@@ -57,12 +57,14 @@ map_tester::map_tester() noexcept
   : m_seed(std::random_device()())
   , m_gen_properties()
   , m_hall_properties(DEFAULT_HALL_PROPERTIES)
-  , m_map_size({20u,20u})
+  , m_map_size({20u, 20u})
   , m_map()
   , m_image()
   , m_texture()
   , m_from_pos()
   , m_lats_pos()
+  , m_selected_load_map(0)
+  , m_save_map_name()
   , m_show_zoom()
   , m_zoom_region_size(32.f)
   , m_wall_color(sf::Color::Blue)
@@ -71,6 +73,7 @@ map_tester::map_tester() noexcept
   , m_walkable_color(sf::Color(107, 77, 61))
   , m_none_color(sf::Color::Red)
 {
+	m_save_map_name[0] = '\0';
 	m_gen_properties.push_back(DEFAULT_ROOM_PROPERTIES);
 	updateMap();
 }
@@ -98,6 +101,41 @@ void map_tester::configureDockspace(ImGuiID dockspace_id) const
 void map_tester::showConfigWindow()
 {
 	ImGui::Begin(CONFIG_WINDOW_NAME.data());
+
+	std::vector<std::string> map_list = resource_manager.get_map_list();
+	ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() - 50 - GImGui->Style.ItemSpacing.x);
+	ImGui::Combo(
+	  "##load_combo",
+	  &m_selected_load_map,
+	  [](void* data, int idx, const char** out_text) -> bool {
+		  std::vector<std::string>* data_map_list = static_cast<std::vector<std::string>*>(data);
+		  if(idx >= static_cast<int>(data_map_list->size()))
+		  {
+			  return false;
+		  }
+		  *out_text =
+		    (*data_map_list)[static_cast<std::vector<std::string>::size_type>(idx)].c_str();
+		  return true;
+	  },
+	  &map_list,
+	  static_cast<int>(map_list.size()));
+	ImGui::SameLine();
+	if(ImGui::Button("Load", ImVec2(50, 0)) && m_selected_load_map >= 0
+	   && m_selected_load_map < static_cast<int>(map_list.size()))
+	{
+		std::tie(m_map_size, m_gen_properties, m_hall_properties) = resource_manager.get_map(
+		  map_list[static_cast<std::vector<std::string>::size_type>(m_selected_load_map)]);
+	}
+
+	ImGui::InputText("##save_txt", m_save_map_name.data(), m_save_map_name.size());
+	ImGui::SameLine();
+	if(ImGui::Button("Save", ImVec2(50, 0)) && m_save_map_name[0] != '\0')
+	{
+		resource_manager.save_map(
+		  m_save_map_name.data(), m_map_size, m_gen_properties, m_hall_properties);
+	}
+	ImGui::PopItemWidth();
+	ImGui::Separator();
 
 	int tmp = static_cast<int>(m_seed);
 	ImGui::InputInt("Seed", &tmp);
@@ -240,14 +278,15 @@ void map_tester::showViewerWindow()
 		ImGui::Text("From: (%d, %d)\nTo: (%d, %d)", m_from_pos.x, m_from_pos.y, pos.x, pos.y);
 		if(m_show_zoom)
 		{
-			sf::FloatRect zone(std::max(0.f,
-			                            std::min(pos.x - ((m_zoom_region_size - 1) / 2),
-			                                     base_size.x - (m_zoom_region_size - 1))),
-			                   std::max(0.f,
-			                            std::min(pos.y - ((m_zoom_region_size - 1) / 2),
-			                                     base_size.y - (m_zoom_region_size - 1))),
-			                   (m_zoom_region_size),
-			                   (m_zoom_region_size));
+			sf::FloatRect zone(
+			  std::max(0.f,
+			           std::min(static_cast<float>(pos.x) - ((m_zoom_region_size - 1) / 2),
+			                    base_size.x - (m_zoom_region_size - 1))),
+			  std::max(0.f,
+			           std::min(static_cast<float>(pos.y) - ((m_zoom_region_size - 1) / 2),
+			                    base_size.y - (m_zoom_region_size - 1))),
+			  (m_zoom_region_size),
+			  (m_zoom_region_size));
 			ImGui::Image(m_texture, ImVec2(128.f, 128.f), zone);
 		}
 		ImGui::EndTooltip();
@@ -387,6 +426,8 @@ const sf::Color& map_tester::tileColor(const tiles& tile) const
 		case tiles::walkable:
 			return m_walkable_color;
 		case tiles::none:
+			[[fallthrough]];
+		default:
 			return m_none_color;
 	}
 }
