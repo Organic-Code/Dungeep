@@ -25,8 +25,14 @@ foreach(source ${COMMON_SOURCES})
     list(APPEND COMMON_SOURCES_ABS ${root_dir}/${source})
 endforeach()
 
+set(DUNGEEP_SOURCES
+        src/main.cpp
+        src/map_tester.cpp
+        src/resource_manager.cpp
+        )
+
 make_target(
-  dungeep "dungeep" ${COMMON_SOURCES} main.cpp src/map_tester.cpp src/resource_manager.cpp
+  dungeep "dungeep" ${COMMON_SOURCES} ${DUNGEEP_SOURCES}
   INCLUDES
     "${root_dir}/include"
     "${root_dir}/templates"
@@ -40,7 +46,6 @@ make_target(
   OPTIONS
     cxx
     executable
-    static_runtime
 )
 
 # Link dependencies
@@ -59,3 +64,5 @@ set_property(TARGET dungeep PROPERTY CXX_STANDARD_REQUIRED ON)
 
 # Dungeep tests
 add_subdirectory(${root_dir}/tests)
+
+#set(CMAKE_VERBOSE_MAKEFILE 1)

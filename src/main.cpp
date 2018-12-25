@@ -1,7 +1,3 @@
-#include <iostream>
-#include "map.hpp"
-#include "quadtree.hpp"
-
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <imgui-SFML.h>
@@ -11,8 +7,7 @@
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Graphics/Texture.hpp>
 
-#include <iostream>
-#include <map_tester.hpp>
+#include "map_tester.hpp"
 
 namespace
 {
