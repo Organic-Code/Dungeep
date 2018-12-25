@@ -18,6 +18,9 @@
 #include <string_view>
 #include <fstream>
 #include <algorithm>
+#include <SFML/Graphics/Sprite.hpp>
+#include <resource_manager.hpp>
+
 
 #include "resource_manager.hpp"
 
@@ -31,27 +34,26 @@ namespace paths {
 #define RESOURCE_FOLDER "resources/"
 		constexpr std::string_view resource_folder = RESOURCE_FOLDER;
 		constexpr std::string_view map_file = RESOURCE_FOLDER"maps.json";
+		constexpr std::string_view creatures_file = RESOURCE_FOLDER"creatures.json";
+		constexpr std::string_view sprites_file = RESOURCE_FOLDER"sprites.json";
+		constexpr std::string_view texture_file = RESOURCE_FOLDER"texture.png";
 #undef RESOURCE_FOLDER
 	}
 }
 
-namespace tags {
-	namespace categories {
-		namespace {
-			constexpr const char* zones = "zones properties";
-			constexpr const char* rooms = "rooms properties";
-			constexpr const char* holes = "holes properties";
-			constexpr const char* halls = "halls properties";
+namespace {
+	namespace map_tags {
+		namespace categories {
+			constexpr const char * zones = "zones properties";
+			constexpr const char * rooms = "rooms properties";
+			constexpr const char * holes = "holes properties";
+			constexpr const char * halls = "halls properties";
 		}
-	}
-	namespace sizes {
-		namespace {
+		namespace sizes {
 			constexpr const char * width = "width";
 			constexpr const char * height = "height";
 		}
-	}
-	namespace zones {
-		namespace {
+		namespace zones {
 			constexpr const char * avg_size = "average size";
 			constexpr const char * size_deviation = "size deviation";
 			constexpr const char * borders_fuzzinness = "borders fuzziness";
@@ -64,42 +66,39 @@ namespace tags {
 			constexpr const char * avg_holes_n = "average hole count";
 			constexpr const char * holes_n_dev = "hole count deviation";
 		}
-	}
-	namespace halls {
-		namespace {
-			constexpr const char* curliness = "curliness";
-			constexpr const char* curly_min_distance = "curly minimum distance";
-			constexpr const char* curly_segment_avg_size = "curly segment average size";
-			constexpr const char* curly_segment_size_dev = "curly segment size deviation";
-			constexpr const char* avg_width = "average width";
-			constexpr const char* width_dev = "width deviation";
-			constexpr const char* min_width = "minimum width";
-			constexpr const char* max_width = "maximum width";
+		namespace halls {
+			constexpr const char * curliness = "curliness";
+			constexpr const char * curly_min_distance = "curly minimum distance";
+			constexpr const char * curly_segment_avg_size = "curly segment average size";
+			constexpr const char * curly_segment_size_dev = "curly segment size deviation";
+			constexpr const char * avg_width = "average width";
+			constexpr const char * width_dev = "width deviation";
+			constexpr const char * min_width = "minimum width";
+			constexpr const char * max_width = "maximum width";
 		}
 	}
 }
 
-resource_manager_t resource_manager{};
+resources resources::manager{};
 
-resource_manager_t::resource_manager_t() noexcept : maps{} {
+resources::resources() noexcept : maps{} {
 	if constexpr (disable_resources) {
 		return;
 	}
-	std::ifstream maps_file(paths::map_file.data(), std::ios_base::in);
-	if (!maps_file) {
-		throw std::runtime_error("Failed to load resource file " + std::string(paths::map_file));
-	}
-	maps_file >> maps;
-	map_list = maps.getMemberNames();
+	load_maps();
+	load_creatures();
+	load_sprites();
 }
 
 
-const std::vector<std::string>& resource_manager_t::get_map_list() const {
+const std::vector<std::string>& resources::get_map_list() const {
 	return map_list;
 }
 
 std::tuple<map::size_type, std::vector<room_gen_properties>, hallway_gen_properties>
-resource_manager_t::get_map(std::string_view map_name) const {
+resources::get_map(std::string_view map_name) const {
+	namespace tags = map_tags;
+
 	if constexpr (disable_resources) {
 		return {};
 	}
@@ -156,8 +155,10 @@ resource_manager_t::get_map(std::string_view map_name) const {
 	return ans;
 }
 
-void resource_manager_t::save_map(std::string_view map_name, map::size_type size
+void resources::save_map(std::string_view map_name, map::size_type size
 		, const std::vector<room_gen_properties>& room_properties, const hallway_gen_properties& halls_properties) {
+	namespace tags = map_tags;
+
 	if constexpr (disable_resources) {
 		return;
 	}
@@ -208,4 +209,121 @@ void resource_manager_t::save_map(std::string_view map_name, map::size_type size
 
 	std::ofstream map_file(paths::map_file.data(), std::ios_base::trunc);
 	map_file << maps;
+}
+
+void resources::load_maps() noexcept {
+	std::ifstream maps_file(paths::map_file.data(), std::ios_base::in);
+	if (!maps_file) {
+		throw std::runtime_error("Failed to load resource file " + std::string(paths::map_file));
+	}
+	maps_file >> maps;
+	map_list = maps.getMemberNames();
+}
+
+void resources::load_creatures() noexcept {
+	std::ifstream creatures_file(paths::creatures_file.data(), std::ios_base::in);
+	if (!creatures_file) {
+		throw std::runtime_error("Failed to load resource file " + std::string(paths::creatures_file));
+	}
+	creatures_file >> creatures;
+}
+
+void resources::load_sprites() noexcept {
+	std::ifstream sprites_file(paths::sprites_file.data(), std::ios_base::in);
+	if (!sprites_file) {
+		throw std::runtime_error("Failed to load resource file " + std::string(paths::sprites_file));
+	}
+
+	if (std::string texture_file(paths::texture_file) ; !texture.loadFromFile(texture_file)) {
+		throw std::runtime_error("Failed to load texture " + texture_file);
+	}
+	texture.setSmooth(false);
+
+	Json::Value val;
+	sprites_file >> val;
+	sprites_file.close();
+
+	const Json::Value& creatures_json = val["creatures"];
+	std::vector<std::string> members = creatures_json.getMemberNames();
+	for (const std::string& member : members) {
+		load_creature_sprites(member, creatures_json[member]);
+	}
+
+
+	const Json::Value& map_json = val["maps"];
+	members = map_json.getMemberNames();
+	for (const std::string& member : members) {
+		load_map_sprites(member, map_json[member]);
+	}
+}
+
+void resources::load_creature_sprites(const std::string& name, const Json::Value& values) noexcept {
+	sf::Texture& the_texture = texture;
+
+	auto load_part = [&the_texture](const Json::Value& sub_value) -> sf::Sprite {
+		sf::Sprite spr;
+		spr.setTexture(the_texture);
+		spr.setTextureRect(sf::IntRect(
+				sub_value["x"].asInt()
+				, sub_value["y"].asInt()
+				, sub_value["width"].asInt()
+				, sub_value["height"].asInt())
+		);
+		return spr;
+	};
+
+	auto get_or_flip = [&values, &load_part](std::string_view name, const sf::Sprite& spr, float xscale, float yscale) -> sf::Sprite {
+		sf::Sprite ans;
+		if (values.isMember(name.data())) {
+			ans = load_part(values[name.data()]);
+		} else {
+			ans = spr;
+			ans.scale(xscale, yscale);
+		}
+		return ans;
+	};
+
+	sf::Sprite top       = load_part(values["top"]);
+	sf::Sprite top_right = load_part(values["top right"]);
+	sf::Sprite right     = load_part(values["right"]);
+
+	sf::Sprite bot_right = get_or_flip("bot right", top_right,  1.f, -1.f); // flip around vertical axis
+	sf::Sprite bot       = get_or_flip("bot"      , top      ,  1.f, -1.f);
+	sf::Sprite bot_left  = get_or_flip("bot left" , bot_right, -1.f,  1.f); // flip around hztal axis
+	sf::Sprite left      = get_or_flip("left"     , right    , -1.f,  1.f);
+	sf::Sprite top_left  = get_or_flip("top left" , top_right, -1.f,  1.f);
+
+	using dungeep::direction;
+	auto& array = creatures_sprites.emplace(std::make_pair(name, std::array<sf::Sprite, direction_count>())).first->second;
+	array[static_cast<unsigned>(direction::top      )] = std::move(top);
+	array[static_cast<unsigned>(direction::top_right)] = std::move(top_right);
+	array[static_cast<unsigned>(direction::right    )] = std::move(right);
+	array[static_cast<unsigned>(direction::bot_right)] = std::move(bot_right);
+	array[static_cast<unsigned>(direction::bot      )] = std::move(bot);
+	array[static_cast<unsigned>(direction::bot_left )] = std::move(bot_left);
+	array[static_cast<unsigned>(direction::left     )] = std::move(left);
+	array[static_cast<unsigned>(direction::top_left )] = std::move(top_left);
+}
+
+void resources::load_map_sprites(const std::string& name, const Json::Value& values) noexcept {
+	sf::Texture& the_texture = texture;
+
+	auto load_part = [&the_texture](const Json::Value& sub_value) -> sf::Sprite {
+		sf::Sprite spr;
+		spr.setTexture(the_texture);
+		spr.setTextureRect(sf::IntRect(
+				sub_value["x"].asInt()
+				, sub_value["y"].asInt()
+				, sub_value["width"].asInt()
+				, sub_value["height"].asInt())
+		);
+		return spr;
+	};
+
+	auto& array = maps_sprites.emplace(std::make_pair(name, std::array<sf::Sprite, tiles_count>())).first->second;
+	array[static_cast<unsigned>(tiles::hole)       ] = load_part(values["hole"]);
+	array[static_cast<unsigned>(tiles::walkable)   ] = load_part(values["walkable"]);
+	array[static_cast<unsigned>(tiles::empty_space)] = load_part(values["empty space"]);
+	array[static_cast<unsigned>(tiles::wall)       ] = load_part(values["wall"]);
+
 }

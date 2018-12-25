@@ -23,12 +23,26 @@
 #include <vector>
 #include <string_view>
 #include <json/json.h>
+#include <unordered_map>
+#include <string>
+#include <array>
+#include <SFML/Graphics/Sprite.hpp>
+#include <SFML/Graphics/Texture.hpp>
 
 #include "map.hpp"
 
-class resource_manager_t {
+namespace sf {
+	class Sprite;
+}
+
+class resources {
+	static constexpr unsigned int direction_count = static_cast<unsigned>(dungeep::direction::none);
+	static constexpr unsigned int tiles_count = static_cast<unsigned>(tiles::none);
+
 public:
-	resource_manager_t() noexcept;
+	static resources manager;
+
+	resources() noexcept;
 
 	const std::vector<std::string>& get_map_list() const;
 
@@ -36,12 +50,35 @@ public:
 
 	void save_map(std::string_view map_name, map::size_type size, const std::vector<room_gen_properties>& room_properties, const hallway_gen_properties& halls_properties);
 
+	std::array<sf::Sprite, direction_count>& get_creature_sprite(const std::string& name) {
+		return creatures_sprites[name];
+	}
+
+	std::array<sf::Sprite, tiles_count>& get_map_sprite(const std::string& name) {
+		return maps_sprites[name];
+	}
+
+	const Json::Value& read_creature(const std::string& name) const {
+		return creatures[name];
+	}
+
 private:
+
+	void load_maps() noexcept;
+	void load_creatures() noexcept;
+	void load_sprites() noexcept;
+
+	void load_creature_sprites(const std::string& name, const Json::Value& values) noexcept;
+	void load_map_sprites(const std::string& name, const Json::Value& values) noexcept;
 
 	Json::Value maps{};
 	std::vector<std::string> map_list{};
-};
 
-extern resource_manager_t resource_manager;
+	Json::Value creatures{};
+
+	sf::Texture texture{};
+	std::unordered_map<std::string, std::array<sf::Sprite, direction_count>> creatures_sprites{};
+	std::unordered_map<std::string, std::array<sf::Sprite, tiles_count>> maps_sprites{};
+};
 
 #endif //DUNGEEP_RESOURCE_MANAGER_HPP

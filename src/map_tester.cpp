@@ -102,7 +102,7 @@ void map_tester::showConfigWindow()
 {
 	ImGui::Begin(CONFIG_WINDOW_NAME.data());
 
-	std::vector<std::string> map_list = resource_manager.get_map_list();
+	std::vector<std::string> map_list = resources::manager.get_map_list();
 	ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() - 50 - GImGui->Style.ItemSpacing.x);
 	ImGui::Combo(
 	  "##load_combo",
@@ -123,7 +123,7 @@ void map_tester::showConfigWindow()
 	if(ImGui::Button("Load", ImVec2(50, 0)) && m_selected_load_map >= 0
 	   && m_selected_load_map < static_cast<int>(map_list.size()))
 	{
-		std::tie(m_map_size, m_gen_properties, m_hall_properties) = resource_manager.get_map(
+		std::tie(m_map_size, m_gen_properties, m_hall_properties) = resources::manager.get_map(
 		  map_list[static_cast<std::vector<std::string>::size_type>(m_selected_load_map)]);
 	}
 
@@ -131,7 +131,7 @@ void map_tester::showConfigWindow()
 	ImGui::SameLine();
 	if(ImGui::Button("Save", ImVec2(50, 0)) && m_save_map_name[0] != '\0')
 	{
-		resource_manager.save_map(
+		resources::manager.save_map(
 		  m_save_map_name.data(), m_map_size, m_gen_properties, m_hall_properties);
 	}
 	ImGui::PopItemWidth();
