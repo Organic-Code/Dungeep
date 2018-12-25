@@ -18,6 +18,8 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#include <cmath>
+
 namespace dungeep {
 
 template <typename>
@@ -85,9 +87,8 @@ struct point {
 
 	void translate_fixed(direction d, T distance) noexcept;
 
-	template <typename U = T>
 	auto length() const noexcept {
-		return std::hypot(static_cast<U>(x), static_cast<U>(y));
+		return std::hypot(x, y);
 	}
 
 };
@@ -121,6 +122,8 @@ struct area {
 	constexpr bool collides_with(const area& other) const noexcept;
 
 	constexpr void assert_well_formed() const noexcept;
+
+	constexpr point<T> center() const noexcept;
 };
 
 using point_ui = point<unsigned int>;

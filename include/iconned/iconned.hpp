@@ -29,7 +29,7 @@ class iconned {
 public:
 	virtual std::string_view get_tooltip() const noexcept = 0;
 	virtual void print_at(sf::RenderWindow&) const noexcept = 0;
-
+	virtual ~iconned() = default;
 };
 
 #endif //DUNGEEP_EFFECT_HPP

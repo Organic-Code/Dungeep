@@ -257,3 +257,8 @@ template <typename T>
 constexpr void dungeep::area<T>::assert_well_formed() const noexcept {
 	assert(top_left.x <= bot_right.x && top_left.y <= bot_right.y);
 }
+
+template<typename T>
+constexpr dungeep::point<T> dungeep::area<T>::center() const noexcept {
+	return (top_left + bot_right) / T(2);
+}

@@ -24,7 +24,8 @@
 
 class player;
 
-struct dynamic_effect : fixed_effect {
+class dynamic_effect : public fixed_effect {
+public:
 	virtual int update_cooldown_once(int current_cooldown) noexcept = 0;
 	virtual int update_input_physical_damage(int input) noexcept = 0;
 	virtual int update_input_magical_damage(int input) noexcept = 0;

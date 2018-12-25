@@ -23,7 +23,7 @@
 #include "world_objects/creature.hpp"
 #include "geometry.hpp"
 
-class fixed;
+class fixed_effect;
 class dynamic_effect;
 
 class player final : public creature {
@@ -32,7 +32,7 @@ public:
 
 	void print(sf::RenderWindow&) const noexcept override;
 
-	void true_hit(float damage) noexcept override;
+	void true_hit(int damage) noexcept override;
 
 	void move(dungeep::area_f) noexcept;
 
@@ -40,7 +40,7 @@ public:
 
 	void lose_item(unsigned int item_index) noexcept;
 
-	void gain_item(std::unique_ptr<fixed>&&) noexcept;
+	void gain_item(std::unique_ptr<fixed_effect>&&) noexcept;
 
 	void gain_gold(unsigned int gold) noexcept;
 
@@ -60,7 +60,7 @@ public:
 
 private:
 
-	std::vector<std::unique_ptr<fixed>> fixed_items;
+	std::vector<std::unique_ptr<fixed_effect>> fixed_items;
 	std::vector<std::unique_ptr<dynamic_effect>> dynamic_items;
 };
 

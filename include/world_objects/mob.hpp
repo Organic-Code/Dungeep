@@ -26,7 +26,6 @@ public:
 
 	void print(sf::RenderWindow&) const noexcept override;
 
-	void true_hit(float damage) noexcept override;
 
 };
 

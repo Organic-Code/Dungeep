@@ -26,8 +26,8 @@
 #include "geometry.hpp"
 
 struct zone_gen_properties {
-	/** All parameters >= 0
-	 *
+	/**
+	 * All parameters >= 0
 	 */
 
 	float avg_size;

@@ -104,7 +104,7 @@ void map::ensure_pathing(const std::vector<dungeep::point_ui>& rooms_center, con
 	distances.reserve(rooms_center.size() * (rooms_center.size() - 1));
 	for (const dungeep::point_ui& center_1 : rooms_center) {
 		for (const dungeep::point_ui& center_2 : rooms_center) {
-			float distance = (dungeep::point_i{center_1} - dungeep::point_i{center_2}).length<float>();
+			float distance = static_cast<float>((dungeep::point_i{center_1} - dungeep::point_i{center_2}).length());
 			avg_distance += distance;
 			distances.push_back(distance);
 		}
@@ -205,7 +205,7 @@ void map::ensure_tworoom_path(const dungeep::point_ui& r1_center, const dungeep:
 	std::vector<dungeep::point_i> stop_offs;
 	stop_offs.push_back(dep);
 
-	if ((dep - arr).length<float>() >= properties.curly_min_distance) {
+	if (static_cast<float>((dep - arr).length()) >= properties.curly_min_distance) {
 		std::normal_distribution curliness(0.f, std::max(properties.curliness, 0.001f));
 		std::normal_distribution curly_size(properties.curly_segment_avg_size, std::max(properties.curly_segment_size_dev, 0.001f));
 		do {
@@ -218,7 +218,7 @@ void map::ensure_tworoom_path(const dungeep::point_ui& r1_center, const dungeep:
 
 			stop_offs.push_back(translate + stop_offs.back());
 
-		} while ((stop_offs.back() - arr).length<float>() >= properties.curly_min_distance);
+		} while (static_cast<float>((stop_offs.back() - arr).length()) >= properties.curly_min_distance);
 	}
 
 	stop_offs.push_back(arr);

@@ -21,7 +21,7 @@
 #include "world_objects/world_object.hpp"
 
 class world_proxy;
-class fixed;
+class fixed_effect;
 
 class chest : public world_object {
 public:
@@ -30,7 +30,7 @@ public:
 	void drop(world_proxy&) noexcept;
 
 private:
-	std::unique_ptr<fixed> item;
+	std::unique_ptr<fixed_effect> item;
 };
 
 #endif //DUNGEEP_CHEST_HPP

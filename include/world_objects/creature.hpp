@@ -23,7 +23,7 @@
 #include "world_objects/dynamic_object.hpp"
 
 class dynamic_effect;
-class fixed;
+class fixed_effect;
 
 class creature : public dynamic_object {
 public:
@@ -32,11 +32,13 @@ public:
 
 	virtual void physical_hit(int damage, int armor_ignore) noexcept;
 
-	void add_effect(std::unique_ptr<fixed>&&) noexcept;
+	void add_effect(std::unique_ptr<fixed_effect>&& effect) noexcept;
 
-	void remove_effect(fixed*) noexcept;
+	void remove_effect(fixed_effect*) noexcept;
 
-	virtual void true_hit(float damage) noexcept = 0;
+	// returns the number of forced non-sleep ticks
+
+	virtual void true_hit(int damage) noexcept;
 
 	virtual int get_armor() const noexcept {
 		return armor;
@@ -60,13 +62,12 @@ public:
 
 protected:
 
-	// with n armor/resist, you have a n% effective hp boost
+	// with n armor/resist, you have a (n/10)% effective hp boost
 	static int compute_damage_reduction(int damage, int defense) noexcept {
-		auto f_defense = static_cast<float>(defense);
-		if (defense > 0) {
-			return static_cast<int>(std::round(damage * 100.f / (100.f + f_defense)));
+		if (defense >= 0) {
+			return damage * 1000 / (1000 + defense);
 		} else {
-			return static_cast<int>(std::round(damage * (2 - 100.f / (100.f - f_defense))));
+			return damage * (2 - 1000 / (1000 - defense));
 		}
 	}
 
@@ -75,7 +76,7 @@ protected:
 	int armor;
 	int resist;
 
-	std::vector<std::unique_ptr<fixed>> fixed_buffs;
+	std::vector<std::unique_ptr<fixed_effect>> fixed_buffs;
 	std::vector<std::unique_ptr<dynamic_effect>> dynamic_buffs;
 };
 
