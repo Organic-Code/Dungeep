@@ -1,19 +1,23 @@
 {
-	"dummy player" :
-    {
-      "base hp" : 1000,
-      "hp per level" : 50,
-      "base mana" : 1000,
-      "mana per level" : 50,
-      "base physical power" : 50,
-      "physical power per level" : 2,
-      "base magical power" : 10,
-      "magical power per level" : 1,
-      "base armor" : 10,
-      "armor per level" : 1,
-      "base resist" : 10,
-      "resist per level" : 1
-    },
+  "dummy player" :
+  {
+    "base hp" : 1000,
+    "hp per level" : 50,
+    "base mana" : 1000,
+    "mana per level" : 50,
+    "base physical power" : 50,
+    "physical power per level" : 2,
+    "base magical power" : 10,
+    "magical power per level" : 1,
+    "base armor" : 10,
+    "armor per level" : 1,
+    "base resist" : 10,
+    "resist per level" : 1,
+    "base crit chance" : 150,
+    "crit chance per level" : 10,
+    "base move speed" : 20,
+    "move speed per level" : 1
+  },
 
   "dummy mob" :
   {
@@ -24,6 +28,10 @@
     "base armor" : 10,
     "armor per level" : 1,
     "base resist" : 10,
-    "resist per level" : 1
+    "resist per level" : 1,
+    "base crit chance" : 110,
+    "crit chance per level" : 0,
+    "base move speed" : 12,
+    "move speed per level" : 2
   }
 }

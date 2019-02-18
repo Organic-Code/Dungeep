@@ -20,13 +20,18 @@
 
 #include <vector>
 
+#include "iconned/fixed.hpp"
+#include "iconned/dynamic.hpp"
 #include "world_objects/dynamic_object.hpp"
 
-class dynamic_effect;
-class fixed_effect;
+namespace sf {
+	class Sprite;
+}
 
 class creature : public dynamic_object {
 public:
+
+	explicit creature(const std::string& name) noexcept;
 
 	virtual void magical_hit(int damage, int resist_ignore) noexcept;
 
@@ -37,8 +42,11 @@ public:
 	void remove_effect(fixed_effect*) noexcept;
 
 	// returns the number of forced non-sleep ticks
+	virtual int sleep() noexcept = 0;
 
 	virtual void true_hit(int damage) noexcept;
+
+	void print(sf::RenderWindow& rw) const noexcept override;
 
 	virtual int get_armor() const noexcept {
 		return armor;
@@ -67,17 +75,24 @@ protected:
 		if (defense >= 0) {
 			return damage * 1000 / (1000 + defense);
 		} else {
-			return damage * (2 - 1000 / (1000 - defense));
+			return damage * 2 - damage * 1000 / (1000 - defense);
 		}
 	}
 
-	int current_health;
-	int max_health;
-	int armor;
-	int resist;
+	int current_health{};
+	int max_health{};
+	int armor{};
+	int resist{};
+	int attack_power{};
+	int crit_chance{};
+	int move_speed{};
 
-	std::vector<std::unique_ptr<fixed_effect>> fixed_buffs;
-	std::vector<std::unique_ptr<dynamic_effect>> dynamic_buffs;
+	dungeep::direction current_direction{};
+
+	std::vector<std::unique_ptr<fixed_effect>> fixed_buffs{};
+	std::vector<std::unique_ptr<dynamic_effect>> dynamic_buffs{};
+
+	std::array<sf::Sprite, static_cast<unsigned>(dungeep::direction::none)>& sprites; // TODO: vector of array / array of vector (animations)
 };
 
 #endif //DUNGEEP_CREATURE_HPP

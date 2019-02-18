@@ -29,6 +29,11 @@ set(DUNGEEP_SOURCES
         src/main.cpp
         src/map_tester.cpp
         src/resource_manager.cpp
+        src/world.cpp
+        src/world_objects/creature.cpp
+        src/world_objects/mob.cpp
+        src/world_objects/player.cpp
+        src/world_objects/item.cpp
         )
 
 make_target(

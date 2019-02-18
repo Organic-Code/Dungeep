@@ -248,9 +248,7 @@ constexpr T dungeep::area<T>::height() const noexcept {
 template <typename T>
 constexpr T dungeep::area<T>::size() const noexcept {
 	assert_well_formed();
-
 	return width() * height();
-
 }
 
 template <typename T>

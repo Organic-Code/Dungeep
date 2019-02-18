@@ -25,7 +25,7 @@ class player;
 class world_proxy;
 
 class spell : public iconned {
-	virtual void try_cast(player&, dungeep::point_f target_area, world_proxy&) const noexcept = 0;
+	virtual bool try_cast(player&, dungeep::point_f target_area, world_proxy&) const noexcept = 0;
 };
 
 #endif //DUNGEEP_SPELL_HPP

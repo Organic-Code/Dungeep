@@ -1,6 +1,3 @@
-#ifndef DUNGEEP_MOB_HPP
-#define DUNGEEP_MOB_HPP
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///                                                                                                                                     ///
 ///  Copyright C 2018, Lucas Lazare                                                                                                     ///
@@ -18,34 +15,35 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "world_objects/creature.hpp"
+#include <SFML/Graphics/RenderWindow.hpp>
+#include <SFML/Graphics/Sprite.hpp>
+#include <json/json.h>
 
-#include <string>
+#include "world_objects/mob.hpp"
+#include "resource_manager.hpp"
+#include "iconned/fixed.hpp"
+#include "iconned/dynamic.hpp"
 
-namespace sf {
-	class Sprite;
+mob::mob(std::string name_, int level) noexcept :
+		creature(name_),
+		name{std::move(name_)},
+		current_direction{dungeep::direction::none}
+{
+	using ck = resources::creature_keys;
+
+	const Json::Value& me = resources::manager.read_creature(name);
+	max_health = me.get(ck::hp, 0).asInt() + me.get(ck::hp_pl, 0).asInt() * level;
+	attack_power = me.get(ck::phys_power, 0).asInt() + me.get(ck::phys_power_pl, 0).asInt() * level;
+	armor = me.get(ck::armor, 0).asInt() + me.get(ck::armor_pl, 0).asInt() * level;
+	resist = me.get(ck::resist, 0).asInt() + me.get(ck::resist_pl, 0).asInt() * level;
+	move_speed = me.get(ck::move_speed,0).asInt() + me.get(ck::move_speed_pl, 0).asInt() * level;
+	crit_chance = me.get(ck::crit, 0).asInt() + me.get(ck::crit_pl, 0).asInt() * level;
 }
 
-class player;
+void mob::tick(world_proxy& world) noexcept {
+	// TODO
+}
 
-class mob final : public creature {
-public:
-	mob(std::string name_, int level) noexcept;
-
-	void tick(world_proxy& world) noexcept override;
-
-	void print(sf::RenderWindow&) const noexcept override {
-		// TODO
-	}
-
-	void interact_with(player&) noexcept override {}
-
-	int sleep() noexcept override;
-
-private:
-
-	std::string name;
-	dungeep::direction current_direction;
-};
-
-#endif //DUNGEEP_MOB_HPP
+int mob::sleep() noexcept {
+	return 0;
+}

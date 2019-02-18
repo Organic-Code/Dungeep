@@ -18,19 +18,42 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "world_objects/world_object.hpp"
+#include <optional>
 
-class world_proxy;
-class fixed_effect;
+#include "world_objects/world_object.hpp"
+#include "world_objects/item.hpp"
+#include "iconned/fixed.hpp"
+#include "world_proxy.hpp"
+
+enum class chest_level {
+	// TODO: utiliser une clef pour ouvrir un coffre ne "consomme" la clef que 20% du temps, chance de casser augmentant avec le nombre de coffres ouverts
+	// Compétence passive : ça se casse moi souvent // le taux d'usure est plus faible
+	// Tabasser un coffre peut permettre de l'ouvrir, mais a une chance d'user l'arme et de baisser ses dégats
+			wood,
+	bronze,
+	silver,
+	gold,
+	diamond,
+};
 
 class chest : public world_object {
 public:
-	chest();
 
-	void drop(world_proxy&) noexcept;
+	chest(chest_level l) : level(l), ite{item::generate_rand(l)} {}
+
+	void drop(world_proxy& proxy) noexcept {
+		if (ite) {
+			proxy.create_entity(std::move(ite));
+			proxy.delete_entity(this);
+		}
+	}
+
+
+	void print(sf::RenderWindow&) const noexcept override;
 
 private:
-	std::unique_ptr<fixed_effect> item;
+	chest_level level;
+	std::unique_ptr<item> ite;
 };
 
 #endif //DUNGEEP_CHEST_HPP

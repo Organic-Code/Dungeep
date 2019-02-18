@@ -100,6 +100,7 @@ constexpr point<T> operator*(T val, const point<T>& p) {
 
 template <typename T>
 struct area {
+	static const area<T> null;
 
 	constexpr area() noexcept : top_left(), bot_right() {}
 	constexpr area(const point<T>& tl, const point<T>& br) noexcept : top_left(tl), bot_right(br) {}
@@ -126,6 +127,9 @@ struct area {
 	constexpr point<T> center() const noexcept;
 };
 
+template <typename T>
+const area<T> area<T>::null = {{T{}, T{}}, {T{}, T{}}};
+
 using point_ui = point<unsigned int>;
 using area_ui = area<unsigned int>;
 
@@ -134,6 +138,9 @@ using area_i = area<int>;
 
 using point_f = point<float>;
 using area_f = area<float>;
+
+using dim_ui = point_ui;
+using dim_f = point_f;
 }
 
 #include "geometry.tpp"

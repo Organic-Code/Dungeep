@@ -28,13 +28,20 @@ class dynamic_effect;
 
 class player final : public creature {
 public:
+	// return 0 when dead ?
+	int sleep() noexcept override;
+
 	void tick(world_proxy& world) noexcept override;
 
-	void print(sf::RenderWindow&) const noexcept override;
+	void print(sf::RenderWindow&) const noexcept override {
+		// TODO
+	}
 
 	void true_hit(int damage) noexcept override;
 
 	void move(dungeep::area_f) noexcept;
+
+	bool is_local() const noexcept;
 
 	void drop_item(unsigned int item_index) noexcept;
 

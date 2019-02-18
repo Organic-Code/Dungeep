@@ -19,67 +19,138 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <memory>
+#include <geometry.hpp>
 
 #include "iconned/iconned.hpp"
 
+namespace details {
+	struct defense {
+		int hp;
+		int armor;
+		int resist;
+	};
+
+	struct attack {
+		int physic;
+		int magic;
+		int speed;
+	};
+
+	struct critics {
+		int physic;
+		int magic;
+	};
+
+	struct misc {
+		float move_speed;
+		int armor_pen;
+		int resist_pen;
+	};
+}
+
 class fixed_effect : public iconned {
+	// TODO: systèmes d'ensemble > rajout d'un effet dynamique "global" à l'équipement du premier ensemble ?
+	//  classe spéciale d'ensemble qui génère par la suite un/des effets dynamiques ?
+	// > info bulle à mettre à jour également
 
 public:
-	std::string_view get_tooltip() const noexcept override;
-	void print_at(sf::RenderWindow&) const noexcept override;
+	using defense = details::defense;
+	using attack = details::attack;
+	using critics = details::critics;
+	using misc = details::misc;
 
-	int physical_crit_chance() const noexcept;
-	int magical_crit_chance() const noexcept;
-	int physical_damage_bonus() const noexcept;
-	int magical_damage_bonus() const noexcept;
-	float move_speed_bonus() const noexcept;
-	int attack_speed_bonus() const noexcept; // percent
-	int armor_bonus() const noexcept;
-	int resist_bonus() const noexcept;
-	int hp_bonus() const noexcept;
-	int ignored_armor() const noexcept;
-	int ignored_resist() const noexcept;
+	fixed_effect(std::string&& name_, defense def, attack atk, critics crit, misc m)
+		: name(std::move(name_))
+		, physical_crit_chance_(crit.physic)
+		, magical_crit_chance_(crit.magic)
+		, physical_damage_bonus_(atk.physic)
+		, magical_damage_bonus_(atk.magic)
+		, move_speed_bonus_(m.move_speed)
+		, attack_speed_bonus_(atk.speed)
+		, armor_bonus_(def.armor)
+		, resist_bonus_(def.resist)
+		, hp_bonus_(def.hp)
+		, ignored_armor_(m.armor_pen)
+		, ignored_resist_(m.resist_pen)
+		{}
+
+	std::string_view get_tooltip() const noexcept override { /* todo */ return {}; }
+	void print_icon_at(sf::RenderWindow&, const dungeep::area_f&) const noexcept override { /* todo */ }
+
+	virtual void print_effect_at(sf::RenderWindow&, const dungeep::area_f&) const noexcept {
+		//TODO
+	}
+	bool has_printed_effect() {
+		return false; // TODO
+	}
+
+
+	int physical_crit_chance() const noexcept {
+		return physical_crit_chance_;
+	}
+
+	int magical_crit_chance() const noexcept {
+		return magical_crit_chance_;
+	}
+
+	int physical_damage_bonus() const noexcept {
+		return physical_damage_bonus_;
+	}
+
+	int magical_damage_bonus() const noexcept {
+		return magical_damage_bonus_;
+	}
+
+	float move_speed_bonus() const noexcept {
+		return move_speed_bonus_;
+	}
+
+	int attack_speed_bonus() const noexcept { // percent
+		return attack_speed_bonus_;
+	}
+
+	int armor_bonus() const noexcept {
+		return armor_bonus_;
+	}
+
+	int resist_bonus() const noexcept {
+		return resist_bonus_;
+	}
+
+	int hp_bonus() const noexcept {
+		return hp_bonus_;
+	}
+
+	int ignored_armor() const noexcept {
+		return ignored_armor_;
+	}
+
+	int ignored_resist() const noexcept {
+		return ignored_resist_;
+	}
+
 
 	virtual bool is_dynamic() const noexcept {
 		return false;
 	}
-};
 
-// placeholder for fixed_effect, clearer name for items
-struct fixed_effect_item {
-	fixed_effect effect;
 
-	int physical_crit_chance() const noexcept {
-		return effect.physical_crit_chance();
-	}
-	int magical_crit_chance() const noexcept {
-		return effect.magical_crit_chance();
-	}
-	int physical_damage_bonus() const noexcept {
-		return effect.physical_damage_bonus();
-	}
-	int magical_damage_bonus() const noexcept {
-		return effect.magical_damage_bonus();
-	}
-	float move_speed_bonus() const noexcept {
-		return effect.move_speed_bonus();
-	}
-	int attack_speed_bonus() const noexcept {
-		return effect.attack_speed_bonus();
-	}
-	int armor_bonus() const noexcept {
-		return effect.armor_bonus();
-	}
-	int resist_bonus() const noexcept {
-		return effect.resist_bonus();
-	}
-	int hp_bonus() const noexcept {
-		return effect.hp_bonus();
-	}
 
-	bool is_dynamic() const noexcept {
-		return false;
-	}
+private:
+	std::string name;
+
+	int physical_crit_chance_;
+	int magical_crit_chance_;
+	int physical_damage_bonus_;
+	int magical_damage_bonus_;
+	float move_speed_bonus_;
+	int attack_speed_bonus_;
+	int armor_bonus_;
+	int resist_bonus_;
+	int hp_bonus_;
+	int ignored_armor_;
+	int ignored_resist_;
+
 };
 
 #endif //DUNGEEP_FIXED_HPP

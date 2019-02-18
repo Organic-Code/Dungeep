@@ -1,13 +1,13 @@
-#ifndef DUNGEEP_MOB_HPP
-#define DUNGEEP_MOB_HPP
+#ifndef DUNGEEP_WORLD_HPP
+#define DUNGEEP_WORLD_HPP
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///                                                                                                                                     ///
 ///  Copyright C 2018, Lucas Lazare                                                                                                     ///
 ///  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation         ///
-///  files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy,         ///
+///  		files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy,  ///
 ///  modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software     ///
-///  is furnished to do so, subject to the following conditions:                                                                        ///
+///  		is furnished to do so, subject to the following conditions:                                                                 ///
 ///                                                                                                                                     ///
 ///  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.     ///
 ///                                                                                                                                     ///
@@ -18,34 +18,51 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "world_objects/creature.hpp"
+#include <random>
 
-#include <string>
+#include "world_objects/dynamic_object.hpp"
+#include "quadtree.hpp"
+#include "map.hpp"
 
-namespace sf {
-	class Sprite;
-}
+class world {
+	friend class world_proxy;
+	// TODO pièges ?
 
-class player;
-
-class mob final : public creature {
 public:
-	mob(std::string name_, int level) noexcept;
+	world() = default;
 
-	void tick(world_proxy& world) noexcept override;
+	void generate_next_level();
 
-	void print(sf::RenderWindow&) const noexcept override {
-		// TODO
+	void seed_world(std::mt19937_64::result_type seed) {
+		shared_random.seed(seed);
+		std::seed_seq seq{{
+				              local_random()
+				              , std::random_device()() + 0ul
+				              , seed
+			                  , local_random()
+				              , shared_random()
+				              , std::random_device()() + 0ul
+		              }};
+		local_random.seed(seq);
 	}
 
-	void interact_with(player&) noexcept override {}
-
-	int sleep() noexcept override;
+	void next_tick();
 
 private:
 
-	std::string name;
-	dungeep::direction current_direction;
+	unsigned int mobs_per_100_tiles() const noexcept {
+		return 2 * current_level + 10;
+	}
+
+	std::mt19937_64 shared_random{}; // NOLINT
+	std::mt19937_64 local_random{std::random_device{}()};
+	dungeep::quadtree<dungeep::qtree_unique_ptr<dynamic_object>> dynamic_objects{dungeep::area_f::null};
+	dungeep::quadtree<dungeep::qtree_unique_ptr<world_object>> static_objects{dungeep::area_f::null};
+
+	unsigned int current_level{0u};
+
+	map shared_map{};
+
 };
 
-#endif //DUNGEEP_MOB_HPP
+#endif //DUNGEEP_WORLD_HPP

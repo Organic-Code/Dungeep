@@ -1,5 +1,5 @@
-#ifndef DUNGEEP_MOB_HPP
-#define DUNGEEP_MOB_HPP
+#ifndef DUNGEEP_DROPPED_ITEM_HPP
+#define DUNGEEP_DROPPED_ITEM_HPP
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///                                                                                                                                     ///
@@ -18,34 +18,32 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "world_objects/creature.hpp"
+#include <memory>
 
-#include <string>
+#include "iconned/fixed.hpp"
+#include "world_objects/world_object.hpp"
+#include "chest.hpp"
 
-namespace sf {
-	class Sprite;
-}
+enum class chest_level;
 
-class player;
-
-class mob final : public creature {
+class item final : public world_object {
 public:
-	mob(std::string name_, int level) noexcept;
+	static std::unique_ptr<item> generate_rand(chest_level);
 
-	void tick(world_proxy& world) noexcept override;
+	explicit item(std::unique_ptr<fixed_effect>&& it) noexcept : item_effects(std::move(it)) {}
 
-	void print(sf::RenderWindow&) const noexcept override {
-		// TODO
+	void print(sf::RenderWindow& rw) const noexcept override {
+		item_effects->print_icon_at(rw, hitbox());
 	}
 
-	void interact_with(player&) noexcept override {}
+	void interact_with(player&) noexcept override {
+		// todo
+	}
 
-	int sleep() noexcept override;
 
 private:
+	std::unique_ptr<fixed_effect> item_effects;
 
-	std::string name;
-	dungeep::direction current_direction;
 };
 
-#endif //DUNGEEP_MOB_HPP
+#endif //DUNGEEP_DROPPED_ITEM_HPP

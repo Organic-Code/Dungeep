@@ -64,6 +64,10 @@ struct hallway_gen_properties {
 class map {
 
 public:
+	struct map_area {
+		unsigned int x, y;
+		unsigned int width, height;
+	};
 
 	struct size_type {
 		unsigned int width, height;
@@ -71,9 +75,8 @@ public:
 
 	map() = default;
 
-	void generate(size_type size
-			, const std::vector<room_gen_properties>& rooms_properties
-			, const hallway_gen_properties& hallway_properties);
+	std::vector<map_area> generate(size_type size, const std::vector<room_gen_properties>& rooms_properties,
+	                               const hallway_gen_properties& hgp);
 
 	std::vector<tiles>& operator[](std::vector<tiles>::size_type sz) {
 		return m_tiles[sz];
@@ -81,6 +84,16 @@ public:
 
 	const std::vector<tiles>& operator[](std::vector<tiles>::size_type sz) const {
 		return m_tiles[sz];
+	}
+
+	tiles& operator[](const dungeep::point_f& pt) noexcept {
+		assert(pt.x > 0 && pt.y > 0);
+		return m_tiles[static_cast<unsigned>(pt.x)][static_cast<unsigned>(pt.y)];
+	}
+
+	const tiles& operator[](const dungeep::point_f& pt) const noexcept {
+		assert(pt.x > 0 && pt.y > 0);
+		return m_tiles[static_cast<unsigned>(pt.x)][static_cast<unsigned>(pt.y)];
 	}
 
 	size_type size() const noexcept {
@@ -97,21 +110,16 @@ public:
 
 private:
 
-	struct map_area {
-		unsigned int x, y;
-		unsigned int width, height;
-	};
-
 	static void add_fuzziness(std::vector<std::vector<tiles>>& generated_room, const zone_gen_properties& rp
 			, const map_area& tiles_area, tiles tile, std::normal_distribution<float>& zone_fuzziness);
 
 	static float gen_positive(float avg, float dev);
 
-	void ensure_pathing(const std::vector<dungeep::point_ui>& rooms_center, const hallway_gen_properties&);
+	void ensure_pathing(const std::vector<map_area>& rooms_center, const hallway_gen_properties&);
 
 	void ensure_tworoom_path(const dungeep::point_ui& r1_center, const dungeep::point_ui& r2_center, const hallway_gen_properties&);
 
-	dungeep::point_ui generate_holed_room(const room_gen_properties& rp, unsigned int hole_count);
+	map_area generate_holed_room(const room_gen_properties& rp, unsigned int hole_count);
 
 	static dungeep::point_ui generate_zone_dimensions(const zone_gen_properties& zgp);
 

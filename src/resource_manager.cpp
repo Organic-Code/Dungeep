@@ -25,6 +25,15 @@
 #include "resource_manager.hpp"
 
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunknown-warning-option"
+
+#pragma clang diagnostic ignored "-Wexceptions"
+#pragma GCC diagnostic ignored "-Wterminate"
+
 namespace {
 	constexpr bool disable_resources = false; // everything might not work if disabled.
 }
@@ -32,11 +41,12 @@ namespace {
 namespace paths {
 	namespace {
 #define RESOURCE_FOLDER "resources/"
-		constexpr std::string_view resource_folder = RESOURCE_FOLDER;
+		[[maybe_unused]] constexpr std::string_view resource_folder = RESOURCE_FOLDER;
 		constexpr std::string_view map_file = RESOURCE_FOLDER"maps.json";
 		constexpr std::string_view creatures_file = RESOURCE_FOLDER"creatures.json";
 		constexpr std::string_view sprites_file = RESOURCE_FOLDER"sprites.json";
 		constexpr std::string_view texture_file = RESOURCE_FOLDER"texture.png";
+		constexpr std::string_view items_file = RESOURCE_FOLDER"items.json";
 #undef RESOURCE_FOLDER
 	}
 }
@@ -88,6 +98,7 @@ resources::resources() noexcept : maps{} {
 	load_maps();
 	load_creatures();
 	load_sprites();
+	load_items();
 }
 
 
@@ -214,7 +225,7 @@ void resources::save_map(std::string_view map_name, map::size_type size
 void resources::load_maps() noexcept {
 	std::ifstream maps_file(paths::map_file.data(), std::ios_base::in);
 	if (!maps_file) {
-		throw std::runtime_error("Failed to load resource file " + std::string(paths::map_file));
+		throw resource_acquisition_error(paths::map_file);
 	}
 	maps_file >> maps;
 	map_list = maps.getMemberNames();
@@ -223,7 +234,7 @@ void resources::load_maps() noexcept {
 void resources::load_creatures() noexcept {
 	std::ifstream creatures_file(paths::creatures_file.data(), std::ios_base::in);
 	if (!creatures_file) {
-		throw std::runtime_error("Failed to load resource file " + std::string(paths::creatures_file));
+		throw resource_acquisition_error(paths::creatures_file);
 	}
 	creatures_file >> creatures;
 }
@@ -231,11 +242,11 @@ void resources::load_creatures() noexcept {
 void resources::load_sprites() noexcept {
 	std::ifstream sprites_file(paths::sprites_file.data(), std::ios_base::in);
 	if (!sprites_file) {
-		throw std::runtime_error("Failed to load resource file " + std::string(paths::sprites_file));
+		throw resource_acquisition_error(paths::sprites_file);
 	}
 
-	if (std::string texture_file(paths::texture_file) ; !texture.loadFromFile(texture_file)) {
-		throw std::runtime_error("Failed to load texture " + texture_file);
+	if (!texture.loadFromFile(std::string(paths::texture_file))) {
+		throw resource_acquisition_error(paths::texture_file);
 	}
 	texture.setSmooth(false);
 
@@ -257,6 +268,18 @@ void resources::load_sprites() noexcept {
 	}
 }
 
+void resources::load_items() noexcept {
+	std::ifstream items_file(paths::items_file.data(), std::ios_base::in);
+	if (!items_file) {
+		throw resource_acquisition_error(paths::items_file);
+	}
+	items_file >> items;
+	std::vector<std::string> members = items.getMemberNames();
+	for (const std::string& member : members) {
+		items[member][resources::item_keys::name] = member;
+	}
+}
+
 void resources::load_creature_sprites(const std::string& name, const Json::Value& values) noexcept {
 	sf::Texture& the_texture = texture;
 
@@ -272,10 +295,10 @@ void resources::load_creature_sprites(const std::string& name, const Json::Value
 		return spr;
 	};
 
-	auto get_or_flip = [&values, &load_part](std::string_view name, const sf::Sprite& spr, float xscale, float yscale) -> sf::Sprite {
+	auto get_or_flip = [&values, &load_part](std::string_view name_, const sf::Sprite& spr, float xscale, float yscale) -> sf::Sprite {
 		sf::Sprite ans;
-		if (values.isMember(name.data())) {
-			ans = load_part(values[name.data()]);
+		if (values.isMember(name_.data())) {
+			ans = load_part(values[name_.data()]);
 		} else {
 			ans = spr;
 			ans.scale(xscale, yscale);
@@ -327,3 +350,10 @@ void resources::load_map_sprites(const std::string& name, const Json::Value& val
 	array[static_cast<unsigned>(tiles::wall)       ] = load_part(values["wall"]);
 
 }
+
+const std::vector<std::pair<std::string, dungeep::dim_ui>>& resources::get_creatures_for_level(unsigned int level) const noexcept {
+	// TODO
+}
+
+#pragma clang diagnostic pop
+#pragma GCC diagnostic pop

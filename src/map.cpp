@@ -26,7 +26,8 @@
 #include "utils.hpp"
 #include "map.hpp"
 
-void map::generate(size_type size, const std::vector<room_gen_properties>& rooms_properties, const hallway_gen_properties& hgp) {
+std::vector<map::map_area> map::generate(size_type size, const std::vector<room_gen_properties>& rooms_properties,
+                                    const hallway_gen_properties& hgp) {
 	using std::chrono::duration_cast;
 	using std::chrono::system_clock;
 	using std::chrono::milliseconds;
@@ -40,8 +41,8 @@ void map::generate(size_type size, const std::vector<room_gen_properties>& rooms
 	assert(size.width > 0);
 	assert(!rooms_properties.empty());
 
-	std::vector<dungeep::point_ui> rooms_center;
-	rooms_center.reserve(rooms_properties.size() * static_cast<unsigned long>(rooms_properties[0].avg_rooms_n));
+	std::vector<map_area> rooms;
+	rooms.reserve(rooms_properties.size() * static_cast<unsigned long>(rooms_properties[0].avg_rooms_n));
 
 	auto room_starting_tp = system_clock::now();
 	for (const room_gen_properties& rp : rooms_properties) {
@@ -59,28 +60,30 @@ void map::generate(size_type size, const std::vector<room_gen_properties>& rooms
 			);
 
 			holes_n -= static_cast<float>(hfr);
-			dungeep::point_ui room = generate_holed_room(rp, hfr);
+			map_area room = generate_holed_room(rp, hfr);
 			if (room.x != 0 && room.y != 0) {
 				++actual_room_count;
-				rooms_center.push_back(room);
+				rooms.push_back(room);
 			}
 		}
-		dungeep::point_ui room = generate_holed_room(rp, static_cast<unsigned int>(holes_n));
+		map_area room = generate_holed_room(rp, static_cast<unsigned int>(holes_n));
 		if (room.x != 0 && room.y != 0) {
 			++actual_room_count;
-			rooms_center.push_back(room);
+			rooms.push_back(room);
 		}
 	}
 	rooms_generation_time = duration_cast<milliseconds>(system_clock::now() - room_starting_tp);
 
 	auto halls_tp = system_clock::now();
-	ensure_pathing(rooms_center, hgp);
+	ensure_pathing(rooms, hgp);
 	halls_generation_time = duration_cast<milliseconds>(system_clock::now() - halls_tp);
 
 	total_generation_time = duration_cast<milliseconds>(system_clock::now() - starting_tp);
+
+	return rooms;
 }
 
-void map::ensure_pathing(const std::vector<dungeep::point_ui>& rooms_center, const hallway_gen_properties& properties) {
+void map::ensure_pathing(const std::vector<map_area>& rooms, const hallway_gen_properties& properties) {
 
 	struct collider {
 		const dungeep::area_f& hitbox() const {
@@ -98,6 +101,12 @@ void map::ensure_pathing(const std::vector<dungeep::point_ui>& rooms_center, con
 			3,
 			5
 	);
+
+	std::vector<dungeep::point_ui> rooms_center;
+	rooms_center.reserve(rooms.size());
+	for (const map_area& room : rooms) {
+		rooms_center.emplace_back(room.x + room.width / 2, room.y + room.height / 2);
+	}
 
 	float avg_distance = 0.f;
 	std::vector<float> distances;
@@ -238,7 +247,7 @@ void map::ensure_tworoom_path(const dungeep::point_ui& r1_center, const dungeep:
 	}
 }
 
-dungeep::point_ui map::generate_holed_room(const room_gen_properties& rp, unsigned int hole_count) {
+map::map_area map::generate_holed_room(const room_gen_properties& rp, unsigned int hole_count) {
 	bool failed;
 	int fail_count = 0;
 
@@ -278,9 +287,7 @@ dungeep::point_ui map::generate_holed_room(const room_gen_properties& rp, unsign
 		} while (failed && fail_count < 10);
 	}
 
-	room_pos.x += room_dim.x / 2;
-	room_pos.y += room_dim.y / 2;
-	return room_pos;
+	return room_area;
 }
 
 void map::generate_tiles(const zone_gen_properties& rp, map_area tiles_area, tiles tile) {

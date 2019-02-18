@@ -27,6 +27,74 @@
 
 namespace dungeep {
 
+	template <typename PointerType>
+	struct quadtree_wrapper {
+		PointerType& get() noexcept {
+			return value;
+		}
+
+		decltype(auto) operator->() noexcept(noexcept(std::declval<PointerType>().operator->())) {
+			return value.operator->();
+		}
+
+		decltype(auto) operator*() noexcept(noexcept(std::declval<PointerType>().operator*())) {
+			return *value;
+		}
+
+		area<float> hitbox() const noexcept {
+			return value->hitbox();
+		}
+
+		void set_hitbox(area<float> ar) noexcept {
+			value->set_hitbox(ar);
+		}
+
+		PointerType value;
+	};
+
+	template <typename T>
+	struct quadtree_wrapper<T*> {
+		T* get() noexcept {
+			return value;
+		}
+
+		const T* get() const noexcept {
+			return value;
+		}
+
+		T& operator->() noexcept {
+			return *value;
+		}
+
+		const T& operator->() const noexcept {
+			return *value;
+		}
+
+		T& operator*() noexcept {
+			return *value;
+		}
+
+		const T& operator*() const noexcept {
+			return *value;
+		}
+
+		area<float> hitbox() const noexcept {
+			return value->hitbox();
+		}
+
+		void set_hitbox(area<float> ar) noexcept {
+			value->set_hitbox(ar);
+		}
+
+		T* value;
+	};
+
+	template <typename T>
+	using qtree_unique_ptr = quadtree_wrapper<std::unique_ptr<T>>;
+
+	template <typename T>
+	using qtree_shared_ptr = quadtree_wrapper<std::shared_ptr<T>>;
+
 	enum class quadtree_dynamics {
 		static_children,   // children are created at the start
 		lazy_children,     // children are created when needed

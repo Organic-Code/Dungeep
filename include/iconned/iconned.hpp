@@ -28,7 +28,7 @@ class iconned {
 
 public:
 	virtual std::string_view get_tooltip() const noexcept = 0;
-	virtual void print_at(sf::RenderWindow&) const noexcept = 0;
+	virtual void print_icon_at(sf::RenderWindow&, const dungeep::area_f&) const noexcept = 0;
 	virtual ~iconned() = default;
 };
 

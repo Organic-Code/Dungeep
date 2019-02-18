@@ -1,0 +1,7 @@
+{
+  // pas besoin d'indiquer le nom~
+  "dummy fixed effect" : {
+    "physical crit. chance": 150,
+    "dynamic": false
+  }
+}
