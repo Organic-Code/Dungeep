@@ -61,6 +61,11 @@ struct hallway_gen_properties {
 	unsigned int max_width;
 };
 
+namespace dungeep {
+	template <typename>
+	class normal_distribution;
+}
+
 class map {
 
 public:
@@ -111,7 +116,7 @@ public:
 private:
 
 	static void add_fuzziness(std::vector<std::vector<tiles>>& generated_room, const zone_gen_properties& rp
-			, const map_area& tiles_area, tiles tile, std::normal_distribution<float>& zone_fuzziness);
+			, const map_area& tiles_area, tiles tile, dungeep::normal_distribution<float>& zone_fuzziness);
 
 	static float gen_positive(float avg, float dev);
 

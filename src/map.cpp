@@ -23,7 +23,7 @@
 #include <chrono>
 #include <quadtree.hpp>
 
-#include "utils.hpp"
+#include "utils/random.hpp"
 #include "map.hpp"
 
 std::vector<map::map_area> map::generate(size_type size, const std::vector<room_gen_properties>& rooms_properties,
@@ -215,8 +215,8 @@ void map::ensure_tworoom_path(const dungeep::point_ui& r1_center, const dungeep:
 	stop_offs.push_back(dep);
 
 	if (static_cast<float>((dep - arr).length()) >= properties.curly_min_distance) {
-		std::normal_distribution curliness(0.f, std::max(properties.curliness, 0.001f));
-		std::normal_distribution curly_size(properties.curly_segment_avg_size, std::max(properties.curly_segment_size_dev, 0.001f));
+		dungeep::normal_distribution curliness(0.f, std::max(properties.curliness, 0.001f));
+		dungeep::normal_distribution curly_size(properties.curly_segment_avg_size, std::max(properties.curly_segment_size_dev, 0.001f));
 		do {
 			point_i translate = arr - stop_offs.back();
 			float segment_size = std::max(curly_size(dungeep::random_engine), properties.curly_min_distance);
@@ -232,7 +232,7 @@ void map::ensure_tworoom_path(const dungeep::point_ui& r1_center, const dungeep:
 
 	stop_offs.push_back(arr);
 
-	std::normal_distribution width(properties.avg_width, std::max(properties.width_dev, 0.001f));
+	dungeep::normal_distribution width(properties.avg_width, std::max(properties.width_dev, 0.001f));
 	auto w = static_cast<int>(std::clamp(static_cast<unsigned int>(width(dungeep::random_engine)), properties.min_width, properties.max_width));
 	for (auto i = 0u ; i + 1 < stop_offs.size() ; ++i) {
 		point_i start = stop_offs[i];
@@ -262,8 +262,9 @@ map::map_area map::generate_holed_room(const room_gen_properties& rp, unsigned i
 			++fail_count;
 		}
 	} while (failed && fail_count < 30);
+
 	if (failed) {
-		return {0, 0};
+		return {0, 0, 0, 0};
 	}
 
 	map_area room_area{room_pos.x, room_pos.y, room_dim.x, room_dim.y};
@@ -291,7 +292,7 @@ map::map_area map::generate_holed_room(const room_gen_properties& rp, unsigned i
 }
 
 void map::generate_tiles(const zone_gen_properties& rp, map_area tiles_area, tiles tile) {
-	std::normal_distribution zone_fuzziness(0.f, std::max(rp.borders_fuzzy_deviation, 0.001f));
+	dungeep::normal_distribution zone_fuzziness(0.f, std::max(rp.borders_fuzzy_deviation, 0.001f));
 
 	auto array_shift = static_cast<unsigned int>(rp.borders_fuzzinness + rp.borders_fuzzy_deviation * 4) * 2;
 	std::vector<std::vector<tiles>> generated_room{
@@ -330,7 +331,7 @@ void map::generate_tiles(const zone_gen_properties& rp, map_area tiles_area, til
 }
 
 void map::add_fuzziness(std::vector<std::vector<tiles>>& generated_room, const zone_gen_properties& rp, const map_area& tiles_area,
-                        tiles tile, std::normal_distribution<float>& zone_fuzziness) {
+                        tiles tile, dungeep::normal_distribution<float>& zone_fuzziness) {
 
 	float current_delta = 0.f;
 	float delta_step = 0.f;
@@ -398,8 +399,8 @@ map::find_zone_filled_with(dungeep::point_ui zone_dim, tiles tile, map_area area
 	assert(area.x + area.width  < size().width);
 	assert(area.y + area.height < size().height);
 
-	std::uniform_int_distribution<unsigned int> uid_x(area.x, area.x + area.width);
-	std::uniform_int_distribution<unsigned int> uid_y(area.y, area.y + area.height);
+	dungeep::uniform_int_distribution<unsigned int> uid_x(area.x, area.x + area.width);
+	dungeep::uniform_int_distribution<unsigned int> uid_y(area.y, area.y + area.height);
 
 	auto is_good_spot = [this, &tile, &zone_dim, &area](dungeep::point_ui spot){
 		if (spot.x < area.x || spot.y < area.y) {
@@ -435,7 +436,7 @@ map::find_zone_filled_with(dungeep::point_ui zone_dim, tiles tile, map_area area
 }
 
 float map::gen_positive(float avg, float dev) {
-	std::normal_distribution dist{avg, std::max(dev, 0.001f)};
+	dungeep::normal_distribution dist{avg, std::max(dev, 0.001f)};
 	float nbr = dist(dungeep::random_engine);
 	return nbr > 0 ? nbr : 0.f;
 }

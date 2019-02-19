@@ -21,7 +21,7 @@
 #include <world_objects/chest.hpp>
 
 #include "world_objects/item.hpp"
-#include "utils.hpp"
+#include "utils/random.hpp"
 
 std::unique_ptr<item> item::generate_rand(chest_level chest_level) {
 	// Todo: rareté (cf paramètre)

@@ -24,7 +24,7 @@
 #include <map_tester.hpp>
 #include <sstream>
 #include <iomanip>
-#include <utils.hpp>
+#include <utils/random.hpp>
 
 #include "resource_manager.hpp"
 
