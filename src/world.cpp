@@ -58,7 +58,7 @@ void world::generate_next_level() {
 		for (unsigned int mob_count = density * room.height * room.width / 100 ; mob_count != 0 ; --mob_count) {
 			const std::pair<std::string, dungeep::dim_ui>& selected_mob = mobs[shared_random() % mobs.size()];
 			if (try_gen_pos(room, mob_pos, selected_mob.second)) {
-				dynamic_objects.emplace(mob_pos, std::make_unique<mob>(mobs[shared_random() % mobs.size()], current_level));
+				dynamic_objects.emplace(mob_pos, std::make_unique<mob>(mobs[shared_random() % mobs.size()].first, current_level));
 			}
 		}
 	}

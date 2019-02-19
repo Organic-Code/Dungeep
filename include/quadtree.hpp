@@ -29,6 +29,15 @@ namespace dungeep {
 
 	template <typename PointerType>
 	struct quadtree_wrapper {
+
+		quadtree_wrapper(PointerType ptr) : value(std::move(ptr)) {}
+
+		quadtree_wrapper(const quadtree_wrapper&) = delete;
+		quadtree_wrapper(quadtree_wrapper&&) noexcept = default;
+
+		quadtree_wrapper& operator=(const quadtree_wrapper&) = delete;
+		quadtree_wrapper& operator=(quadtree_wrapper&&) noexcept = default;
+
 		PointerType& get() noexcept {
 			return value;
 		}

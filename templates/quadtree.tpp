@@ -426,7 +426,7 @@ auto quadtree<T, D, Container>::emplace(const area& target, Args&& ... args) -> 
 	} else {
 		it.current_ = values_.end();
 		it.child_it_->first = target_pos + 1;
-		it.child_it_->second = (*children_)[target_pos].emplace(target, args...);
+		it.child_it_->second = (*children_)[target_pos].emplace(target, std::forward<Args>(args)...);
 	}
 	return it;
 }
