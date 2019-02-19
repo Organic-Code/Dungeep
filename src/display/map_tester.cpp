@@ -15,18 +15,16 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "map_tester.hpp"
-
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <imgui-SFML.h>
 #include <SFML/Graphics/Color.hpp>
-#include <map_tester.hpp>
 #include <sstream>
 #include <iomanip>
-#include <utils/random.hpp>
 
-#include "resource_manager.hpp"
+#include "utils/random.hpp"
+#include "display/map_tester.hpp"
+#include "utils/resource_manager.hpp"
 
 namespace
 {

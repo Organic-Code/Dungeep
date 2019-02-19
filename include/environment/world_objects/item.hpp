@@ -1,5 +1,5 @@
-#ifndef DUNGEEP_CHEST_HPP
-#define DUNGEEP_CHEST_HPP
+#ifndef DUNGEEP_DROPPED_ITEM_HPP
+#define DUNGEEP_DROPPED_ITEM_HPP
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///                                                                                                                                     ///
@@ -18,42 +18,32 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include <optional>
+#include <memory>
 
-#include "world_objects/world_object.hpp"
-#include "world_objects/item.hpp"
 #include "iconned/fixed.hpp"
-#include "world_proxy.hpp"
+#include "world_object.hpp"
+#include "chest.hpp"
 
-enum class chest_level {
-	// TODO: utiliser une clef pour ouvrir un coffre ne "consomme" la clef que 20% du temps, chance de casser augmentant avec le nombre de coffres ouverts
-	// Compétence passive : ça se casse moi souvent // le taux d'usure est plus faible
-	// Tabasser un coffre peut permettre de l'ouvrir, mais a une chance d'user l'arme et de baisser ses dégats
-			wood,
-	bronze,
-	silver,
-	gold,
-	diamond,
-};
+enum class chest_level;
 
-class chest : public world_object {
+class item final : public world_object {
 public:
+	static std::unique_ptr<item> generate_rand(chest_level);
 
-	chest(chest_level l) : level(l), ite{item::generate_rand(l)} {}
+	explicit item(std::unique_ptr<fixed_effect>&& it) noexcept : item_effects(std::move(it)) {}
 
-	void drop(world_proxy& proxy) noexcept {
-		if (ite) {
-			proxy.create_entity(std::move(ite));
-			proxy.delete_entity(this);
-		}
+	void print(sf::RenderWindow& rw) const noexcept override {
+		item_effects->print_icon_at(rw, hitbox());
+	}
+
+	void interact_with(player&) noexcept override {
+		// todo
 	}
 
 
-	void print(sf::RenderWindow&) const noexcept override;
-
 private:
-	chest_level level;
-	std::unique_ptr<item> ite;
+	std::unique_ptr<fixed_effect> item_effects;
+
 };
 
-#endif //DUNGEEP_CHEST_HPP
+#endif //DUNGEEP_DROPPED_ITEM_HPP

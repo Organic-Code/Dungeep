@@ -7,7 +7,7 @@
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Graphics/Texture.hpp>
 
-#include "map_tester.hpp"
+#include "display/map_tester.hpp"
 
 namespace
 {

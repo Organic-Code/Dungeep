@@ -23,7 +23,7 @@
 #include <random>
 #include <chrono>
 #include "tiles.hpp"
-#include "geometry.hpp"
+#include "utils/geometry.hpp"
 
 struct zone_gen_properties {
 	/**

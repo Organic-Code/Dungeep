@@ -19,10 +19,10 @@
 #include <fstream>
 #include <algorithm>
 #include <SFML/Graphics/Sprite.hpp>
-#include <resource_manager.hpp>
+#include <utils/resource_manager.hpp>
 
 
-#include "resource_manager.hpp"
+#include "utils/resource_manager.hpp"
 
 
 #pragma GCC diagnostic push
@@ -353,6 +353,8 @@ void resources::load_map_sprites(const std::string& name, const Json::Value& val
 
 const std::vector<std::pair<std::string, dungeep::dim_ui>>& resources::get_creatures_for_level(unsigned int level) const noexcept {
 	// TODO
+	static std::vector<std::pair<std::string, dungeep::dim_ui>> v;
+	return v;
 }
 
 #pragma clang diagnostic pop

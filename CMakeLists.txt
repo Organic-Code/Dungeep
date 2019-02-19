@@ -19,7 +19,7 @@ configure_folder(
 get_filename_component(root_dir ${CMAKE_SOURCE_DIR} REALPATH)
 
 # Setting up Dungeep
-set(COMMON_SOURCES src/map.cpp)
+set(COMMON_SOURCES src/environment/map.cpp)
 
 foreach(source ${COMMON_SOURCES})
     list(APPEND COMMON_SOURCES_ABS ${root_dir}/${source})
@@ -27,13 +27,13 @@ endforeach()
 
 set(DUNGEEP_SOURCES
         src/main.cpp
-        src/map_tester.cpp
-        src/resource_manager.cpp
-        src/world.cpp
-        src/world_objects/creature.cpp
-        src/world_objects/mob.cpp
-        src/world_objects/player.cpp
-        src/world_objects/item.cpp
+        src/display/map_tester.cpp
+        src/utils/resource_manager.cpp
+        src/environment/world.cpp
+        src/environment/world_objects/creature.cpp
+        src/environment/world_objects/mob.cpp
+        src/environment/world_objects/player.cpp
+        src/environment/world_objects/item.cpp
         )
 
 make_target(

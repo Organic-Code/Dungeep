@@ -1,13 +1,13 @@
-#ifndef DUNGEEP_WORLD_HPP
-#define DUNGEEP_WORLD_HPP
+#ifndef DUNGEEP_CHEST_HPP
+#define DUNGEEP_CHEST_HPP
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///                                                                                                                                     ///
 ///  Copyright C 2018, Lucas Lazare                                                                                                     ///
 ///  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation         ///
-///  		files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy,  ///
+///  files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy,         ///
 ///  modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software     ///
-///  		is furnished to do so, subject to the following conditions:                                                                 ///
+///  is furnished to do so, subject to the following conditions:                                                                        ///
 ///                                                                                                                                     ///
 ///  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.     ///
 ///                                                                                                                                     ///
@@ -18,51 +18,42 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include <random>
+#include <optional>
 
-#include "world_objects/dynamic_object.hpp"
-#include "quadtree.hpp"
-#include "map.hpp"
+#include "world_object.hpp"
+#include "item.hpp"
+#include "iconned/fixed.hpp"
+#include "environment/world_proxy.hpp"
 
-class world {
-	friend class world_proxy;
-	// TODO pièges ?
-
-public:
-	world() = default;
-
-	void generate_next_level();
-
-	void seed_world(std::mt19937_64::result_type seed) {
-		shared_random.seed(seed);
-		std::seed_seq seq{{
-				              local_random()
-				              , std::random_device()() + 0ul
-				              , seed
-			                  , local_random()
-				              , shared_random()
-				              , std::random_device()() + 0ul
-		              }};
-		local_random.seed(seq);
-	}
-
-	void next_tick();
-
-private:
-
-	unsigned int mobs_per_100_tiles() const noexcept {
-		return 2 * current_level + 10;
-	}
-
-	std::mt19937_64 shared_random{}; // NOLINT
-	std::mt19937_64 local_random{std::random_device{}()};
-	dungeep::quadtree<dungeep::qtree_unique_ptr<dynamic_object>> dynamic_objects{dungeep::area_f::null};
-	dungeep::quadtree<dungeep::qtree_unique_ptr<world_object>> static_objects{dungeep::area_f::null};
-
-	unsigned int current_level{0u};
-
-	map shared_map{};
-
+enum class chest_level {
+	// TODO: utiliser une clef pour ouvrir un coffre ne "consomme" la clef que 20% du temps, chance de casser augmentant avec le nombre de coffres ouverts
+	// Compétence passive : ça se casse moi souvent // le taux d'usure est plus faible
+	// Tabasser un coffre peut permettre de l'ouvrir, mais a une chance d'user l'arme et de baisser ses dégats
+			wood,
+	bronze,
+	silver,
+	gold,
+	diamond,
 };
 
-#endif //DUNGEEP_WORLD_HPP
+class chest : public world_object {
+public:
+
+	chest(chest_level l) : level(l), ite{item::generate_rand(l)} {}
+
+	void drop(world_proxy& proxy) noexcept {
+		if (ite) {
+			proxy.create_entity(std::move(ite));
+			proxy.delete_entity(this);
+		}
+	}
+
+
+	void print(sf::RenderWindow&) const noexcept override;
+
+private:
+	chest_level level;
+	std::unique_ptr<item> ite;
+};
+
+#endif //DUNGEEP_CHEST_HPP

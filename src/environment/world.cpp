@@ -15,9 +15,9 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "resource_manager.hpp"
-#include "world_objects/mob.hpp"
-#include "world.hpp"
+#include "utils/resource_manager.hpp"
+#include "environment/world_objects/mob.hpp"
+#include "environment/world.hpp"
 
 void world::generate_next_level() {
 	const auto& map_list = resources::manager.get_map_list();

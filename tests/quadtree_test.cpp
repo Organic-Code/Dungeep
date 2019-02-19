@@ -18,8 +18,8 @@
 #include <cstdlib>
 #include <ctime>
 #include <catch2/catch.hpp>
-#include <quadtree.hpp>
-#include <geometry.hpp>
+#include <utils/quadtree.hpp>
+#include <utils/geometry.hpp>
 
 using area = dungeep::area<float>;
 using point = dungeep::point<float>;

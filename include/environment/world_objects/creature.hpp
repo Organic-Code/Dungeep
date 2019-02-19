@@ -1,3 +1,6 @@
+#ifndef DUNGEEP_CREATURE_HPP
+#define DUNGEEP_CREATURE_HPP
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///                                                                                                                                     ///
 ///  Copyright C 2018, Lucas Lazare                                                                                                     ///
@@ -15,35 +18,81 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include <SFML/Graphics/RenderWindow.hpp>
-#include <SFML/Graphics/Sprite.hpp>
-#include <json/json.h>
+#include <vector>
 
-#include "world_objects/mob.hpp"
-#include "resource_manager.hpp"
 #include "iconned/fixed.hpp"
 #include "iconned/dynamic.hpp"
+#include "dynamic_object.hpp"
 
-mob::mob(std::string name_, int level) noexcept :
-		creature(name_),
-		name{std::move(name_)},
-		current_direction{dungeep::direction::none}
-{
-	using ck = resources::creature_keys;
-
-	const Json::Value& me = resources::manager.read_creature(name);
-	max_health = me.get(ck::hp, 0).asInt() + me.get(ck::hp_pl, 0).asInt() * level;
-	attack_power = me.get(ck::phys_power, 0).asInt() + me.get(ck::phys_power_pl, 0).asInt() * level;
-	armor = me.get(ck::armor, 0).asInt() + me.get(ck::armor_pl, 0).asInt() * level;
-	resist = me.get(ck::resist, 0).asInt() + me.get(ck::resist_pl, 0).asInt() * level;
-	move_speed = me.get(ck::move_speed,0).asInt() + me.get(ck::move_speed_pl, 0).asInt() * level;
-	crit_chance = me.get(ck::crit, 0).asInt() + me.get(ck::crit_pl, 0).asInt() * level;
+namespace sf {
+	class Sprite;
 }
 
-void mob::tick(world_proxy& world) noexcept {
-	// TODO
-}
+class creature : public dynamic_object {
+public:
 
-int mob::sleep() noexcept {
-	return 0;
-}
+	explicit creature(const std::string& name) noexcept;
+
+	virtual void magical_hit(int damage, int resist_ignore) noexcept;
+
+	virtual void physical_hit(int damage, int armor_ignore) noexcept;
+
+	void add_effect(std::unique_ptr<fixed_effect>&& effect) noexcept;
+
+	void remove_effect(fixed_effect*) noexcept;
+
+	// returns the number of forced non-sleep ticks
+	virtual int sleep() noexcept = 0;
+
+	virtual void true_hit(int damage) noexcept;
+
+	void print(sf::RenderWindow& rw) const noexcept override;
+
+	virtual int get_armor() const noexcept {
+		return armor;
+	}
+
+	virtual int get_resist() const noexcept {
+		return resist;
+	}
+
+	virtual int get_hp() const noexcept {
+		return current_health;
+	}
+
+	virtual int get_max_hp() const noexcept {
+		return max_health;
+	}
+
+	virtual void heal(int heal) noexcept {
+		current_health = std::min(get_hp() + heal, get_max_hp());
+	}
+
+protected:
+
+	// with n armor/resist, you have a (n/10)% effective hp boost
+	static int compute_damage_reduction(int damage, int defense) noexcept {
+		if (defense >= 0) {
+			return damage * 1000 / (1000 + defense);
+		} else {
+			return damage * 2 - damage * 1000 / (1000 - defense);
+		}
+	}
+
+	int current_health{};
+	int max_health{};
+	int armor{};
+	int resist{};
+	int attack_power{};
+	int crit_chance{};
+	int move_speed{};
+
+	dungeep::direction current_direction{};
+
+	std::vector<std::unique_ptr<fixed_effect>> fixed_buffs{};
+	std::vector<std::unique_ptr<dynamic_effect>> dynamic_buffs{};
+
+	std::array<sf::Sprite, static_cast<unsigned>(dungeep::direction::none)>& sprites; // TODO: vector of array / array of vector (animations)
+};
+
+#endif //DUNGEEP_CREATURE_HPP

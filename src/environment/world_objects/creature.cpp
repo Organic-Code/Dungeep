@@ -18,11 +18,11 @@
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <algorithm>
 #include <utility>
-#include <world_objects/creature.hpp>
-#include <resource_manager.hpp>
+#include <environment/world_objects/creature.hpp>
+#include <utils/resource_manager.hpp>
 
 
-#include "world_objects/creature.hpp"
+#include "environment/world_objects/creature.hpp"
 #include "iconned/fixed.hpp"
 #include "iconned/dynamic.hpp"
 

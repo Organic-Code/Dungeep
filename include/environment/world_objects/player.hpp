@@ -1,9 +1,9 @@
-#ifndef DUNGEEP_MAP_TESTER_HPP
-#define DUNGEEP_MAP_TESTER_HPP
+#ifndef DUNGEEP_PLAYER_HPP
+#define DUNGEEP_PLAYER_HPP
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///                                                                                                                                     ///
-///  Copyright C 2018, Maxime Pinard                                                                                                    ///
+///  Copyright C 2018, Lucas Lazare                                                                                                     ///
 ///  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation         ///
 ///  files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy,         ///
 ///  modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software     ///
@@ -18,63 +18,57 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "map.hpp"
+#include <vector>
 
-#include <imgui.h>
-#include <SFML/Graphics/Image.hpp>
-#include <SFML/Graphics/Texture.hpp>
+#include "creature.hpp"
+#include "utils/geometry.hpp"
 
-#include <random>
-#include <memory>
+class fixed_effect;
+class dynamic_effect;
 
-class map_tester final
-{
-
+class player final : public creature {
 public:
-	map_tester() noexcept;
+	// return 0 when dead ?
+	int sleep() noexcept override;
 
-	void configureDockspace(ImGuiID dockspace_id) const;
+	void tick(world_proxy& world) noexcept override;
 
-	void showConfigWindow();
+	void print(sf::RenderWindow&) const noexcept override {
+		// TODO
+	}
 
-	void showViewerWindow();
+	void true_hit(int damage) noexcept override;
 
-	void showViewerConfigWindow();
+	void move(dungeep::area_f) noexcept;
 
-	void showDebugInfoWindow();
+	bool is_local() const noexcept;
+
+	void drop_item(unsigned int item_index) noexcept;
+
+	void lose_item(unsigned int item_index) noexcept;
+
+	void gain_item(std::unique_ptr<fixed_effect>&&) noexcept;
+
+	void gain_gold(unsigned int gold) noexcept;
+
+	void lose_gold(unsigned int gold) noexcept;
+
+	unsigned int get_current_gold() const noexcept;
+
+	void set_armor(int) noexcept;
+
+	void set_resist(int) noexcept;
+
+	void set_max_hp(int) noexcept;
+
+	void set_hp(int) noexcept;
+
+	int get_mana() const noexcept;
 
 private:
-	void updateMap();
 
-	void updateMapView();
-
-	void showGenPropertiesConfig(zone_gen_properties& properties);
-
-	bool showColorConfig(std::string_view label, sf::Color& color);
-
-	const sf::Color& tileColor(const tiles& tile) const;
-
-	unsigned int m_seed;
-	std::vector<room_gen_properties> m_gen_properties;
-	hallway_gen_properties m_hall_properties;
-	map::size_type m_map_size;
-	map m_map;
-
-	sf::Image m_image;
-	sf::Texture m_texture;
-	dungeep::point_i m_from_pos;
-	dungeep::point_i m_lats_pos;
-
-	int m_selected_load_map;
-	std::array<char, 2048> m_save_map_name;
-
-	bool m_show_zoom;
-	float m_zoom_region_size;
-	sf::Color m_wall_color;
-	sf::Color m_empty_space_color;
-	sf::Color m_hole_color;
-	sf::Color m_walkable_color;
-	sf::Color m_none_color;
+	std::vector<std::unique_ptr<fixed_effect>> fixed_items;
+	std::vector<std::unique_ptr<dynamic_effect>> dynamic_items;
 };
 
-#endif //DUNGEEP_MAP_TESTER_HPP
+#endif //DUNGEEP_PLAYER_HPP

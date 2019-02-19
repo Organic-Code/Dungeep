@@ -1,5 +1,5 @@
-#ifndef DUNGEEP_MOB_HPP
-#define DUNGEEP_MOB_HPP
+#ifndef DUNGEEP_WORLD_OBJECT_HPP
+#define DUNGEEP_WORLD_OBJECT_HPP
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///                                                                                                                                     ///
@@ -18,34 +18,62 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "world_objects/creature.hpp"
+#include <memory>
 
-#include <string>
+#include "utils/geometry.hpp"
 
 namespace sf {
-	class Sprite;
+	class RenderWindow;
 }
-
 class player;
 
-class mob final : public creature {
+class world_object {
 public:
-	mob(std::string name_, int level) noexcept;
+	// purely virtual
+	world_object(const world_object& other) = delete;
+	world_object(world_object&& other) = delete;
+	world_object& operator=(const world_object& other) = delete;
+	world_object& operator=(world_object&& other) = delete;
 
-	void tick(world_proxy& world) noexcept override;
+	constexpr world_object() noexcept = default;
+	explicit constexpr world_object(const dungeep::area_f& ar) noexcept : hit_box(ar) {}
 
-	void print(sf::RenderWindow&) const noexcept override {
-		// TODO
+	dungeep::area_f hitbox() const noexcept {
+		return hit_box;
 	}
 
-	void interact_with(player&) noexcept override {}
+	void set_hitbox(const dungeep::area_f& ar) noexcept {
+		hit_box = ar;
+	}
 
-	int sleep() noexcept override;
+	dungeep::area_f get_resized(float width_percent) noexcept {
+		return get_resized(width_percent, width_percent);
+	}
 
-private:
+	dungeep::area_f get_resized(float width_percent, float height_percent) const noexcept {
+		using dungeep::point_f;
+		auto hit_box_cpy = hit_box;
 
-	std::string name;
-	dungeep::direction current_direction;
+		point_f diff = hit_box_cpy.top_left - hit_box_cpy.bot_right;
+		point_f new_diff = diff;
+		new_diff.x *= width_percent;
+		new_diff.y *= height_percent;
+
+		point_f translate = (diff - new_diff) / 2;
+		hit_box_cpy.top_left -= translate;
+		hit_box_cpy.bot_right += translate;
+
+		return hit_box_cpy;
+	}
+
+	virtual void print(sf::RenderWindow&) const noexcept = 0;
+
+	virtual void interact_with(player&) noexcept = 0;
+
+	virtual ~world_object() = default;
+
+protected:
+	dungeep::area_f hit_box{};
 };
 
-#endif //DUNGEEP_MOB_HPP
+#endif //DUNGEEP_WORLD_OBJECT_HPP

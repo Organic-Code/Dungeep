@@ -1,9 +1,9 @@
-#ifndef DUNGEEP_CREATURE_HPP
-#define DUNGEEP_CREATURE_HPP
+#ifndef DUNGEEP_MAP_TESTER_HPP
+#define DUNGEEP_MAP_TESTER_HPP
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///                                                                                                                                     ///
-///  Copyright C 2018, Lucas Lazare                                                                                                     ///
+///  Copyright C 2018, Maxime Pinard                                                                                                    ///
 ///  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation         ///
 ///  files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy,         ///
 ///  modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software     ///
@@ -18,81 +18,63 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include <vector>
+#include "environment/map.hpp"
 
-#include "iconned/fixed.hpp"
-#include "iconned/dynamic.hpp"
-#include "world_objects/dynamic_object.hpp"
+#include <imgui.h>
+#include <SFML/Graphics/Image.hpp>
+#include <SFML/Graphics/Texture.hpp>
 
-namespace sf {
-	class Sprite;
-}
+#include <random>
+#include <memory>
 
-class creature : public dynamic_object {
+class map_tester final
+{
+
 public:
+	map_tester() noexcept;
 
-	explicit creature(const std::string& name) noexcept;
+	void configureDockspace(ImGuiID dockspace_id) const;
 
-	virtual void magical_hit(int damage, int resist_ignore) noexcept;
+	void showConfigWindow();
 
-	virtual void physical_hit(int damage, int armor_ignore) noexcept;
+	void showViewerWindow();
 
-	void add_effect(std::unique_ptr<fixed_effect>&& effect) noexcept;
+	void showViewerConfigWindow();
 
-	void remove_effect(fixed_effect*) noexcept;
+	void showDebugInfoWindow();
 
-	// returns the number of forced non-sleep ticks
-	virtual int sleep() noexcept = 0;
+private:
+	void updateMap();
 
-	virtual void true_hit(int damage) noexcept;
+	void updateMapView();
 
-	void print(sf::RenderWindow& rw) const noexcept override;
+	void showGenPropertiesConfig(zone_gen_properties& properties);
 
-	virtual int get_armor() const noexcept {
-		return armor;
-	}
+	bool showColorConfig(std::string_view label, sf::Color& color);
 
-	virtual int get_resist() const noexcept {
-		return resist;
-	}
+	const sf::Color& tileColor(const tiles& tile) const;
 
-	virtual int get_hp() const noexcept {
-		return current_health;
-	}
+	unsigned int m_seed;
+	std::vector<room_gen_properties> m_gen_properties;
+	hallway_gen_properties m_hall_properties;
+	map::size_type m_map_size;
+	map m_map;
 
-	virtual int get_max_hp() const noexcept {
-		return max_health;
-	}
+	sf::Image m_image;
+	sf::Texture m_texture;
+	dungeep::point_i m_from_pos;
+	dungeep::point_i m_lats_pos;
 
-	virtual void heal(int heal) noexcept {
-		current_health = std::min(get_hp() + heal, get_max_hp());
-	}
+	int m_selected_load_map;
+	std::array<char, 2048> m_save_map_name;
 
-protected:
-
-	// with n armor/resist, you have a (n/10)% effective hp boost
-	static int compute_damage_reduction(int damage, int defense) noexcept {
-		if (defense >= 0) {
-			return damage * 1000 / (1000 + defense);
-		} else {
-			return damage * 2 - damage * 1000 / (1000 - defense);
-		}
-	}
-
-	int current_health{};
-	int max_health{};
-	int armor{};
-	int resist{};
-	int attack_power{};
-	int crit_chance{};
-	int move_speed{};
-
-	dungeep::direction current_direction{};
-
-	std::vector<std::unique_ptr<fixed_effect>> fixed_buffs{};
-	std::vector<std::unique_ptr<dynamic_effect>> dynamic_buffs{};
-
-	std::array<sf::Sprite, static_cast<unsigned>(dungeep::direction::none)>& sprites; // TODO: vector of array / array of vector (animations)
+	bool m_show_zoom;
+	float m_zoom_region_size;
+	sf::Color m_wall_color;
+	sf::Color m_empty_space_color;
+	sf::Color m_hole_color;
+	sf::Color m_walkable_color;
+	sf::Color m_none_color;
 };
 
-#endif //DUNGEEP_CREATURE_HPP
+#endif //DUNGEEP_MAP_TESTER_HPP

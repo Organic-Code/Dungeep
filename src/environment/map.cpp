@@ -19,12 +19,12 @@
 #include <algorithm>
 #include <unordered_set>
 #include <set>
-#include <map.hpp>
+#include <environment/map.hpp>
 #include <chrono>
-#include <quadtree.hpp>
+#include <utils/quadtree.hpp>
 
 #include "utils/random.hpp"
-#include "map.hpp"
+#include "environment/map.hpp"
 
 std::vector<map::map_area> map::generate(size_type size, const std::vector<room_gen_properties>& rooms_properties,
                                     const hallway_gen_properties& hgp) {

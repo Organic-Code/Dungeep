@@ -1,6 +1,3 @@
-#ifndef DUNGEEP_WORLD_OBJECT_HPP
-#define DUNGEEP_WORLD_OBJECT_HPP
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///                                                                                                                                     ///
 ///  Copyright C 2018, Lucas Lazare                                                                                                     ///
@@ -18,62 +15,35 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include <memory>
+#include <SFML/Graphics/RenderWindow.hpp>
+#include <SFML/Graphics/Sprite.hpp>
+#include <json/json.h>
 
-#include "geometry.hpp"
+#include "environment/world_objects/mob.hpp"
+#include "utils/resource_manager.hpp"
+#include "iconned/fixed.hpp"
+#include "iconned/dynamic.hpp"
 
-namespace sf {
-	class RenderWindow;
+mob::mob(std::string name_, int level) noexcept :
+		creature(name_),
+		name{std::move(name_)},
+		current_direction{dungeep::direction::none}
+{
+	using ck = resources::creature_keys;
+
+	const Json::Value& me = resources::manager.read_creature(name);
+	max_health = me.get(ck::hp, 0).asInt() + me.get(ck::hp_pl, 0).asInt() * level;
+	attack_power = me.get(ck::phys_power, 0).asInt() + me.get(ck::phys_power_pl, 0).asInt() * level;
+	armor = me.get(ck::armor, 0).asInt() + me.get(ck::armor_pl, 0).asInt() * level;
+	resist = me.get(ck::resist, 0).asInt() + me.get(ck::resist_pl, 0).asInt() * level;
+	move_speed = me.get(ck::move_speed,0).asInt() + me.get(ck::move_speed_pl, 0).asInt() * level;
+	crit_chance = me.get(ck::crit, 0).asInt() + me.get(ck::crit_pl, 0).asInt() * level;
 }
-class player;
 
-class world_object {
-public:
-	// purely virtual
-	world_object(const world_object& other) = delete;
-	world_object(world_object&& other) = delete;
-	world_object& operator=(const world_object& other) = delete;
-	world_object& operator=(world_object&& other) = delete;
+void mob::tick(world_proxy& world) noexcept {
+	// TODO
+}
 
-	constexpr world_object() noexcept = default;
-	explicit constexpr world_object(const dungeep::area_f& ar) noexcept : hit_box(ar) {}
-
-	dungeep::area_f hitbox() const noexcept {
-		return hit_box;
-	}
-
-	void set_hitbox(const dungeep::area_f& ar) noexcept {
-		hit_box = ar;
-	}
-
-	dungeep::area_f get_resized(float width_percent) noexcept {
-		return get_resized(width_percent, width_percent);
-	}
-
-	dungeep::area_f get_resized(float width_percent, float height_percent) const noexcept {
-		using dungeep::point_f;
-		auto hit_box_cpy = hit_box;
-
-		point_f diff = hit_box_cpy.top_left - hit_box_cpy.bot_right;
-		point_f new_diff = diff;
-		new_diff.x *= width_percent;
-		new_diff.y *= height_percent;
-
-		point_f translate = (diff - new_diff) / 2;
-		hit_box_cpy.top_left -= translate;
-		hit_box_cpy.bot_right += translate;
-
-		return hit_box_cpy;
-	}
-
-	virtual void print(sf::RenderWindow&) const noexcept = 0;
-
-	virtual void interact_with(player&) noexcept = 0;
-
-	virtual ~world_object() = default;
-
-protected:
-	dungeep::area_f hit_box{};
-};
-
-#endif //DUNGEEP_WORLD_OBJECT_HPP
+int mob::sleep() noexcept {
+	return 0;
+}

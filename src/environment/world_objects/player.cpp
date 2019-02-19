@@ -1,7 +1,7 @@
 
-#include <world_objects/player.hpp>
+#include <environment/world_objects/player.hpp>
 
-#include "world_objects/player.hpp"
+#include "environment/world_objects/player.hpp"
 
 int player::sleep() noexcept {
 	return 0;

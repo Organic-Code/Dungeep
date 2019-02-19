@@ -1,13 +1,10 @@
-#ifndef DUNGEEP_DROPPED_ITEM_HPP
-#define DUNGEEP_DROPPED_ITEM_HPP
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///                                                                                                                                     ///
 ///  Copyright C 2018, Lucas Lazare                                                                                                     ///
 ///  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation         ///
-///  files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy,         ///
+///  		files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy,  ///
 ///  modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software     ///
-///  is furnished to do so, subject to the following conditions:                                                                        ///
+///  		is furnished to do so, subject to the following conditions:                                                                 ///
 ///                                                                                                                                     ///
 ///  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.     ///
 ///                                                                                                                                     ///
@@ -18,32 +15,34 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include <memory>
+#include <json/json.h>
+#include <utils/resource_manager.hpp>
+#include <iconned/dynamic.hpp>
+#include <environment/world_objects/chest.hpp>
 
-#include "iconned/fixed.hpp"
-#include "world_objects/world_object.hpp"
-#include "chest.hpp"
+#include "environment/world_objects/item.hpp"
+#include "utils/random.hpp"
 
-enum class chest_level;
+std::unique_ptr<item> item::generate_rand(chest_level chest_level) {
+	// Todo: rareté (cf paramètre)
+	// Todo: limiter à 'un' exemplaire de chaque objet (pour chaque joueur) [en paramètre (inventaire de joueur) ?]
 
-class item final : public world_object {
-public:
-	static std::unique_ptr<item> generate_rand(chest_level);
+	using keys = resources::item_keys;
+	const Json::Value& item_props = resources::manager.read_item(static_cast<unsigned int>(dungeep::random_engine() % resources::manager.get_item_count()));
 
-	explicit item(std::unique_ptr<fixed_effect>&& it) noexcept : item_effects(std::move(it)) {}
+	std::string name = item_props[keys::name].asString();
+	fixed_effect::defense def{item_props[keys::hp].asInt(), item_props[keys::armor].asInt(), item_props[keys::resist].asInt()};
+	fixed_effect::attack atk{item_props[keys::attack].asInt(), item_props[keys::mag_atk].asInt(), item_props[keys::attack_speed].asInt()};
+	fixed_effect::critics crits{item_props[keys::phy_crit_chance].asInt(), item_props[keys::mag_crit_chance].asInt()};
+	fixed_effect::misc m{item_props[keys::move_speed].asFloat(), item_props[keys::armor_pen].asInt(), item_props[keys::resist_pen].asInt()};
 
-	void print(sf::RenderWindow& rw) const noexcept override {
-		item_effects->print_icon_at(rw, hitbox());
+	std::unique_ptr<fixed_effect> ptr;
+	if (item_props[keys::is_dynamic].asBool()) {
+		ptr = dynamic_effect::find_by_name(std::move(name), def, atk, crits, m, item_props);
+	} else {
+		ptr = std::make_unique<fixed_effect>(std::move(name), def, atk, crits, m);
 	}
 
-	void interact_with(player&) noexcept override {
-		// todo
-	}
+	return std::make_unique<item>(std::move(ptr));
+}
 
-
-private:
-	std::unique_ptr<fixed_effect> item_effects;
-
-};
-
-#endif //DUNGEEP_DROPPED_ITEM_HPP
