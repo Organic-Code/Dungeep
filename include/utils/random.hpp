@@ -87,18 +87,16 @@ namespace dungeep {
 				return p.mean() + val * p.stddev();
 			}
 
-			// generates a random number \in [-1 ; 1]
-			auto gen_rand = [&g]() -> result_type {
-				return result_type(g() - g.min()) / result_type(g.max() - g.min()) * result_type(2.0) - result_type(1.0);
-			};
+			result_type half_range = (g.max() - g.min()) / result_type(2.);
 			result_type x, y, z;
 			do {
-				x = gen_rand();
-				y = gen_rand();
+				//x, y \in [-1 ; 1]
+				x = result_type(g() - g.min()) / half_range - result_type(1.0);
+				y = result_type(g() - g.min()) / half_range - result_type(1.0);
 				z = x*x + y*y;
-			} while (z <= result_type(0.) || z >= result_type(1.));
+			} while (z > result_type(1.) || z == result_type(0.));
 
-			const auto coeff = std::sqrt(-2 * std::log(z) / z);
+			const result_type coeff = std::sqrt(-2 * std::log(z) / z);
 
 			val_avail = true;
 			val = y * coeff;
@@ -175,7 +173,9 @@ namespace dungeep {
 		struct param_type {
 			using distribution_type = uniform_int_distribution<IntType>;
 
-			explicit constexpr param_type(IntType a_ = 0, IntType b_ = std::numeric_limits<IntType>::max()) noexcept : m_a(a_), m_b(b_) {}
+			explicit constexpr param_type(IntType a_ = 0, IntType b_ = std::numeric_limits<IntType>::max()) noexcept : m_a(a_), m_b(b_) {
+				assert(m_a < m_b);
+			}
 
 			constexpr IntType a() const noexcept {
 				return m_a;
@@ -220,26 +220,28 @@ namespace dungeep {
 			unsigned_rng_res_t rng_range = g.max() - g.min(); // not adding 1 because of potential overflows
 			unsigned_dist_res_t dist_range = p.b() - p.a();
 
-			if (rng_range != std::numeric_limits<unsigned_rng_res_t>::max()) {
-				++rng_range;
-			}
-			if (dist_range != std::numeric_limits<unsigned_dist_res_t>::max()) {
-				++dist_range;
-			}
-
 			using unsigned_comm_t = std::common_type_t<unsigned_rng_res_t, unsigned_dist_res_t>;
 
 			if (rng_range > dist_range) {
+				if (rng_range != std::numeric_limits<unsigned_rng_res_t>::max()) {
+					++rng_range;
+				}
+				++dist_range;
+
 				// downscaling
 
 				const unsigned_comm_t int_scale = rng_range / dist_range;
-				const unsigned_comm_t gen_max = int_scale * rng_range;
+				const unsigned_comm_t gen_max = int_scale * dist_range;
 
 				unsigned_comm_t value;
 				while ((value = g() - g.min()) > gen_max);
 				return result_type(value / int_scale) + p.a();
 
 			} else if (rng_range < dist_range) {
+				if (dist_range != std::numeric_limits<unsigned_dist_res_t>::max()) {
+					++dist_range;
+				}
+				++rng_range;
 				// upscaling
 
 				unsigned_comm_t int_scale = dist_range / rng_range;

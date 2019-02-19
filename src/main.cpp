@@ -19,9 +19,36 @@ namespace
 	void showMainDockSpace(const map_tester& map_tester);
 } // namespace
 
+#include <iostream>
+#include <iomanip>
+#include <map>
+#include <utils/random.hpp>
+#include <display/proba_tester.hpp>
+
 int main()
 {
-	map_tester tester;
+
+	auto seed = std::random_device()();
+	std::mt19937_64 mt{seed};
+	std::array<proba_tester, 4> t;
+	std::array<dungeep::normal_distribution<float>, t.size()> distribs{
+        dungeep::normal_distribution{0.f, 40.f},
+		dungeep::normal_distribution{-30.f, 40.f},
+  		dungeep::normal_distribution{0.f, 100.f},
+  		dungeep::normal_distribution{0.f, 4.f}
+	};
+
+	auto re_maker = [&mt](auto& distrib) {
+		return [&mt, &distrib] {
+			return static_cast<int>(std::round(distrib(mt)));
+		};
+	};
+
+	for (auto i = 0u ; i < t.size() ; ++i) {
+		t[i].test_distribution(re_maker(distribs[i]), -500, 500, 1000u);
+	}
+
+	//map_tester tester;
 
 	sf::Clock deltaClock;
 	sf::Clock musicOffsetClock;
@@ -52,11 +79,15 @@ int main()
 
 		ImGui::SFML::Update(window, deltaClock.restart());
 
-		showMainDockSpace(tester);
-		tester.showViewerWindow();
-		tester.showConfigWindow();
-		tester.showViewerConfigWindow();
-		tester.showDebugInfoWindow();
+  		for (proba_tester& tester : t) {
+  			tester.update();
+  		}
+
+//		showMainDockSpace(tester);
+//		tester.showViewerWindow();
+//		tester.showConfigWindow();
+//		tester.showViewerConfigWindow();
+//		tester.showDebugInfoWindow();
 
 		window.clear();
 		ImGui::SFML::Render(window);
