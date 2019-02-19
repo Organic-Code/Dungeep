@@ -36,6 +36,9 @@
     "base move speed" : 12,
     "move speed per level" : 2,
 
+    "spawner spawn count" : 5,
+    "spawner spawn interval" : 1000,
+
     "available for maps" :
     {
       "caves" :

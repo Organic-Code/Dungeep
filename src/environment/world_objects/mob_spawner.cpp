@@ -15,56 +15,36 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "utils/resource_manager.hpp"
+#include "environment/world_objects/mob_spawner.hpp"
 #include "environment/world_objects/mob.hpp"
-#include "environment/world.hpp"
+#include "environment/world_proxy.hpp"
+#include "utils/resource_manager.hpp"
 
-void world::generate_next_level() {
-	const std::vector<std::string>& map_list = resources::manager.get_map_list();
-	const std::string& map_name = map_list[shared_random() % map_list.size()];
-	auto map_properties = resources::manager.get_map(map_name);
-	std::vector<map::map_area> room_list = shared_map.generate(
-			  std::get<map::size_type>(map_properties)
-			, std::get<std::vector<room_gen_properties>>(map_properties)
-			, std::get<hallway_gen_properties>(map_properties)
-    );
+mob_spawner::mob_spawner(const resources::creature_info& infos_, int level_) noexcept
+		: creature(infos_.name + resources::creature_values::spawner_suffix)
+		, infos(infos_)
+		, level(level_)
+{
+	const Json::Value& creature = resources::manager.read_creature(infos_.name);
+	max_cooldown = creature.[resources::creature_keys::spawner::burst_interval].asUInt();
+	max_creature_count = creature.[resources::creature_keys::spawner::burst_duration].asUInt();
 
-	auto size = shared_map.size();
-	dungeep::area_f map_area{{0.f, 0.f}, {static_cast<float>(size.width), static_cast<float>(size.height)}};
+}
 
-	dynamic_objects = decltype(dynamic_objects)(map_area);
-	static_objects = decltype(static_objects)(map_area);
-
-	std::vector<resources::creature_info> mobs = resources::manager.get_creatures_for_level(current_level, map_name);
-	assert(!mobs.empty());
-
-	unsigned int density = mobs_per_100_tiles();
-
-	auto try_gen_pos = [this](const map::map_area& room, dungeep::area_f& generated_area, dungeep::dim_uc dim) {
-		unsigned int i = 3;
-		bool valid_pos;
-		do {
-			generated_area.top_left.x = static_cast<float>(shared_random() % (room.width - dim.x) + room.x);
-			generated_area.top_left.y = static_cast<float>(shared_random() % (room.height - dim.y) + room.y);
-			generated_area.bot_right.x = generated_area.top_left.x + static_cast<float>(dim.x);
-			generated_area.bot_right.y = generated_area.top_left.y + static_cast<float>(dim.y);
-			valid_pos = shared_map[generated_area.top_left] == tiles::walkable && shared_map[generated_area.bot_right] == tiles::walkable;
-		} while (!valid_pos && i--);
-		return valid_pos;
-	};
-
-	dungeep::area_f mob_pos;
-	for (const map::map_area& room : room_list) {
-		for (unsigned int mob_count = density * room.height * room.width / 100 ; mob_count != 0 ; --mob_count) {
-			const resources::creature_info& selected_mob = mobs[shared_random() % mobs.size()];
-			if (try_gen_pos(room, mob_pos, selected_mob.size)) {
-				dynamic_objects.emplace(mob_pos, std::make_unique<mob>(mobs[shared_random() % mobs.size()], current_level));
-			}
+void mob_spawner::tick(world_proxy& world) noexcept {
+	if (creature_count < max_creature_count) {
+		if (cooldown == 0u) {
+			cooldown = max_cooldown;
+			world.create_entity(std::make_unique<mob>(infos, level));
+			++creature_count;
+		} else {
+			cooldown--;
 		}
 	}
+}
 
-	// TODO: objets statiques (coffres, boutons, …)
-
-	// TODO: haut-faits
-	// TODO: sortie et entrée du niveau
+int mob_spawner::sleep() noexcept {
+	creature_count = 0u;
+	cooldown = 0u;
+	return 0;
 }

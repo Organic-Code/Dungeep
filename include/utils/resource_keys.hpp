@@ -33,6 +33,10 @@ struct creature_keys {
 	static constexpr const char* crit_pl                 = "crit chance per level";
 	static constexpr const char* move_speed              = "base move speed";
 	static constexpr const char* move_speed_pl           = "move speed per level";
+	struct spawner {
+		static constexpr const char* burst_duration      = "spawner spawn count";
+		static constexpr const char* burst_interval      = "spawner spawn interval";
+	};
 	struct map {
 		static constexpr const char* list                = "available for maps";
 		static constexpr const char* min_level           = "minimum level";
@@ -45,6 +49,7 @@ struct creature_values {
 		static constexpr const char* creep               = "creep";
 		static constexpr const char* creep_boss          = "creep boss";
 	};
+	static constexpr const char* spawner_suffix          = "_spawner";
 };
 struct player_keys {
 	static constexpr const char* mana                    = "base mana";
