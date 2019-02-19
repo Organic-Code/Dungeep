@@ -20,6 +20,7 @@
 
 // using const char* because jsoncpp does not handle std::string_view anyway
 struct creature_keys {
+	static constexpr const char* type                    = "type"; // cf creature_values::type
 	static constexpr const char* hp                      = "base hp";
 	static constexpr const char* hp_pl                   = "hp per level";
 	static constexpr const char* phys_power              = "base physical power";
@@ -32,6 +33,18 @@ struct creature_keys {
 	static constexpr const char* crit_pl                 = "crit chance per level";
 	static constexpr const char* move_speed              = "base move speed";
 	static constexpr const char* move_speed_pl           = "move speed per level";
+	struct map {
+		static constexpr const char* list                = "available for maps";
+		static constexpr const char* min_level           = "minimum level";
+		static constexpr const char* max_level           = "maximum level";
+	};
+};
+struct creature_values {
+	struct type {
+		static constexpr const char* player              = "player";
+		static constexpr const char* creep               = "creep";
+		static constexpr const char* creep_boss          = "creep boss";
+	};
 };
 struct player_keys {
 	static constexpr const char* mana                    = "base mana";

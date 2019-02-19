@@ -40,6 +40,14 @@ class resources {
 	static constexpr unsigned int tiles_count = static_cast<unsigned>(tiles::none);
 
 public:
+
+	struct creature_info {
+		const std::string& name;
+		dungeep::dim_uc size{0, 0};
+		unsigned short min_level{0};
+		unsigned short max_level{std::numeric_limits<unsigned short>::max()};
+	};
+
 #include "resource_keys.hpp"
 
 	static resources manager;
@@ -90,7 +98,7 @@ public:
 		return items[name];
 	}
 
-	const std::vector<std::pair<std::string, dungeep::dim_ui>>& get_creatures_for_level(unsigned int level) const noexcept;
+	std::vector<creature_info> get_creatures_for_level(unsigned int level, const std::string& map_name) const noexcept;
 
 	// constructs the string the first time it's needed, re-uses it afterward
 	// does not invalidates previously fetched references
@@ -116,6 +124,7 @@ private:
 	void load_sprites() noexcept;
 	void load_items() noexcept;
 	void load_translations() noexcept;
+	void load_creature_infos() noexcept;
 
 	void load_creature_sprites(const std::string& name, const Json::Value& values) noexcept;
 	void load_map_sprites(const std::string& name, const Json::Value& values) noexcept;
@@ -133,6 +142,9 @@ private:
 
 	Json::Value text_list_json{};
 	std::unordered_map<const char*, std::string> text_list{};
+
+	std::vector<std::string> creatures_name_list;
+	std::unordered_map<std::string, std::vector<creature_info>> creatures_info_per_map;
 
 	sf::Texture texture{};
 	std::unordered_map<std::string, std::array<sf::Sprite, direction_count>> creatures_sprites{};

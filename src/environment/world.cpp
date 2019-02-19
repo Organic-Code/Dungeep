@@ -20,8 +20,9 @@
 #include "environment/world.hpp"
 
 void world::generate_next_level() {
-	const auto& map_list = resources::manager.get_map_list();
-	auto map_properties = resources::manager.get_map(map_list[shared_random() % map_list.size()]);
+	const std::vector<std::string>& map_list = resources::manager.get_map_list();
+	const std::string& map_name = map_list[shared_random() % map_list.size()];
+	auto map_properties = resources::manager.get_map(map_name);
 	std::vector<map::map_area> room_list = shared_map.generate(
 			  std::get<map::size_type>(map_properties)
 			, std::get<std::vector<room_gen_properties>>(map_properties)
@@ -34,19 +35,19 @@ void world::generate_next_level() {
 	dynamic_objects = decltype(dynamic_objects)(map_area);
 	static_objects = decltype(static_objects)(map_area);
 
-	const std::vector<std::pair<std::string, dungeep::dim_ui>>& mobs = resources::manager.get_creatures_for_level(current_level);
+	std::vector<resources::creature_info> mobs = resources::manager.get_creatures_for_level(current_level, map_name);
 	assert(!mobs.empty());
 
 	unsigned int density = mobs_per_100_tiles();
 
-	auto try_gen_pos = [this](const map::map_area& room, dungeep::area_f& generated_area, dungeep::dim_ui dim) {
+	auto try_gen_pos = [this](const map::map_area& room, dungeep::area_f& generated_area, dungeep::dim_uc dim) {
 		unsigned int i = 3;
 		bool valid_pos;
 		do {
-			generated_area.top_left.x = shared_random() % (room.width - dim.x) + room.x;
-			generated_area.top_left.y = shared_random() % (room.height - dim.y) + room.y;
-			generated_area.bot_right.x = generated_area.top_left.x + dim.x;
-			generated_area.bot_right.y = generated_area.top_left.y + dim.y;
+			generated_area.top_left.x = static_cast<float>(shared_random() % (room.width - dim.x) + room.x);
+			generated_area.top_left.y = static_cast<float>(shared_random() % (room.height - dim.y) + room.y);
+			generated_area.bot_right.x = generated_area.top_left.x + static_cast<float>(dim.x);
+			generated_area.bot_right.y = generated_area.top_left.y + static_cast<float>(dim.y);
 			valid_pos = shared_map[generated_area.top_left] == tiles::walkable && shared_map[generated_area.bot_right] == tiles::walkable;
 		} while (!valid_pos && i--);
 		return valid_pos;
@@ -56,9 +57,9 @@ void world::generate_next_level() {
 	dungeep::area_f mob_pos;
 	for (const map::map_area& room : room_list) {
 		for (unsigned int mob_count = density * room.height * room.width / 100 ; mob_count != 0 ; --mob_count) {
-			const std::pair<std::string, dungeep::dim_ui>& selected_mob = mobs[shared_random() % mobs.size()];
-			if (try_gen_pos(room, mob_pos, selected_mob.second)) {
-				dynamic_objects.emplace(mob_pos, std::make_unique<mob>(mobs[shared_random() % mobs.size()].first, current_level));
+			const resources::creature_info& selected_mob = mobs[shared_random() % mobs.size()];
+			if (try_gen_pos(room, mob_pos, selected_mob.size)) {
+				dynamic_objects.emplace(mob_pos, std::make_unique<mob>(mobs[shared_random() % mobs.size()], current_level));
 			}
 		}
 	}

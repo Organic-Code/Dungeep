@@ -19,8 +19,6 @@
 #include <fstream>
 #include <algorithm>
 #include <SFML/Graphics/Sprite.hpp>
-#include <utils/resource_manager.hpp>
-
 
 #include "utils/resource_manager.hpp"
 
@@ -135,6 +133,7 @@ resources::resources() noexcept : maps{} {
 	load_sprites();
 	load_items();
 	load_translations();
+	load_creature_infos();
 }
 
 
@@ -325,6 +324,40 @@ void resources::load_translations() noexcept {
 	}
 }
 
+void resources::load_creature_infos() noexcept {
+	creatures_name_list = creatures.getMemberNames();
+	for (const std::string& name : creatures_name_list) {
+		Json::Value& current_creature = creatures[name];
+		if (current_creature[creature_keys::type].asString() != creature_values::type::player) {
+			const sf::IntRect& sprite_rect = creatures_sprites[name][0].getTextureRect();
+
+			creature_info inf{name};
+			inf.size.x = static_cast<std::uint8_t>(sprite_rect.width);
+			inf.size.y = static_cast<std::uint8_t>(sprite_rect.height);
+
+			Json::Value& maps = current_creature[creature_keys::map::list];
+			std::vector<std::string> map_names = maps.getMemberNames();
+			for (const std::string& map : map_names) {
+				Json::Value& current_map = maps[map];
+
+				if (current_map.isMember(creature_keys::map::min_level)) {
+					inf.min_level = static_cast<unsigned short>(current_map[creature_keys::map::min_level].asUInt());
+				} else {
+					inf.min_level = 0u;
+				}
+
+				if (current_map.isMember(creature_keys::map::max_level)) {
+					inf.max_level = static_cast<unsigned short>(current_map[creature_keys::map::max_level].asUInt());
+				} else {
+					inf.max_level = std::numeric_limits<unsigned short>::max();
+				}
+
+				creatures_info_per_map[map].push_back(inf);
+			}
+		}
+	}
+}
+
 void resources::load_creature_sprites(const std::string& name, const Json::Value& values) noexcept {
 	sf::Texture& the_texture = texture;
 
@@ -396,10 +429,18 @@ void resources::load_map_sprites(const std::string& name, const Json::Value& val
 
 }
 
-const std::vector<std::pair<std::string, dungeep::dim_ui>>& resources::get_creatures_for_level(unsigned int level) const noexcept {
-	// TODO
-	static std::vector<std::pair<std::string, dungeep::dim_ui>> v;
-	return v;
+std::vector<resources::creature_info> resources::get_creatures_for_level(unsigned int level, const std::string& map_name) const noexcept {
+	// Improvement: find an actual algorithm to do that ? \:
+	std::vector<creature_info> creature_list;
+	try {
+		const std::vector<creature_info>& full_creature_list = creatures_info_per_map.at(map_name);
+		for (const creature_info& creature : full_creature_list) {
+			if (creature.min_level <= level && level <= creature.max_level) {
+				creature_list.push_back(creature);
+			}
+		}
+	} catch (const std::out_of_range&) {}
+	return creature_list;
 }
 
 #pragma clang diagnostic pop

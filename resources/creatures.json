@@ -1,6 +1,7 @@
 {
   "dummy player" :
   {
+    "type" : "player",
     "base hp" : 1000,
     "hp per level" : 50,
     "base mana" : 1000,
@@ -21,6 +22,7 @@
 
   "dummy mob" :
   {
+    "type" : "creep",
     "base hp" : 200,
     "hp per level" : 20,
     "base physical power" : 50,
@@ -32,6 +34,18 @@
     "base crit chance" : 110,
     "crit chance per level" : 0,
     "base move speed" : 12,
-    "move speed per level" : 2
+    "move speed per level" : 2,
+
+    "available for maps" :
+    {
+      "caves" :
+      {
+        "maximum level" : 10
+      },
+      "dungeon" :
+      {
+        "minimum level" : 5
+      }
+    }
   }
 }

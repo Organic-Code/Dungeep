@@ -24,9 +24,9 @@
 #include "iconned/fixed.hpp"
 #include "iconned/dynamic.hpp"
 
-mob::mob(std::string name_, int level) noexcept :
-		creature(name_),
-		name{std::move(name_)},
+mob::mob(const resources::creature_info& infos, int level) noexcept :
+		creature(infos.name),
+		name{infos.name},
 		current_direction{dungeep::direction::none}
 {
 	using ck = resources::creature_keys;

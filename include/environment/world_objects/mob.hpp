@@ -21,6 +21,7 @@
 #include "creature.hpp"
 
 #include <string>
+#include <utils/resource_manager.hpp>
 
 namespace sf {
 	class Sprite;
@@ -30,7 +31,7 @@ class player;
 
 class mob final : public creature {
 public:
-	mob(std::string name_, int level) noexcept;
+	mob(const resources::creature_info& infos, int level) noexcept;
 
 	void tick(world_proxy& world) noexcept override;
 
@@ -44,7 +45,7 @@ public:
 
 private:
 
-	std::string name;
+	std::reference_wrapper<const std::string> name;
 	dungeep::direction current_direction;
 };
 

@@ -19,6 +19,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <cmath>
+#include <cstdint>
 
 namespace dungeep {
 
@@ -139,6 +140,7 @@ using area_i = area<int>;
 using point_f = point<float>;
 using area_f = area<float>;
 
+using dim_uc = point<std::uint8_t>;
 using dim_ui = point_ui;
 using dim_f = point_f;
 }
