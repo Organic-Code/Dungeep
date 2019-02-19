@@ -40,49 +40,7 @@ class resources {
 	static constexpr unsigned int tiles_count = static_cast<unsigned>(tiles::none);
 
 public:
-	struct creature_keys {
-		static constexpr const char* hp = "base hp";
-		static constexpr const char* hp_pl = "hp per level";
-		static constexpr const char* phys_power = "base physical power";
-		static constexpr const char* phys_power_pl = "physical power per level";
-		static constexpr const char* armor = "base armor";
-		static constexpr const char* armor_pl = "armor per level";
-		static constexpr const char* resist = "base resist";
-		static constexpr const char* resist_pl = "resist per level";
-		static constexpr const char* crit = "base crit chance";
-		static constexpr const char* crit_pl = "crit chance per level";
-		static constexpr const char* move_speed = "base move speed";
-		static constexpr const char* move_speed_pl = "move speed per level";
-	};
-	struct player_keys {
-		static constexpr const char* mana = "base mana";
-		static constexpr const char* mana_pl = "mana per level";
-		static constexpr const char* mag_power = "base magical power";
-		static constexpr const char* mag_power_pl = "magical power per level";
-	};
-	struct item_keys {
-		static constexpr const char* name = "name";
-		static constexpr const char* is_dynamic = "dynamic";
-		static constexpr const char* phy_crit_chance = "physical crit. chance";
-		static constexpr const char* mag_crit_chance = "magical crit. chance";
-		static constexpr const char* attack = "attack power";
-		static constexpr const char* mag_atk = "magic power";
-		static constexpr const char* move_speed = "move speed";
-		static constexpr const char* attack_speed = "attack speed";
-		static constexpr const char* armor = "armor";
-		static constexpr const char* resist = "resist";
-		static constexpr const char* hp = "hit points";
-		static constexpr const char* armor_pen = "armor pen.";
-		static constexpr const char* resist_pen = "resist pen.";
-		static constexpr const char* cooldown = "cooldown";
-		static constexpr const char* armor_pen_percent = "armor pen. (%)";
-		static constexpr const char* resist_pen_percent = "resist pen. (%)";
-		static constexpr const char* attack_inc_percent = "attack power dealt (%)";
-		static constexpr const char* magic_inc_percent = "magic power dealt (%)";
-		static constexpr const char* true_damage_inc_percent = "true damage dealt (%)";
-		static constexpr const char* phy_damage_in_inc = "physical damage taken (%)";
-		static constexpr const char* mag_damage_in_inc = "magical damage taken (%)";
-	};
+#include "resource_keys.hpp"
 
 	static resources manager;
 
@@ -104,7 +62,7 @@ public:
 		return creatures_sprites[name];
 	}
 
-	const std::array<sf::Sprite, tiles_count>& get_map_sprite(const std::string& name) {
+	std::array<sf::Sprite, tiles_count>& get_map_sprite(const std::string& name) {
 		return maps_sprites[name];
 	}
 
@@ -134,15 +92,37 @@ public:
 
 	const std::vector<std::pair<std::string, dungeep::dim_ui>>& get_creatures_for_level(unsigned int level) const noexcept;
 
+	// constructs the string the first time it's needed, re-uses it afterward
+	// does not invalidates previously fetched references
+	const std::string& get_text(const char* key) {
+		try {
+			return text_list.at(key);
+		} catch (std::out_of_range&) {
+			if (text_list_json.isMember(key)) {
+				std::string str = text_list_json[key].asString();
+				text_list_json.removeMember(key);
+				return text_list.emplace(std::pair(key, std::move(str))).first->second;
+			} else {
+				return empty_string;
+			}
+		}
+	}
+
 private:
 
+	void load_config() noexcept;
 	void load_maps() noexcept;
 	void load_creatures() noexcept;
 	void load_sprites() noexcept;
 	void load_items() noexcept;
+	void load_translations() noexcept;
 
 	void load_creature_sprites(const std::string& name, const Json::Value& values) noexcept;
 	void load_map_sprites(const std::string& name, const Json::Value& values) noexcept;
+
+	inline static const std::string empty_string{};
+
+	Json::Value config{};
 
 	Json::Value maps{};
 	std::vector<std::string> map_list{};
@@ -150,6 +130,9 @@ private:
 	Json::Value creatures{};
 
 	Json::Value items{};
+
+	Json::Value text_list_json{};
+	std::unordered_map<const char*, std::string> text_list{};
 
 	sf::Texture texture{};
 	std::unordered_map<std::string, std::array<sf::Sprite, direction_count>> creatures_sprites{};

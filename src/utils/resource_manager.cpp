@@ -26,6 +26,7 @@
 
 
 #pragma GCC diagnostic push
+// I know this doesn't work, but letting it there anyway
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
 
 #pragma clang diagnostic push
@@ -36,18 +37,52 @@
 
 namespace {
 	constexpr bool disable_resources = false; // everything might not work if disabled.
+
+	// Merges Json::Value by simply over-writing top level keys
+	[[maybe_unused]] void simple_merge(Json::Value& val1, Json::Value&& val2) {
+		std::vector<std::string> members = val2.getMemberNames();
+		for (const std::string& member : members) {
+			val1[member] = std::move(val2[member]);
+		}
+	}
+
+	// Merges Json::Value more deeply (merges arrays/lists instead of over-writing them)
+	[[maybe_unused]] void recursive_merge(Json::Value& val1, Json::Value&& val2) {
+		std::vector<std::string> members = val2.getMemberNames();
+		for (const std::string& member : members) {
+			Json::Value& child = val2[member];
+			if (child.type() == Json::ValueType::arrayValue || child.type() == Json::ValueType::objectValue) {
+				recursive_merge(val1[member], std::move(child));
+			} else {
+				val1[member] = std::move(child);
+			}
+		}
+	}
+
+	std::ifstream try_open(std::string_view path) {
+		std::ifstream file(path.data(), std::ios_base::in);
+		if (!file) {
+			throw resources::resource_acquisition_error(path);
+		}
+		return file;
+	}
 }
 
 namespace paths {
 	namespace {
-#define RESOURCE_FOLDER "resources/"
-		[[maybe_unused]] constexpr std::string_view resource_folder = RESOURCE_FOLDER;
-		constexpr std::string_view map_file = RESOURCE_FOLDER"maps.json";
-		constexpr std::string_view creatures_file = RESOURCE_FOLDER"creatures.json";
-		constexpr std::string_view sprites_file = RESOURCE_FOLDER"sprites.json";
-		constexpr std::string_view texture_file = RESOURCE_FOLDER"texture.png";
-		constexpr std::string_view items_file = RESOURCE_FOLDER"items.json";
-#undef RESOURCE_FOLDER
+#define RESOURCE_ROOT_FOLDER "resources/"
+#define RESOURCE_LANG_FOLDER RESOURCE_ROOT_FOLDER"lang/"
+		[[maybe_unused]] constexpr std::string_view resource_folder = RESOURCE_ROOT_FOLDER;
+		constexpr std::string_view lang_folder = RESOURCE_LANG_FOLDER;
+		constexpr std::string_view map_file = RESOURCE_ROOT_FOLDER"maps.json";
+		constexpr std::string_view creatures_file = RESOURCE_ROOT_FOLDER"creatures.json";
+		constexpr std::string_view sprites_file = RESOURCE_ROOT_FOLDER"sprites.json";
+		constexpr std::string_view texture_file = RESOURCE_ROOT_FOLDER"texture.png";
+		constexpr std::string_view items_file = RESOURCE_ROOT_FOLDER"items.json";
+		constexpr std::string_view default_lang_file = RESOURCE_LANG_FOLDER"default_language.json";
+		constexpr std::string_view config_file = RESOURCE_ROOT_FOLDER"config.json";
+#undef RESOURCE_LANG_FOLDER
+#undef RESOURCE_ROOT_FOLDER
 	}
 }
 
@@ -99,6 +134,7 @@ resources::resources() noexcept : maps{} {
 	load_creatures();
 	load_sprites();
 	load_items();
+	load_translations();
 }
 
 
@@ -222,28 +258,24 @@ void resources::save_map(std::string_view map_name, map::size_type size
 	map_file << maps;
 }
 
+void resources::load_config() noexcept {
+	std::ifstream config_file = try_open(paths::config_file);
+	config_file >> config;
+}
+
 void resources::load_maps() noexcept {
-	std::ifstream maps_file(paths::map_file.data(), std::ios_base::in);
-	if (!maps_file) {
-		throw resource_acquisition_error(paths::map_file);
-	}
+	std::ifstream maps_file = try_open(paths::map_file);
 	maps_file >> maps;
 	map_list = maps.getMemberNames();
 }
 
 void resources::load_creatures() noexcept {
-	std::ifstream creatures_file(paths::creatures_file.data(), std::ios_base::in);
-	if (!creatures_file) {
-		throw resource_acquisition_error(paths::creatures_file);
-	}
+	std::ifstream creatures_file = try_open(paths::creatures_file);
 	creatures_file >> creatures;
 }
 
 void resources::load_sprites() noexcept {
-	std::ifstream sprites_file(paths::sprites_file.data(), std::ios_base::in);
-	if (!sprites_file) {
-		throw resource_acquisition_error(paths::sprites_file);
-	}
+	std::ifstream sprites_file = try_open(paths::sprites_file);
 
 	if (!texture.loadFromFile(std::string(paths::texture_file))) {
 		throw resource_acquisition_error(paths::texture_file);
@@ -269,14 +301,27 @@ void resources::load_sprites() noexcept {
 }
 
 void resources::load_items() noexcept {
-	std::ifstream items_file(paths::items_file.data(), std::ios_base::in);
-	if (!items_file) {
-		throw resource_acquisition_error(paths::items_file);
-	}
+	std::ifstream items_file = try_open(paths::items_file);
 	items_file >> items;
 	std::vector<std::string> members = items.getMemberNames();
 	for (const std::string& member : members) {
 		items[member][resources::item_keys::name] = member;
+	}
+}
+
+void resources::load_translations() noexcept {
+	std::ifstream default_lang_file = try_open(paths::default_lang_file);
+	default_lang_file >> text_list_json;
+
+	if (config.isMember(resources::config_keys::language)) {
+		std::string lang = config[resources::config_keys::language].asString();
+		std::ifstream translations_file(paths::lang_folder.data() + std::move(lang), std::ios_base::in);
+
+		if (translations_file) {
+			Json::Value translation;
+			translations_file >> translation;
+			simple_merge(text_list_json, std::move(translation));
+		}
 	}
 }
 
