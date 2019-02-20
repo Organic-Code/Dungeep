@@ -8,6 +8,7 @@ include(cmake/opengl.cmake)
 include(cmake/SFML.cmake)
 include(cmake/imgui-sfml.cmake)
 include(cmake/jsoncpp.cmake)
+include(cmake/spdlog.cmake)
 
 configure_folder(
         ${CMAKE_SOURCE_DIR}/resources/
@@ -27,8 +28,10 @@ endforeach()
 
 set(DUNGEEP_SOURCES
         src/main.cpp
+        src/display/terminal.cpp
         src/display/map_tester.cpp
         src/utils/resource_manager.cpp
+        src/utils/logger.cpp
         src/environment/world.cpp
         src/environment/world_objects/creature.cpp
         src/environment/world_objects/mob.cpp
@@ -48,6 +51,7 @@ make_target(
     "${IMGUI_INCLUDE_DIR}"
     "${IMGUI_SFML_INCLUDE_DIR}"
     "${JSONCPP_INCLUDE_DIR}"
+    "${SPDLOG_INCLUDE_DIR}"
   OPTIONS
     cxx
     executable
@@ -62,6 +66,7 @@ target_link_libraries(
   ${SFML_LIBRARY}
   ${IMGUI_SFML_LIBRARY}
   ${JSONCPP_LIBRARY}
+  ${SPDLOG_LIBRARY}
 )
 
 set_property(TARGET dungeep PROPERTY CXX_STANDARD 17)

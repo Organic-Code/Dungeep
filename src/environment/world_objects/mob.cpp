@@ -19,6 +19,9 @@
 #include <SFML/Graphics/Sprite.hpp>
 #include <json/json.h>
 #include <utils/resource_keys.hpp>
+#include <environment/world_objects/mob.hpp>
+#include <utils/logger.hpp>
+
 
 #include "environment/world_objects/mob.hpp"
 #include "utils/resource_manager.hpp"
@@ -47,4 +50,8 @@ void mob::tick(world_proxy& world) noexcept {
 
 int mob::sleep() noexcept {
 	return 0;
+}
+
+mob::~mob() {
+	logger::log.trace("Mob: {} killed.", name.get());
 }

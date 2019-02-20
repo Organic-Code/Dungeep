@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <SFML/Graphics/Sprite.hpp>
 #include <utils/resource_keys.hpp>
+#include <utils/logger.hpp>
 
 #include "utils/resource_manager.hpp"
 
@@ -432,6 +433,7 @@ void resources::load_map_sprites(const std::string& name, const Json::Value& val
 
 std::vector<resources::creature_info> resources::get_creatures_for_level(unsigned int level, const std::string& map_name) const noexcept {
 	// Improvement: find an actual algorithm to do that ? \:
+	logger::log.trace("Loading creatures list for map {}, at level {}.", map_name, level);
 	std::vector<creature_info> creature_list;
 	try {
 		const std::vector<creature_info>& full_creature_list = creatures_info_per_map.at(map_name);
@@ -441,6 +443,7 @@ std::vector<resources::creature_info> resources::get_creatures_for_level(unsigne
 			}
 		}
 	} catch (const std::out_of_range&) {}
+	logger::log.trace("Found {} creature(s)", creature_list.size());
 	return creature_list;
 }
 

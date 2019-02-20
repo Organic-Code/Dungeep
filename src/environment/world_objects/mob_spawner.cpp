@@ -15,6 +15,9 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#include <environment/world_objects/mob_spawner.hpp>
+#include <utils/logger.hpp>
+
 #include "environment/world_objects/mob_spawner.hpp"
 #include "environment/world_objects/mob.hpp"
 #include "environment/world_proxy.hpp"
@@ -47,4 +50,8 @@ int mob_spawner::sleep() noexcept {
 	creature_count = 0u;
 	cooldown = 0u;
 	return 0;
+}
+
+mob_spawner::~mob_spawner() {
+	logger::log.trace("Spawner for mob {} destroyed.", infos.name);
 }

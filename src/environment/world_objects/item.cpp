@@ -36,6 +36,8 @@ std::unique_ptr<item> item::generate_rand(chest_level chest_level) {
 	fixed_effect::critics crits{item_props[keys::item::phy_crit_chance].asInt(), item_props[keys::item::mag_crit_chance].asInt()};
 	fixed_effect::misc m{item_props[keys::item::move_speed].asFloat(), item_props[keys::item::armor_pen].asInt(), item_props[keys::item::resist_pen].asInt()};
 
+	logger::log.debug("Generated item: {}.", name);
+
 	std::unique_ptr<fixed_effect> ptr;
 	if (item_props[keys::item::is_dynamic].asBool()) {
 		ptr = dynamic_effect::find_by_name(std::move(name), def, atk, crits, m, item_props);

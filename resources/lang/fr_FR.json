@@ -1,3 +1,13 @@
 {
-  "language name": "Français"
+  "language name": "Français",
+  "autoscroll checkbox" :  "défilement auto",
+  "clear button" : "vider",
+  "log level selector" :  "niveau de log",
+  "log level: trace" : "trace",
+  "log level: debug" :  "debug",
+  "log level: info" : "info",
+  "log level: warning" : "alerte",
+  "log level: error" : "erreur",
+  "log level: critical" :  "critique",
+  "log level: none" : "aucun"
 }

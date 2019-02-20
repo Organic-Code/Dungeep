@@ -76,6 +76,16 @@ namespace keys {
 	namespace text {
 		constexpr const char * lang_name               = "language name";
 		constexpr const char * dflt_lang_name          = "default language name";
+		constexpr const char * autoscroll              = "autoscroll checkbox";
+		constexpr const char * clear                   = "clear button";
+		constexpr const char * log_level               = "log level selector";
+		constexpr const char * trace                   = "log level: trace";
+		constexpr const char * debug                   = "log level: debug";
+		constexpr const char * info                    = "log level: info";
+		constexpr const char * warning                 = "log level: warning";
+		constexpr const char * error                   = "log level: error";
+		constexpr const char * critical                = "log level: critical";
+		constexpr const char * none                    = "log level: none";
 	}
 	namespace config {
 		constexpr const char * language                = "language file";

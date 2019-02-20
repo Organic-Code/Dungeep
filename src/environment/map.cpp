@@ -22,6 +22,7 @@
 #include <environment/map.hpp>
 #include <chrono>
 #include <utils/quadtree.hpp>
+#include <utils/logger.hpp>
 
 #include "utils/random.hpp"
 #include "environment/map.hpp"
@@ -45,6 +46,7 @@ std::vector<map::map_area> map::generate(size_type size, const std::vector<room_
 	rooms.reserve(rooms_properties.size() * static_cast<unsigned long>(rooms_properties[0].avg_rooms_n));
 
 	auto room_starting_tp = system_clock::now();
+	logger::log.debug("[Map] - Generating rooms.");
 	for (const room_gen_properties& rp : rooms_properties) {
 		auto rooms_n = gen_positive(rp.avg_rooms_n, rp.rooms_n_dev);
 		auto holes_n = gen_positive(rp.avg_holes_n, rp.holes_n_dev);
@@ -72,6 +74,7 @@ std::vector<map::map_area> map::generate(size_type size, const std::vector<room_
 			rooms.push_back(room);
 		}
 	}
+	logger::log.debug("[Map] - Generated {} rooms.", actual_room_count);
 	rooms_generation_time = duration_cast<milliseconds>(system_clock::now() - room_starting_tp);
 
 	auto halls_tp = system_clock::now();
@@ -84,6 +87,8 @@ std::vector<map::map_area> map::generate(size_type size, const std::vector<room_
 }
 
 void map::ensure_pathing(const std::vector<map_area>& rooms, const hallway_gen_properties& properties) {
+
+	logger::log.debug("[Map] - Generating hallways.");
 
 	struct collider {
 		const dungeep::area_f& hitbox() const {
@@ -171,6 +176,8 @@ void map::ensure_pathing(const std::vector<map_area>& rooms, const hallway_gen_p
 			}
 		}
 	}
+
+	logger::log.debug("[Map] - Generating hallways: done.");
 }
 
 void map::ensure_tworoom_path(const dungeep::point_ui& r1_center, const dungeep::point_ui& r2_center, const hallway_gen_properties& properties) {

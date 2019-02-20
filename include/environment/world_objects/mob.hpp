@@ -43,6 +43,8 @@ public:
 
 	int sleep() noexcept override;
 
+	~mob() override;
+
 private:
 
 	std::reference_wrapper<const std::string> name;

@@ -15,37 +15,19 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef DUNGEEP_MOB_SPAWNER_HPP
-#define DUNGEEP_MOB_SPAWNER_HPP
+#include <utils/logger.hpp>
 
-#include "utils/resource_manager.hpp"
-#include "creature.hpp"
+#include "utils/logger.hpp"
 
-class mob_spawner final : public creature {
-	// FIXME: pas de sprite pour les spawners
-	mob_spawner(const resources::creature_info& infos_, int level_) noexcept;
+std::shared_ptr<logger::storing_sink> logger::sink{std::make_shared<logger::storing_sink>()};
+spdlog::logger logger::log{"Dungeep", sink};
 
-	void tick(world_proxy& world) noexcept override;
-
-	void print(sf::RenderWindow&) const noexcept override {
-		// TODO
-	}
-
-	void interact_with(player&) noexcept override {}
-
-	int sleep() noexcept override;
-
-	~mob_spawner() override;
-
-private:
-	resources::creature_info infos;
-	int level;
-	unsigned int cooldown{0u};
-	unsigned int burst_cooldown{0u};
-	unsigned int creature_count{0u};
-
-	unsigned int max_cooldown{0u};
-	unsigned int max_creature_count{0u};
-};
-
-#endif //DUNGEEP_MOB_SPAWNER_HPP
+namespace {
+	struct logger_init_format {
+		logger_init_format() noexcept {
+			logger::log.set_pattern("%T.%e - [%^%l%$]: %v");
+			logger::log.set_level(spdlog::level::trace);
+		}
+	};
+	[[maybe_unused]] logger_init_format _;
+}

@@ -15,37 +15,63 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef DUNGEEP_MOB_SPAWNER_HPP
-#define DUNGEEP_MOB_SPAWNER_HPP
+#ifndef DUNGEEP_LOGGER_HPP
+#define DUNGEEP_LOGGER_HPP
 
-#include "utils/resource_manager.hpp"
-#include "creature.hpp"
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/base_sink.h>
+#include <mutex>
 
-class mob_spawner final : public creature {
-	// FIXME: pas de sprite pour les spawners
-	mob_spawner(const resources::creature_info& infos_, int level_) noexcept;
+namespace logger {
 
-	void tick(world_proxy& world) noexcept override;
+	struct message {
+		spdlog::level::level_enum severity;
+		size_t color_beg;
+		size_t color_end;
+		std::string value;
+	};
 
-	void print(sf::RenderWindow&) const noexcept override {
-		// TODO
-	}
+	class storing_sink final : public spdlog::sinks::base_sink<std::mutex> {
+	public:
+		auto begin() const {
+			return messages.begin();
+		}
 
-	void interact_with(player&) noexcept override {}
+		auto end() const {
+			return messages.end();
+		}
 
-	int sleep() noexcept override;
+		auto size() const {
+			return messages.size();
+		}
 
-	~mob_spawner() override;
+		void force_add_message(message&& msg) {
+			std::lock_guard lg(base_sink::mutex_);
+			messages.emplace_back(std::move(msg));
+		}
 
-private:
-	resources::creature_info infos;
-	int level;
-	unsigned int cooldown{0u};
-	unsigned int burst_cooldown{0u};
-	unsigned int creature_count{0u};
+		void clear() {
+			std::lock_guard lg(base_sink::mutex_);
+			messages.clear();
+		}
 
-	unsigned int max_cooldown{0u};
-	unsigned int max_creature_count{0u};
-};
+	protected:
+		void sink_it_(const spdlog::details::log_msg &msg) override {
+			fmt::memory_buffer buff;
+			sink::formatter_->format(msg, buff);
+			messages.push_back(message{msg.level, msg.color_range_start, msg.color_range_end, fmt::to_string(buff)});
+		}
 
-#endif //DUNGEEP_MOB_SPAWNER_HPP
+		void flush_() override {}
+
+	private:
+		std::vector<message> messages{};
+	};
+
+
+	extern spdlog::logger log;
+	extern std::shared_ptr<logger::storing_sink> sink;
+}
+
+
+#endif //DUNGEEP_LOGGER_HPP

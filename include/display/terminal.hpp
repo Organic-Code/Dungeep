@@ -2,9 +2,9 @@
 ///                                                                                                                                     ///
 ///  Copyright C 2019, Lucas Lazare                                                                                                     ///
 ///  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation         ///
-///  		files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy,  ///
+///  files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy,         ///
 ///  modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software     ///
-///  		is furnished to do so, subject to the following conditions:                                                                 ///
+///  is furnished to do so, subject to the following conditions:                                                                        ///
 ///                                                                                                                                     ///
 ///  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.     ///
 ///                                                                                                                                     ///
@@ -15,37 +15,31 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef DUNGEEP_MOB_SPAWNER_HPP
-#define DUNGEEP_MOB_SPAWNER_HPP
+#ifndef DUNGEEP_TERMINAL_HPP
+#define DUNGEEP_TERMINAL_HPP
 
-#include "utils/resource_manager.hpp"
-#include "creature.hpp"
+#include <vector>
+#include <string>
+#include <spdlog/common.h>
 
-class mob_spawner final : public creature {
-	// FIXME: pas de sprite pour les spawners
-	mob_spawner(const resources::creature_info& infos_, int level_) noexcept;
+class terminal {
+public:
+	terminal();
 
-	void tick(world_proxy& world) noexcept override;
-
-	void print(sf::RenderWindow&) const noexcept override {
-		// TODO
-	}
-
-	void interact_with(player&) noexcept override {}
-
-	int sleep() noexcept override;
-
-	~mob_spawner() override;
+	void show();
 
 private:
-	resources::creature_info infos;
-	int level;
-	unsigned int cooldown{0u};
-	unsigned int burst_cooldown{0u};
-	unsigned int creature_count{0u};
+	bool autoscroll{true};
+	std::vector<std::string>::size_type last_size{0u};
+	int level{spdlog::level::trace};
+	std::vector<std::string> command_history{};
 
-	unsigned int max_cooldown{0u};
-	unsigned int max_creature_count{0u};
+	spdlog::logger local_logger;
+
+	const std::string_view autoscroll_text;
+	const std::string_view clear_text;
+	const std::string_view log_level_text;
+	std::string level_list_text{};
 };
 
-#endif //DUNGEEP_MOB_SPAWNER_HPP
+#endif //DUNGEEP_TERMINAL_HPP
