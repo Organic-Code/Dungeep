@@ -18,6 +18,7 @@
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Graphics/Sprite.hpp>
 #include <json/json.h>
+#include <utils/resource_keys.hpp>
 
 #include "environment/world_objects/mob.hpp"
 #include "utils/resource_manager.hpp"
@@ -29,7 +30,7 @@ mob::mob(const resources::creature_info& infos, int level) noexcept :
 		name{infos.name},
 		current_direction{dungeep::direction::none}
 {
-	using ck = resources::creature_keys;
+	namespace ck = keys::creature;
 
 	const Json::Value& me = resources::manager.read_creature(name);
 	max_health = me.get(ck::hp, 0).asInt() + me.get(ck::hp_pl, 0).asInt() * level;

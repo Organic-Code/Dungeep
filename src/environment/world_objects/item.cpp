@@ -16,10 +16,11 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <json/json.h>
-#include <utils/resource_manager.hpp>
-#include <iconned/dynamic.hpp>
-#include <environment/world_objects/chest.hpp>
 
+#include "utils/resource_manager.hpp"
+#include "iconned/dynamic.hpp"
+#include "environment/world_objects/chest.hpp"
+#include "utils/resource_keys.hpp"
 #include "environment/world_objects/item.hpp"
 #include "utils/random.hpp"
 
@@ -27,17 +28,16 @@ std::unique_ptr<item> item::generate_rand(chest_level chest_level) {
 	// Todo: rareté (cf paramètre)
 	// Todo: limiter à 'un' exemplaire de chaque objet (pour chaque joueur) [en paramètre (inventaire de joueur) ?]
 
-	using keys = resources::item_keys;
 	const Json::Value& item_props = resources::manager.read_item(static_cast<unsigned int>(dungeep::random_engine() % resources::manager.get_item_count()));
 
-	std::string name = item_props[keys::name].asString();
-	fixed_effect::defense def{item_props[keys::hp].asInt(), item_props[keys::armor].asInt(), item_props[keys::resist].asInt()};
-	fixed_effect::attack atk{item_props[keys::attack].asInt(), item_props[keys::mag_atk].asInt(), item_props[keys::attack_speed].asInt()};
-	fixed_effect::critics crits{item_props[keys::phy_crit_chance].asInt(), item_props[keys::mag_crit_chance].asInt()};
-	fixed_effect::misc m{item_props[keys::move_speed].asFloat(), item_props[keys::armor_pen].asInt(), item_props[keys::resist_pen].asInt()};
+	std::string name = item_props[keys::item::name].asString();
+	fixed_effect::defense def{item_props[keys::item::hp].asInt(), item_props[keys::item::armor].asInt(), item_props[keys::item::resist].asInt()};
+	fixed_effect::attack atk{item_props[keys::item::attack].asInt(), item_props[keys::item::mag_atk].asInt(), item_props[keys::item::attack_speed].asInt()};
+	fixed_effect::critics crits{item_props[keys::item::phy_crit_chance].asInt(), item_props[keys::item::mag_crit_chance].asInt()};
+	fixed_effect::misc m{item_props[keys::item::move_speed].asFloat(), item_props[keys::item::armor_pen].asInt(), item_props[keys::item::resist_pen].asInt()};
 
 	std::unique_ptr<fixed_effect> ptr;
-	if (item_props[keys::is_dynamic].asBool()) {
+	if (item_props[keys::item::is_dynamic].asBool()) {
 		ptr = dynamic_effect::find_by_name(std::move(name), def, atk, crits, m, item_props);
 	} else {
 		ptr = std::make_unique<fixed_effect>(std::move(name), def, atk, crits, m);

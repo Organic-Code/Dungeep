@@ -19,6 +19,7 @@
 #include <fstream>
 #include <algorithm>
 #include <SFML/Graphics/Sprite.hpp>
+#include <utils/resource_keys.hpp>
 
 #include "utils/resource_manager.hpp"
 
@@ -304,7 +305,7 @@ void resources::load_items() noexcept {
 	items_file >> items;
 	std::vector<std::string> members = items.getMemberNames();
 	for (const std::string& member : members) {
-		items[member][resources::item_keys::name] = member;
+		items[member][keys::item::name] = member;
 	}
 }
 
@@ -312,8 +313,8 @@ void resources::load_translations() noexcept {
 	std::ifstream default_lang_file = try_open(paths::default_lang_file);
 	default_lang_file >> text_list_json;
 
-	if (config.isMember(resources::config_keys::language)) {
-		std::string lang = config[resources::config_keys::language].asString();
+	if (config.isMember(keys::config::language)) {
+		std::string lang = config[keys::config::language].asString();
 		std::ifstream translations_file(paths::lang_folder.data() + std::move(lang), std::ios_base::in);
 
 		if (translations_file) {
@@ -328,26 +329,26 @@ void resources::load_creature_infos() noexcept {
 	creatures_name_list = creatures.getMemberNames();
 	for (const std::string& name : creatures_name_list) {
 		Json::Value& current_creature = creatures[name];
-		if (current_creature[creature_keys::type].asString() != creature_values::type::player) {
+		if (current_creature[keys::creature::type].asString() != values::creature::type::player) {
 			const sf::IntRect& sprite_rect = creatures_sprites[name][0].getTextureRect();
 
 			creature_info inf{name};
 			inf.size.x = static_cast<std::uint8_t>(sprite_rect.width);
 			inf.size.y = static_cast<std::uint8_t>(sprite_rect.height);
 
-			Json::Value& maps = current_creature[creature_keys::map::list];
+			Json::Value& maps = current_creature[keys::creature::map::list];
 			std::vector<std::string> map_names = maps.getMemberNames();
 			for (const std::string& map : map_names) {
 				Json::Value& current_map = maps[map];
 
-				if (current_map.isMember(creature_keys::map::min_level)) {
-					inf.min_level = static_cast<unsigned short>(current_map[creature_keys::map::min_level].asUInt());
+				if (current_map.isMember(keys::creature::map::min_level)) {
+					inf.min_level = static_cast<unsigned short>(current_map[keys::creature::map::min_level].asUInt());
 				} else {
 					inf.min_level = 0u;
 				}
 
-				if (current_map.isMember(creature_keys::map::max_level)) {
-					inf.max_level = static_cast<unsigned short>(current_map[creature_keys::map::max_level].asUInt());
+				if (current_map.isMember(keys::creature::map::max_level)) {
+					inf.max_level = static_cast<unsigned short>(current_map[keys::creature::map::max_level].asUInt());
 				} else {
 					inf.max_level = std::numeric_limits<unsigned short>::max();
 				}

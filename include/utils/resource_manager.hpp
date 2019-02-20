@@ -48,8 +48,6 @@ public:
 		unsigned short max_level{std::numeric_limits<unsigned short>::max()};
 	};
 
-#include "resource_keys.hpp"
-
 	static resources manager;
 
 	struct resource_acquisition_error : std::runtime_error {

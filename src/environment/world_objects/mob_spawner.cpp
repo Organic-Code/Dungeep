@@ -18,16 +18,16 @@
 #include "environment/world_objects/mob_spawner.hpp"
 #include "environment/world_objects/mob.hpp"
 #include "environment/world_proxy.hpp"
-#include "utils/resource_manager.hpp"
+#include "utils/resource_keys.hpp"
 
 mob_spawner::mob_spawner(const resources::creature_info& infos_, int level_) noexcept
-		: creature(infos_.name + resources::creature_values::spawner_suffix)
+		: creature(infos_.name + values::creature::spawner_suffix)
 		, infos(infos_)
 		, level(level_)
 {
 	const Json::Value& creature = resources::manager.read_creature(infos_.name);
-	max_cooldown = creature.[resources::creature_keys::spawner::burst_interval].asUInt();
-	max_creature_count = creature.[resources::creature_keys::spawner::burst_duration].asUInt();
+	max_cooldown = creature[keys::creature::spawner::burst_interval].asUInt();
+	max_creature_count = creature[keys::creature::spawner::burst_duration].asUInt();
 
 }
 

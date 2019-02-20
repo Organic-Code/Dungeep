@@ -1,3 +1,6 @@
+#ifndef DUNGEEP_RESOURCE_KEYS_HPP
+#define DUNGEEP_RESOURCE_KEYS_HPP
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///                                                                                                                                     ///
 ///  Copyright C 2019, Lucas Lazare                                                                                                     ///
@@ -15,75 +18,79 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// NOT TO BE INCLUDED FROM ANYWHERE ASIDE RESOURCE MANAGER'S HEADER
-
-
 // using const char* because jsoncpp does not handle std::string_view anyway
-struct creature_keys {
-	static constexpr const char* type                    = "type"; // cf creature_values::type
-	static constexpr const char* hp                      = "base hp";
-	static constexpr const char* hp_pl                   = "hp per level";
-	static constexpr const char* phys_power              = "base physical power";
-	static constexpr const char* phys_power_pl           = "physical power per level";
-	static constexpr const char* armor                   = "base armor";
-	static constexpr const char* armor_pl                = "armor per level";
-	static constexpr const char* resist                  = "base resist";
-	static constexpr const char* resist_pl               = "resist per level";
-	static constexpr const char* crit                    = "base crit chance";
-	static constexpr const char* crit_pl                 = "crit chance per level";
-	static constexpr const char* move_speed              = "base move speed";
-	static constexpr const char* move_speed_pl           = "move speed per level";
-	struct spawner {
-		static constexpr const char* burst_duration      = "spawner spawn count";
-		static constexpr const char* burst_interval      = "spawner spawn interval";
-	};
-	struct map {
-		static constexpr const char* list                = "available for maps";
-		static constexpr const char* min_level           = "minimum level";
-		static constexpr const char* max_level           = "maximum level";
-	};
-};
-struct creature_values {
-	struct type {
-		static constexpr const char* player              = "player";
-		static constexpr const char* creep               = "creep";
-		static constexpr const char* creep_boss          = "creep boss";
-	};
-	static constexpr const char* spawner_suffix          = "_spawner";
-};
-struct player_keys {
-	static constexpr const char* mana                    = "base mana";
-	static constexpr const char* mana_pl                 = "mana per level";
-	static constexpr const char* mag_power               = "base magical power";
-	static constexpr const char* mag_power_pl            = "magical power per level";
-};
-struct item_keys {
-	static constexpr const char* name                    = "name";
-	static constexpr const char* is_dynamic              = "dynamic";
-	static constexpr const char* phy_crit_chance         = "physical crit. chance";
-	static constexpr const char* mag_crit_chance         = "magical crit. chance";
-	static constexpr const char* attack                  = "attack power";
-	static constexpr const char* mag_atk                 = "magic power";
-	static constexpr const char* move_speed              = "move speed";
-	static constexpr const char* attack_speed            = "attack speed";
-	static constexpr const char* armor                   = "armor";
-	static constexpr const char* resist                  = "resist";
-	static constexpr const char* hp                      = "hit points";
-	static constexpr const char* armor_pen               = "armor pen.";
-	static constexpr const char* resist_pen              = "resist pen.";
-	static constexpr const char* cooldown                = "cooldown";
-	static constexpr const char* armor_pen_percent       = "armor pen. (%)";
-	static constexpr const char* resist_pen_percent      = "resist pen. (%)";
-	static constexpr const char* attack_inc_percent      = "attack power dealt (%)";
-	static constexpr const char* magic_inc_percent       = "magic power dealt (%)";
-	static constexpr const char* true_damage_inc_percent = "true damage dealt (%)";
-	static constexpr const char* phy_damage_in_inc       = "physical damage taken (%)";
-	static constexpr const char* mag_damage_in_inc       = "magical damage taken (%)";
-};
-struct text_keys {
-	static constexpr const char* lang_name               = "language name";
-	static constexpr const char* dflt_lang_name          = "default language name";
-};
-struct config_keys {
-	static constexpr const char* language                = "language file";
-};
+namespace keys {
+	namespace creature {
+		constexpr const char * type                    = "type"; // cf values::creature::type
+		constexpr const char * hp                      = "base hp";
+		constexpr const char * hp_pl                   = "hp per level";
+		constexpr const char * phys_power              = "base physical power";
+		constexpr const char * phys_power_pl           = "physical power per level";
+		constexpr const char * armor                   = "base armor";
+		constexpr const char * armor_pl                = "armor per level";
+		constexpr const char * resist                  = "base resist";
+		constexpr const char * resist_pl               = "resist per level";
+		constexpr const char * crit                    = "base crit chance";
+		constexpr const char * crit_pl                 = "crit chance per level";
+		constexpr const char * move_speed              = "base move speed";
+		constexpr const char * move_speed_pl           = "move speed per level";
+		namespace spawner {
+			constexpr const char * burst_duration      = "spawner spawn count";
+			constexpr const char * burst_interval      = "spawner spawn interval";
+		}
+		namespace map {
+			constexpr const char * list                = "available for maps";
+			constexpr const char * min_level           = "minimum level";
+			constexpr const char * max_level           = "maximum level";
+		}
+	}
+	namespace  player {
+		constexpr const char * mana                    = "base mana";
+		constexpr const char * mana_pl                 = "mana per level";
+		constexpr const char * mag_power               = "base magical power";
+		constexpr const char * mag_power_pl            = "magical power per level";
+	}
+	namespace item {
+		constexpr const char * name                    = "name";
+		constexpr const char * is_dynamic              = "dynamic";
+		constexpr const char * phy_crit_chance         = "physical crit. chance";
+		constexpr const char * mag_crit_chance         = "magical crit. chance";
+		constexpr const char * attack                  = "attack power";
+		constexpr const char * mag_atk                 = "magic power";
+		constexpr const char * move_speed              = "move speed";
+		constexpr const char * attack_speed            = "attack speed";
+		constexpr const char * armor                   = "armor";
+		constexpr const char * resist                  = "resist";
+		constexpr const char * hp                      = "hit points";
+		constexpr const char * armor_pen               = "armor pen.";
+		constexpr const char * resist_pen              = "resist pen.";
+		constexpr const char * cooldown                = "cooldown";
+		constexpr const char * armor_pen_percent       = "armor pen. (%)";
+		constexpr const char * resist_pen_percent      = "resist pen. (%)";
+		constexpr const char * attack_inc_percent      = "attack power dealt (%)";
+		constexpr const char * magic_inc_percent       = "magic power dealt (%)";
+		constexpr const char * true_damage_inc_percent = "true damage dealt (%)";
+		constexpr const char * phy_damage_in_inc       = "physical damage taken (%)";
+		constexpr const char * mag_damage_in_inc       = "magical damage taken (%)";
+	}
+	namespace text {
+		constexpr const char * lang_name               = "language name";
+		constexpr const char * dflt_lang_name          = "default language name";
+	}
+	namespace config {
+		constexpr const char * language                = "language file";
+	}
+}
+
+namespace values {
+	namespace creature {
+		namespace type {
+			constexpr const char * player              = "player";
+			constexpr const char * creep               = "creep";
+			constexpr const char * creep_boss          = "creep boss";
+		}
+		constexpr const char * spawner_suffix          = "_spawner";
+	}
+}
+
+#endif // DUNGEEP_RESOURCE_KEYS_HPP
