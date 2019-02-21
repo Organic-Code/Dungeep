@@ -15,66 +15,52 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef DUNGEEP_TERMINAL_HPP
-#define DUNGEEP_TERMINAL_HPP
+#ifndef DUNGEEP_TERMINAL_COMMANDS_HPP
+#define DUNGEEP_TERMINAL_COMMANDS_HPP
 
-#include <vector>
+#include <array>
 #include <string>
-#include <spdlog/spdlog.h>
+#include <vector>
 
-#include <imgui.h>
+#include <display/terminal.hpp>
 
-class terminal {
-public:
-	using buffer_type = std::array<char, 1024>;
+class world;
 
-	terminal();
+namespace commands {
+	struct argument {
+		world& world_;
+		terminal& terminal_;
 
-	void show();
+		const std::vector<char>& full_command;
+		std::vector<char>::const_iterator command_argument_start;
+	};
 
-	const std::vector<std::string>& get_history() const {
-		return command_history;
-	}
+	void help(argument&);
 
-	spdlog::logger& command_log() {
-		return local_logger;
-	}
+	void clear(argument&);
 
-private:
+	struct list_element_t {
+		using command_function = void (*)(argument&);
+		using further_completion_function = std::vector<std::string> (*) (std::string_view prefix);
 
-	void compute_text_size();
-	void display_settings_bar();
-	void display_messages();
-	void display_command_line();
+		const std::string_view name;
+		const std::string_view description;
+		const command_function call;
+		const further_completion_function complete;
 
-	static int command_line_callback(ImGuiInputTextCallbackData* data) noexcept;
+		constexpr bool operator<(const list_element_t& el) const {
+			return name < el.name;
+		}
+	};
+	std::vector<std::string> no_completion(std::string_view);
 
-	// configuration
-	bool autoscroll{true};
-	std::vector<std::string>::size_type last_size{0u};
-	int level{spdlog::level::trace};
+	// Must be sorted
+	static constexpr std::array list {
+			list_element_t{"clear", "clears the terminal screen", clear, no_completion},
+			list_element_t{"help", "show this help", help, no_completion},
+	};
 
+	const commands::list_element_t& find_by_prefix(terminal::buffer_type::const_iterator prefix_begin, terminal::buffer_type::const_iterator prefix_end);
+}
 
-	// messages view variables
-	const std::string_view autoscroll_text;
-	const std::string_view clear_text;
-	const std::string_view log_level_text;
-	std::string level_list_text{};
-	std::optional<ImVec2> selector_size_global{};
-	ImVec2 selector_label_size{};
-
-	const std::string* longest_log_level;
-
-
-	// command line variables
-	std::vector<std::string> command_history{};
-	buffer_type command_buffer{};
-	buffer_type::size_type buffer_usage{0u};
-	std::vector<std::string> current_autocomplete{};
-
-	spdlog::logger local_logger;
-
-	ImGuiID previously_active_id{0u};
-};
-
-#endif //DUNGEEP_TERMINAL_HPP
+#endif //DUNGEEP_TERMINAL_COMMANDS_HPP

@@ -15,66 +15,25 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef DUNGEEP_TERMINAL_HPP
-#define DUNGEEP_TERMINAL_HPP
+#include <display/terminal_commands.hpp>
+#include <utils/misc.hpp>
+#include <utils/logger.hpp>
+#include <display/terminal.hpp>
+#include <environment/world.hpp>
 
-#include <vector>
-#include <string>
-#include <spdlog/spdlog.h>
+static_assert(misc::is_sorted(commands::list.begin(), commands::list.end()), "commands::list should be lexicographically sorted by command name");
 
-#include <imgui.h>
+std::vector<std::string> commands::no_completion(std::string_view){
+	return {};
+}
 
-class terminal {
-public:
-	using buffer_type = std::array<char, 1024>;
-
-	terminal();
-
-	void show();
-
-	const std::vector<std::string>& get_history() const {
-		return command_history;
+void commands::help(argument& arg) {
+	arg.terminal_.command_log().info("Available commands:");
+	for (const list_element_t& elem : commands::list) {
+		arg.terminal_.command_log().info("        {} - {}", elem.name, elem.description);
 	}
+}
 
-	spdlog::logger& command_log() {
-		return local_logger;
-	}
-
-private:
-
-	void compute_text_size();
-	void display_settings_bar();
-	void display_messages();
-	void display_command_line();
-
-	static int command_line_callback(ImGuiInputTextCallbackData* data) noexcept;
-
-	// configuration
-	bool autoscroll{true};
-	std::vector<std::string>::size_type last_size{0u};
-	int level{spdlog::level::trace};
-
-
-	// messages view variables
-	const std::string_view autoscroll_text;
-	const std::string_view clear_text;
-	const std::string_view log_level_text;
-	std::string level_list_text{};
-	std::optional<ImVec2> selector_size_global{};
-	ImVec2 selector_label_size{};
-
-	const std::string* longest_log_level;
-
-
-	// command line variables
-	std::vector<std::string> command_history{};
-	buffer_type command_buffer{};
-	buffer_type::size_type buffer_usage{0u};
-	std::vector<std::string> current_autocomplete{};
-
-	spdlog::logger local_logger;
-
-	ImGuiID previously_active_id{0u};
-};
-
-#endif //DUNGEEP_TERMINAL_HPP
+void commands::clear(argument&) {
+	logger::sink->clear();
+}

@@ -1,3 +1,6 @@
+#ifndef DUNGEEP_MISC_HPP
+#define DUNGEEP_MISC_HPP
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///                                                                                                                                     ///
 ///  Copyright C 2019, Lucas Lazare                                                                                                     ///
@@ -15,66 +18,29 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef DUNGEEP_TERMINAL_HPP
-#define DUNGEEP_TERMINAL_HPP
 
-#include <vector>
-#include <string>
-#include <spdlog/spdlog.h>
 
-#include <imgui.h>
+#include <utility>
+#include <iterator>
+#include <functional>
+#include <type_traits>
 
-class terminal {
-public:
-	using buffer_type = std::array<char, 1024>;
+namespace misc {
 
-	terminal();
+	// std::is_sorted is not constexpr pre C++20
+	template <typename ForwardIt, typename EndIt, typename Comparator = std::less<std::remove_reference_t<decltype(*std::declval<ForwardIt>())>>>
+	constexpr bool is_sorted(ForwardIt it, EndIt last, Comparator&& comp = {}) {
+		if (it == last) {
+			return true;
+		}
 
-	void show();
-
-	const std::vector<std::string>& get_history() const {
-		return command_history;
+		for (ForwardIt next = std::next(it) ; next != last ; ++next, ++it) {
+			if (comp(*next, *it)) {
+				return false;
+			}
+		}
+		return true;
 	}
+}
 
-	spdlog::logger& command_log() {
-		return local_logger;
-	}
-
-private:
-
-	void compute_text_size();
-	void display_settings_bar();
-	void display_messages();
-	void display_command_line();
-
-	static int command_line_callback(ImGuiInputTextCallbackData* data) noexcept;
-
-	// configuration
-	bool autoscroll{true};
-	std::vector<std::string>::size_type last_size{0u};
-	int level{spdlog::level::trace};
-
-
-	// messages view variables
-	const std::string_view autoscroll_text;
-	const std::string_view clear_text;
-	const std::string_view log_level_text;
-	std::string level_list_text{};
-	std::optional<ImVec2> selector_size_global{};
-	ImVec2 selector_label_size{};
-
-	const std::string* longest_log_level;
-
-
-	// command line variables
-	std::vector<std::string> command_history{};
-	buffer_type command_buffer{};
-	buffer_type::size_type buffer_usage{0u};
-	std::vector<std::string> current_autocomplete{};
-
-	spdlog::logger local_logger;
-
-	ImGuiID previously_active_id{0u};
-};
-
-#endif //DUNGEEP_TERMINAL_HPP
+#endif //DUNGEEP_MISC_HPP

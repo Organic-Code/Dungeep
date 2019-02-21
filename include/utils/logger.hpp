@@ -29,6 +29,7 @@ namespace logger {
 		size_t color_beg;
 		size_t color_end;
 		std::string value;
+		bool important;
 	};
 
 	class storing_sink final : public spdlog::sinks::base_sink<std::mutex> {
@@ -59,7 +60,7 @@ namespace logger {
 		void sink_it_(const spdlog::details::log_msg &msg) override {
 			fmt::memory_buffer buff;
 			sink::formatter_->format(msg, buff);
-			messages.push_back(message{msg.level, msg.color_range_start, msg.color_range_end, fmt::to_string(buff)});
+			messages.push_back(message{msg.level, msg.color_range_start, msg.color_range_end, fmt::to_string(buff), false});
 		}
 
 		void flush_() override {}
