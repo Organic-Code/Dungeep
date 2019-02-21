@@ -25,7 +25,15 @@
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Graphics/Texture.hpp>
 
+#include <map>
+#include <utils/random.hpp>
+#include <display/proba_tester.hpp>
+
 #include "display/map_tester.hpp"
+
+#include <spdlog/spdlog.h>
+#include <utils/logger.hpp>
+#include <display/terminal.hpp>
 
 namespace
 {
@@ -37,23 +45,29 @@ namespace
 	void showMainDockSpace(const map_tester& map_tester);
 } // namespace
 
-#include <iostream>
-#include <iomanip>
-#include <map>
-#include <utils/random.hpp>
-#include <display/proba_tester.hpp>
-
 int main()
 {
+	logger::log.trace("Hello, World!");
+	logger::log.debug("Hello, World!");
+	logger::log.info("Hello, World!");
+	logger::log.warn("Hello, World!");
+	logger::log.error("Hello, World!");
+	logger::log.critical("Hello, World!");
 
 	auto seed = std::random_device()();
 	std::mt19937_64 mt{seed};
-	std::array<proba_tester, 4> t;
-	std::array<dungeep::normal_distribution<float>, t.size()> distribs{
-        dungeep::normal_distribution{0.f, 40.f},
-		dungeep::normal_distribution{-30.f, 40.f},
-  		dungeep::normal_distribution{0.f, 100.f},
-  		dungeep::normal_distribution{0.f, 4.f}
+	std::array<proba_tester, 8> t;
+	std::array<dungeep::normal_distribution<float>, t.size() / 2> norm_dists{
+			dungeep::normal_distribution{500.f, 40.f},
+			dungeep::normal_distribution{470.f, 40.f},
+			dungeep::normal_distribution{500.f, 100.f},
+			dungeep::normal_distribution{500.f, 4.f}
+	};
+	std::array<dungeep::uniform_int_distribution<int>, (t.size() + 1)/ 2> uni_dists{
+			dungeep::uniform_int_distribution{0, 1000},
+			dungeep::uniform_int_distribution{460, 510},
+			dungeep::uniform_int_distribution{490, 600},
+			dungeep::uniform_int_distribution{500, 504}
 	};
 
 	auto re_maker = [&mt](auto& distrib) {
@@ -62,11 +76,12 @@ int main()
 		};
 	};
 
-	for (auto i = 0u ; i < t.size() ; ++i) {
-		t[i].test_distribution(re_maker(distribs[i]), -500, 500, 1000u);
+	for (auto i = 0u ; i < t.size() / 2; ++i) {
+		t[i].test_distribution(re_maker(norm_dists[i]), 0, 1000, 1000u);
+		t[i + t.size() / 2].test_distribution(re_maker(uni_dists[i]), 0, 1000, 1000u);
 	}
 
-	//map_tester tester;
+	map_tester tester;
 
 	sf::Clock deltaClock;
 	sf::Clock musicOffsetClock;
@@ -81,6 +96,8 @@ int main()
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable; // Enable docking
 	io.ConfigDockingWithShift = true; // hold shift to use docking
 	io.IniFilename = nullptr; // disable .ini saving
+
+	terminal terminal_log;
 
 	while(window.isOpen())
 	{
@@ -97,15 +114,17 @@ int main()
 
 		ImGui::SFML::Update(window, deltaClock.restart());
 
-  		for (proba_tester& tester : t) {
-  			tester.update();
+  		for (proba_tester& proba_tester : t) {
+  			proba_tester.update();
   		}
 
-//		showMainDockSpace(tester);
-//		tester.showViewerWindow();
-//		tester.showConfigWindow();
-//		tester.showViewerConfigWindow();
-//		tester.showDebugInfoWindow();
+		showMainDockSpace(tester);
+		tester.showViewerWindow();
+		tester.showConfigWindow();
+		tester.showViewerConfigWindow();
+		tester.showDebugInfoWindow();
+
+		terminal_log.show();
 
 		window.clear();
 		ImGui::SFML::Render(window);
