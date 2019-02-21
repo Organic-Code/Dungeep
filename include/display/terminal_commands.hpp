@@ -31,12 +31,14 @@ namespace commands {
 		world& world_;
 		terminal& terminal_;
 
-		const std::vector<char>& full_command;
-		std::vector<char>::const_iterator command_argument_start;
+		const terminal::buffer_type & full_command;
+		terminal::buffer_type::const_iterator command_argument_start;
+		terminal::buffer_type::const_iterator command_argument_end;
 	};
 
 	struct list_element_t {
-		using command_function = void (*)(argument&);
+		using command_function = void (*)(const argument&);
+		// todo: further_completion_function
 		using further_completion_function = std::vector<std::string> (*) (std::string_view prefix);
 
 		const std::string_view name;
@@ -49,7 +51,12 @@ namespace commands {
 		}
 	};
 
-	const commands::list_element_t& find_by_prefix(terminal::buffer_type::const_iterator prefix_begin, terminal::buffer_type::const_iterator prefix_end);
+	extern const list_element_t empty_command;
+
+	// todo: passer par référence ?
+	std::vector<std::reference_wrapper<const list_element_t>>
+	find_by_prefix(terminal::buffer_type::const_iterator prefix_begin, terminal::buffer_type::const_iterator prefix_end);
+
 }
 
 #endif //DUNGEEP_TERMINAL_COMMANDS_HPP

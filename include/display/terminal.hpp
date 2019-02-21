@@ -24,28 +24,38 @@
 
 #include <imgui.h>
 
+namespace commands {
+	struct list_element_t;
+}
+
 class terminal {
 public:
 	using buffer_type = std::array<char, 1024>;
 
 	terminal();
 
-	void show();
+	void show() noexcept;
 
-	const std::vector<std::string>& get_history() const {
+	void hide() noexcept {
+		previously_active_id = 0;
+	}
+
+	const std::vector<std::string>& get_history() const noexcept {
 		return command_history;
 	}
 
-	spdlog::logger& command_log() {
+	spdlog::logger& command_log() noexcept {
 		return local_logger;
 	}
 
 private:
 
-	void compute_text_size();
-	void display_settings_bar();
-	void display_messages();
-	void display_command_line();
+	void compute_text_size() noexcept;
+	void display_settings_bar() noexcept;
+	void display_messages() noexcept;
+	void display_command_line() noexcept;
+
+	void call_command() noexcept;
 
 	static int command_line_callback(ImGuiInputTextCallbackData* data) noexcept;
 
@@ -69,8 +79,8 @@ private:
 	// command line variables
 	std::vector<std::string> command_history{};
 	buffer_type command_buffer{};
-	buffer_type::size_type buffer_usage{0u};
-	std::vector<std::string> current_autocomplete{};
+	buffer_type::size_type buffer_usage{0u}; // max accessible: command_buffer[buffer_usage - 1] (buffer_usage might be 0 for empty string)
+	std::vector<std::reference_wrapper<const commands::list_element_t>> current_autocomplete{};
 
 	spdlog::logger local_logger;
 

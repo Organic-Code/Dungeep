@@ -41,6 +41,26 @@ namespace misc {
 		}
 		return true;
 	}
+
+	template <typename ForwardIt, typename EndIt, typename SizeExtractor>
+	constexpr auto max_size(ForwardIt it, EndIt last, SizeExtractor&& size_of) -> decltype(size_of(*it)){
+		using size_type = decltype(size_of(*it));
+		size_type max_size = 0u;
+		while (it != last) {
+			size_type current_size = size_of(*it++);
+			if (current_size > max_size) {
+				max_size = current_size;
+			}
+		}
+		return max_size;
+	}
+
+	template <typename ForwardIt, typename OutputIt>
+	constexpr void copy(ForwardIt src_beg, ForwardIt src_end, OutputIt dest_beg, OutputIt dest_end) {
+		while(src_beg != src_end && dest_beg != dest_end) {
+			*dest_beg++ = *src_beg++;
+		}
+	}
 }
 
 #endif //DUNGEEP_MISC_HPP
