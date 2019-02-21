@@ -55,6 +55,8 @@ namespace cst {
 
 			static constexpr std::array background{0.170f, 0.170f, 0.170f, 1.f};
 			static constexpr std::array foreground{0.627f, 0.678f, 0.698f, 1.f};
+			static constexpr std::array auto_complete_prime{1.f, 1.f, 1.f, 1.f};
+			static constexpr std::array auto_complete_non_prime{0.8f, 0.8f, 0.8f, 1.f};
 		};
 	}
 }
@@ -115,21 +117,21 @@ terminal::terminal()
 		}
 	}
 
-	current_autocomplete = commands::find_by_prefix(command_buffer.begin(), command_buffer.begin());
-
 }
 
-void terminal::show() noexcept {
+bool terminal::show() noexcept {
+	should_show_next_frame = true;
 
 	ImGui::SetNextWindowSize(ImVec2(cst::base_width, cst::base_height), ImGuiCond_Once);
 
 	ImGui::PushStyleColor(ImGuiCol_Text, to_imgui_color(cst::colors::foreground));
 	ImGui::PushStyleColor(ImGuiCol_WindowBg, to_imgui_color(cst::colors::background));
+	ImGui::PushStyleColor(ImGuiCol_TitleBgActive, ImGui::GetStyleColorVec4(ImGuiCol_TitleBg));
 
 	if (!ImGui::Begin(cst::window_name)) {
 		ImGui::End();
 		ImGui::PopStyleColor(2);
-		return;
+		return true;
 	}
 
 	compute_text_size();
@@ -138,7 +140,9 @@ void terminal::show() noexcept {
 	display_command_line();
 
 	ImGui::End();
-	ImGui::PopStyleColor(2);
+	ImGui::PopStyleColor(3);
+
+	return should_show_next_frame;
 }
 
 void terminal::compute_text_size() noexcept {
@@ -147,7 +151,7 @@ void terminal::compute_text_size() noexcept {
 		selector_label_size = ImGui::CalcTextSize(log_level_text.data());
 		selector_label_size.x += 10;
 		selector_size_global->x += selector_label_size.x + 30;
-		selector_size_global->y += selector_label_size.y;
+		selector_size_global->y += selector_label_size.y + 5;
 		local_logger.info("x: {}, y: {}.", selector_size_global->x, selector_size_global->y);
 	}
 }
@@ -213,7 +217,18 @@ void terminal::display_messages() noexcept {
 }
 
 void terminal::display_command_line() noexcept {
+	if (!command_entered && ImGui::GetActiveID() == input_text_id && input_text_id != 0 && current_autocomplete.empty() && buffer_usage == 0u) {
+		current_autocomplete = commands::list_commands();
+	}
+
 	ImGui::Separator();
+	show_input_text();
+	handle_unfocus();
+	show_autocomplete();
+}
+
+void terminal::show_input_text() noexcept {
+	ImGui::PushItemWidth(-1.f);
 	if (ImGui::InputText("##terminal:input_text", command_buffer.data(), command_buffer.size()
 			, ImGuiInputTextFlags_CallbackCompletion | ImGuiInputTextFlags_CallbackHistory, terminal::command_line_callback, this)) {
 		if (buffer_usage > 0u && command_buffer[buffer_usage - 1] == '\0') {
@@ -229,30 +244,71 @@ void terminal::display_command_line() noexcept {
 
 		if (ed == command_buffer.begin() + buffer_usage) {
 			current_autocomplete = commands::find_by_prefix(beg, ed);
+			command_entered = false;
 		} else {
+			// TODO: advanced auto completion
+			command_entered = true;
 			current_autocomplete.clear();
 		}
 	}
+	ImGui::PopItemWidth();
 
-	ImGuiID input_text_id = ImGui::GetItemID();
-	if (ImGui::IsKeyPressedMap(ImGuiKey_Enter)) {
-		if (previously_active_id == input_text_id) {
+	if (input_text_id == 0u) {
+		input_text_id = ImGui::GetItemID();
+	}
+}
+
+void terminal::handle_unfocus() noexcept {
+	if (previously_active_id == input_text_id) {
+		if (ImGui::IsKeyPressedMap(ImGuiKey_Enter)) {
 			call_command();
 			command_buffer[0] = '\0';
 			buffer_usage = 0u;
+			command_entered = false;
+		} else if (ImGui::IsKeyPressedMap(ImGuiKey_Escape)) {
+			current_autocomplete.clear();
+			if (buffer_usage > 0u) {
+				command_buffer[0] = '\0';
+				buffer_usage = 0u;
+			} else {
+				should_show_next_frame = false; // should hide on next frames
+			}
+			command_entered = false;
 		}
 	}
 	previously_active_id = ImGui::GetActiveID();
+}
 
-	if (!current_autocomplete.empty()) {
-		ImGui::SameLine();
-		ImGui::TextUnformatted(current_autocomplete[0].get().name.data(), current_autocomplete[0].get().name.data() + current_autocomplete[0].get().name.size());
-		for (auto it = std::next(current_autocomplete.cbegin()), end = current_autocomplete.cend() ; it != end ; ++it) {
-			ImGui::SameLine();
-			ImGui::VerticalSeparator();
-			ImGui::SameLine();
-			ImGui::TextDisabled("%s", it->get().name.data());
+void terminal::show_autocomplete() noexcept {
+	constexpr ImGuiWindowFlags overlay_flags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoScrollbar
+	                                           | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize
+	                                           | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
+
+	if (input_text_id == ImGui::GetActiveID() && !current_autocomplete.empty()) {
+		ImGui::SetNextWindowBgAlpha(0.9f);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+		ImGui::SetNextWindowFocus();
+
+		ImVec2 auto_complete_pos = ImGui::GetItemRectMin();
+		auto_complete_pos.y -= (selector_size_global->y + 3);
+		ImGui::SetNextWindowPos(auto_complete_pos);
+		if (ImGui::Begin("##terminal:auto_complete", nullptr, overlay_flags)) {
+
+			const std::string_view& first = current_autocomplete[0].get().name;
+			ImGui::PushStyleColor(ImGuiCol_Text, to_imgui_color(cst::colors::auto_complete_prime));
+			ImGui::TextUnformatted(first.data(), first.data() + first.size());
+
+			ImGui::PushStyleColor(ImGuiCol_Text, to_imgui_color(cst::colors::auto_complete_non_prime));
+			for (auto it = std::next(current_autocomplete.cbegin()), end = current_autocomplete.cend() ; it != end ; ++it) {
+				ImGui::SameLine();
+				ImGui::VerticalSeparator();
+				ImGui::SameLine();
+				ImGui::TextDisabled("%s", it->get().name.data());
+			}
+			ImGui::PopStyleColor(2);
 		}
+		ImGui::End();
+		ImGui::PopStyleVar();
 	}
 }
 
@@ -264,7 +320,7 @@ void terminal::call_command() noexcept {
 	matching_command_list = commands::find_by_prefix(command_beg, command_ed);
 
 	if (matching_command_list.empty()) {
-		local_logger.error("[\"{}\"]: command not found.", std::string_view(&*command_beg, command_ed - command_beg));
+		local_logger.error("\"{}\": command not found.", std::string_view(&*command_beg, command_ed - command_beg));
 		return;
 	}
 	auto argument_beg = std::find_if_not(command_ed, command_buffer.begin() + buffer_usage, is_space);
@@ -275,14 +331,14 @@ void terminal::call_command() noexcept {
 	// TODO: REMOVE
 	//vvvvv
 	world w;
-	matching_command_list[0].get().call(commands::argument{w, *this, command_buffer, argument_beg, argument_end});
+	matching_command_list[0].get().call(commands::argument{w, *this, std::string_view{command_buffer.begin(), buffer_usage}
+	, std::string_view{argument_beg, static_cast<unsigned long>(argument_end - argument_beg)}});
 }
 
 int terminal::command_line_callback(ImGuiInputTextCallbackData* data) noexcept {
-
+	auto t = reinterpret_cast<terminal *>(data->UserData);
 	if (data->EventKey == ImGuiKey_Tab) {
 
-		auto t = reinterpret_cast<terminal *>(data->UserData);
 		if (t->current_autocomplete.empty()) {
 			return 0;
 		}
@@ -303,7 +359,15 @@ int terminal::command_line_callback(ImGuiInputTextCallbackData* data) noexcept {
 		data->SelectionStart = data->SelectionEnd;
 		data->CursorPos = data->BufTextLen;
 		t->current_autocomplete.clear();
+	} else {
+		// TODO
+		if (data->EventKey == ImGuiKey_UpArrow) {
 
+		} else if (data->EventKey == ImGuiKey_DownArrow) {
+
+		} else {
+			t->local_logger.warn("Unknown key event catched by autocompletion system: {}", data->EventKey);
+		}
 	}
 
 

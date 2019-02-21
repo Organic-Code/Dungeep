@@ -34,7 +34,7 @@ public:
 
 	terminal();
 
-	void show() noexcept;
+	bool show() noexcept;
 
 	void hide() noexcept {
 		previously_active_id = 0;
@@ -55,9 +55,16 @@ private:
 	void display_messages() noexcept;
 	void display_command_line() noexcept;
 
+	// displaying command_line itself
+	void show_input_text() noexcept;
+	void handle_unfocus() noexcept;
+	void show_autocomplete() noexcept;
+
 	void call_command() noexcept;
 
 	static int command_line_callback(ImGuiInputTextCallbackData* data) noexcept;
+
+	bool should_show_next_frame{true};
 
 	// configuration
 	bool autoscroll{true};
@@ -81,10 +88,12 @@ private:
 	buffer_type command_buffer{};
 	buffer_type::size_type buffer_usage{0u}; // max accessible: command_buffer[buffer_usage - 1] (buffer_usage might be 0 for empty string)
 	std::vector<std::reference_wrapper<const commands::list_element_t>> current_autocomplete{};
+	bool command_entered{false};
 
 	spdlog::logger local_logger;
 
 	ImGuiID previously_active_id{0u};
+	ImGuiID input_text_id{0u};
 };
 
 #endif //DUNGEEP_TERMINAL_HPP

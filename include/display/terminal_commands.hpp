@@ -31,9 +31,8 @@ namespace commands {
 		world& world_;
 		terminal& terminal_;
 
-		const terminal::buffer_type & full_command;
-		terminal::buffer_type::const_iterator command_argument_start;
-		terminal::buffer_type::const_iterator command_argument_end;
+		std::string_view full_command;
+		std::string_view command_arguments;
 	};
 
 	struct list_element_t {
@@ -56,6 +55,11 @@ namespace commands {
 	// todo: passer par référence ?
 	std::vector<std::reference_wrapper<const list_element_t>>
 	find_by_prefix(terminal::buffer_type::const_iterator prefix_begin, terminal::buffer_type::const_iterator prefix_end);
+
+	inline std::vector<std::reference_wrapper<const list_element_t>> list_commands() {
+		terminal::buffer_type::const_iterator dummy{};
+		return find_by_prefix(dummy, dummy);
+	}
 
 }
 
