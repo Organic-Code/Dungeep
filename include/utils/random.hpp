@@ -25,8 +25,6 @@
 
 namespace dungeep {
 
-	inline std::mt19937_64 random_engine(std::random_device{}());
-
 	// std::normal_distribution is not portable across compilers
 	template <typename RealType = double>
 	class normal_distribution {
@@ -87,7 +85,7 @@ namespace dungeep {
 				return p.mean() + val * p.stddev();
 			}
 
-			result_type half_range = (g.max() - g.min()) / result_type(2.);
+			result_type half_range = result_type((g.max() - g.min()) / 2);
 			result_type x, y, z;
 			do {
 				//x, y \in [-1 ; 1]
@@ -218,7 +216,7 @@ namespace dungeep {
 			using unsigned_dist_res_t = std::make_unsigned_t<result_type>;
 
 			unsigned_rng_res_t rng_range = g.max() - g.min(); // not adding 1 because of potential overflows
-			unsigned_dist_res_t dist_range = p.b() - p.a();
+			unsigned_dist_res_t dist_range = unsigned_dist_res_t(p.b() - p.a());
 
 			using unsigned_comm_t = std::common_type_t<unsigned_rng_res_t, unsigned_dist_res_t>;
 
@@ -248,9 +246,8 @@ namespace dungeep {
 
 				unsigned_comm_t value;
 				unsigned_comm_t tmp; // overflow control, credit to GNU ISO C++ library [didn't think about it myself]
-				// technically overflow is UB but I doubt it can be optimized away by compilers
 				do {
-					tmp = rng_range * this->operator()(g, param_type{result_type(0), result_type(int_scale)});
+					tmp = unsigned_comm_t(rng_range) * unsigned_comm_t(this->operator()(g, param_type{result_type(0), result_type(int_scale)}));
 					value = tmp + (g() - g.min());
 				} while (value > dist_range || value < tmp);
 
@@ -310,6 +307,10 @@ namespace dungeep {
 	private:
 		param_type params;
 	};
+
+	inline std::mt19937_64 random_engine(std::random_device{}());
+	inline uniform_int_distribution int_distrib(0);
+	inline uniform_int_distribution<unsigned> uint_distrib(0u);
 }
 
 #endif //DUNGEEP_RANDOM_HPP

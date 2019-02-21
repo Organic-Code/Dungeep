@@ -48,7 +48,6 @@ public:
 private:
 
 	std::reference_wrapper<const std::string> name;
-	dungeep::direction current_direction;
 };
 
 #endif //DUNGEEP_MOB_HPP

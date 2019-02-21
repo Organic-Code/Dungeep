@@ -37,6 +37,8 @@ public:
 		// TODO
 	}
 
+	void interact_with(player&) noexcept override {}
+
 	void true_hit(int damage) noexcept override;
 
 	void move(dungeep::area_f) noexcept;

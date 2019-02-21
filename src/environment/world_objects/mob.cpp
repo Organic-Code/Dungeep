@@ -30,9 +30,9 @@
 
 mob::mob(const resources::creature_info& infos, int level) noexcept :
 		creature(infos.name),
-		name{infos.name},
-		current_direction{dungeep::direction::none}
+		name{infos.name}
 {
+	current_direction = dungeep::direction::none;
 	namespace ck = keys::creature;
 
 	const Json::Value& me = resources::manager.read_creature(name);
@@ -44,7 +44,7 @@ mob::mob(const resources::creature_info& infos, int level) noexcept :
 	crit_chance = me.get(ck::crit, 0).asInt() + me.get(ck::crit_pl, 0).asInt() * level;
 }
 
-void mob::tick(world_proxy& world) noexcept {
+void mob::tick(world_proxy& /*world*/) noexcept {
 	// TODO
 }
 

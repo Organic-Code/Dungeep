@@ -20,27 +20,29 @@ configure_folder(
 get_filename_component(root_dir ${CMAKE_SOURCE_DIR} REALPATH)
 
 # Setting up Dungeep
-set(COMMON_SOURCES src/environment/map.cpp)
 
-foreach(source ${COMMON_SOURCES})
-    list(APPEND COMMON_SOURCES_ABS ${root_dir}/${source})
-endforeach()
+#set(COMMON_SOURCES)
+#foreach(source ${COMMON_SOURCES})
+#    list(APPEND COMMON_SOURCES_ABS ${root_dir}/${source})
+#endforeach()
 
 set(DUNGEEP_SOURCES
-        src/main.cpp
-        src/display/terminal.cpp
-        src/display/map_tester.cpp
-        src/utils/resource_manager.cpp
-        src/utils/logger.cpp
+        src/environment/map.cpp
         src/environment/world.cpp
         src/environment/world_objects/creature.cpp
+        src/environment/world_objects/item.cpp
         src/environment/world_objects/mob.cpp
         src/environment/world_objects/player.cpp
-        src/environment/world_objects/item.cpp
+        src/display/map_tester.cpp
+        src/display/terminal.cpp
+        src/display/terminal_commands.cpp
+        src/utils/resource_manager.cpp
+        src/main.cpp
+        src/static.cpp
         )
 
 make_target(
-  dungeep "dungeep" ${COMMON_SOURCES} ${DUNGEEP_SOURCES}
+  dungeep "dungeep" ${DUNGEEP_SOURCES}
   INCLUDES
     "${root_dir}/include"
     "${root_dir}/templates"

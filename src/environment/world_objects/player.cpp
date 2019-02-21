@@ -7,11 +7,12 @@ int player::sleep() noexcept {
 	return 0;
 }
 
-void player::tick(world_proxy& world) noexcept {
+void player::tick(world_proxy& /*world*/) noexcept {
 	// TODO
 }
 
 void player::true_hit(int damage) noexcept {
+	// TODO
 	creature::true_hit(damage);
 }
 
@@ -24,11 +25,11 @@ bool player::is_local() const noexcept {
 	return false;
 }
 
-void player::drop_item(unsigned int item_index) noexcept {
+void player::drop_item(unsigned int /*item_index*/) noexcept {
 	// TODO
 }
 
-void player::lose_item(unsigned int item_index) noexcept {
+void player::lose_item(unsigned int /*item_index*/) noexcept {
 	// TODO
 }
 
@@ -36,11 +37,11 @@ void player::gain_item(std::unique_ptr<fixed_effect>&&) noexcept {
 	// TODO
 }
 
-void player::gain_gold(unsigned int gold) noexcept {
+void player::gain_gold(unsigned int /*gold*/) noexcept {
 	// TODO
 }
 
-void player::lose_gold(unsigned int gold) noexcept {
+void player::lose_gold(unsigned int /*gold*/) noexcept {
 	// TODO
 }
 

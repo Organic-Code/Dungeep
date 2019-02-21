@@ -43,11 +43,12 @@ public:
 
 	virtual void tick(player&, world_proxy&) noexcept = 0;
 
-	bool is_dynamic() const noexcept final {
+	// TODO should be final and not override, but compiler is stupid.
+	bool is_dynamic() const noexcept override {
 		return true;
 	}
 
-	static std::unique_ptr<dynamic_effect> find_by_name(std::string&& name, fixed_effect::defense
+	static std::unique_ptr<dynamic_effect> find_by_name(std::string&& /*name*/, fixed_effect::defense
 			, fixed_effect::attack, fixed_effect::critics, fixed_effect::misc, const Json::Value&) { return nullptr; /* TODO */}
 };
 

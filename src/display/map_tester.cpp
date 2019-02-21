@@ -21,6 +21,7 @@
 #include <SFML/Graphics/Color.hpp>
 #include <sstream>
 #include <iomanip>
+#include <utils/logger.hpp>
 
 #include "utils/random.hpp"
 #include "display/map_tester.hpp"
@@ -332,7 +333,12 @@ void map_tester::showViewerConfigWindow()
 void map_tester::updateMap()
 {
 	dungeep::random_engine.seed(m_seed);
+	logger::log.info("Generating map {}", m_seed);
 	m_map.generate(m_map_size, m_gen_properties, m_hall_properties);
+	logger::log.trace("Time spent generating rooms: {}ms", m_map.rooms_generation_time.count());
+	logger::log.trace("Time spent generating halls: {}ms", m_map.halls_generation_time.count());
+	logger::log.trace("Time spent generating fuzziness: {}ms", m_map.fuzzy_generation_time.count());
+	logger::log.info("Total generation time: {}ms", m_map.total_generation_time.count());
 	updateMapView();
 }
 

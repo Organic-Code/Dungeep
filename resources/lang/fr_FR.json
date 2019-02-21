@@ -1,13 +1,13 @@
 {
-  "language name": "Français",
-  "autoscroll checkbox" :  "défilement auto",
-  "clear button" : "vider",
-  "log level selector" :  "niveau de log",
-  "log level: trace" : "trace",
-  "log level: debug" :  "debug",
-  "log level: info" : "info",
-  "log level: warning" : "alerte",
-  "log level: error" : "erreur",
-  "log level: critical" :  "critique",
-  "log level: none" : "aucun"
+  "language name": "Français - France",
+  "terminal: autoscroll checkbox" :  "défilement auto",
+  "terminal: clear button" : "vider",
+  "terminal: log level selector" :  "niveau de log",
+  "terminal: log level: trace" : "≥ trace",
+  "terminal: log level: debug" :  "≥ debug",
+  "terminal: log level: info" : "≥ info",
+  "terminal: log level: warning" : "≥ alerte",
+  "terminal: log level: error" : "≥ erreur",
+  "terminal: log level: critical" :  "critique",
+  "terminal: log level: none" : "aucun"
 }

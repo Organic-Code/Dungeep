@@ -33,14 +33,14 @@ creature::creature(const std::string& name) noexcept
 }
 
 void creature::magical_hit(int damage, int resist_ignore) noexcept {
-	std::vector<std::unique_ptr<fixed_effect>> fixed_buffs{};
-	std::vector<std::unique_ptr<dynamic_effect>> dynamic_buffs{}; // TODO -> pas les fixed_buffs parcontre [ils sont déjà cachés dans 'resist' à priori
+//	std::vector<std::unique_ptr<fixed_effect>> fixed_buffs{};
+//	std::vector<std::unique_ptr<dynamic_effect>> dynamic_buffs{}; // TODO -> pas les fixed_buffs parcontre [ils sont déjà cachés dans 'resist' à priori
 	current_health -= compute_damage_reduction(damage, resist - resist_ignore);
 }
 
 void creature::physical_hit(int damage, int armor_ignore) noexcept {
-	std::vector<std::unique_ptr<fixed_effect>> fixed_buffs{};
-	std::vector<std::unique_ptr<dynamic_effect>> dynamic_buffs{}; // TODO -> pas les fixed_buffs parcontre [ils sont déjà cachés dans 'armor' à priori
+//	std::vector<std::unique_ptr<fixed_effect>> fixed_buffs{};
+//	std::vector<std::unique_ptr<dynamic_effect>> dynamic_buffs{}; // TODO -> pas les fixed_buffs parcontre [ils sont déjà cachés dans 'armor' à priori
 	current_health -= compute_damage_reduction(damage, armor - armor_ignore);
 }
 

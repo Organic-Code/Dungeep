@@ -34,6 +34,10 @@ namespace logger {
 
 	class storing_sink final : public spdlog::sinks::base_sink<std::mutex> {
 	public:
+		storing_sink() {
+			set_pattern("%T.%e - [%^%l%$]: %v");
+		}
+
 		auto begin() const {
 			return messages.begin();
 		}

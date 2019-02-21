@@ -1,13 +1,13 @@
 {
   "default language name": "English",
-  "autoscroll checkbox" :  "autoscroll",
-  "clear button" : "clear",
-  "log level selector" :  "log level",
-  "log level: trace" : "trace",
-  "log level: debug" :  "debug",
-  "log level: info" : "info",
-  "log level: warning" : "warning",
-  "log level: error" : "error",
-  "log level: critical" :  "critical",
-  "log level: none" : "none"
+  "terminal: autoscroll checkbox" :  "autoscroll",
+  "terminal: clear button" : "clear",
+  "terminal: log level selector" :  "log level",
+  "terminal: log level: trace" : "≥ trace",
+  "terminal: log level: debug" :  "≥ debug",
+  "terminal: log level: info" : "≥ info",
+  "terminal: log level: warning" : "≥ warning",
+  "terminal: log level: error" : "≥ error",
+  "terminal: log level: critical" :  "critical",
+  "terminal: log level: none" : "none"
 }

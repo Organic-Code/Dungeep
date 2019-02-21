@@ -21,19 +21,37 @@
 #include <display/terminal.hpp>
 #include <environment/world.hpp>
 
-static_assert(misc::is_sorted(commands::list.begin(), commands::list.end()), "commands::list should be lexicographically sorted by command name");
 
-std::vector<std::string> commands::no_completion(std::string_view){
-	return {};
-}
+namespace commands {
 
-void commands::help(argument& arg) {
-	arg.terminal_.command_log().info("Available commands:");
-	for (const list_element_t& elem : commands::list) {
-		arg.terminal_.command_log().info("        {} - {}", elem.name, elem.description);
+	std::vector<std::string> no_completion(std::string_view);
+
+	void help(argument&);
+
+	void clear(argument&);
+
+	// Must be sorted
+	static constexpr std::array list{
+			list_element_t{"clear", "clears the terminal screen", clear, no_completion},
+			list_element_t{"help", "show this help", help, no_completion},
+	};
+
+	static_assert(misc::is_sorted(list.begin(), list.end()),
+	              "commands::list should be lexicographically sorted by command name");
+
+	std::vector<std::string> no_completion(std::string_view) {
+		return {};
 	}
-}
 
-void commands::clear(argument&) {
-	logger::sink->clear();
+	void help(argument& arg) {
+		arg.terminal_.command_log().info("Available commands:");
+		for (const list_element_t& elem : commands::list) {
+			arg.terminal_.command_log().info("        {} - {}", elem.name, elem.description);
+		}
+	}
+
+	void clear(argument&) {
+		logger::sink->clear();
+	}
+
 }

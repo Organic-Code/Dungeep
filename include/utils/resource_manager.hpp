@@ -141,8 +141,8 @@ private:
 	Json::Value text_list_json{};
 	std::unordered_map<const char*, std::string> text_list{};
 
-	std::vector<std::string> creatures_name_list;
-	std::unordered_map<std::string, std::vector<creature_info>> creatures_info_per_map;
+	std::vector<std::string> creatures_name_list{};
+	std::unordered_map<std::string, std::vector<creature_info>> creatures_info_per_map{};
 
 	sf::Texture texture{};
 	std::unordered_map<std::string, std::array<sf::Sprite, direction_count>> creatures_sprites{};

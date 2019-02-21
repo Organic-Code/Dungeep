@@ -35,10 +35,6 @@ namespace commands {
 		std::vector<char>::const_iterator command_argument_start;
 	};
 
-	void help(argument&);
-
-	void clear(argument&);
-
 	struct list_element_t {
 		using command_function = void (*)(argument&);
 		using further_completion_function = std::vector<std::string> (*) (std::string_view prefix);
@@ -51,13 +47,6 @@ namespace commands {
 		constexpr bool operator<(const list_element_t& el) const {
 			return name < el.name;
 		}
-	};
-	std::vector<std::string> no_completion(std::string_view);
-
-	// Must be sorted
-	static constexpr std::array list {
-			list_element_t{"clear", "clears the terminal screen", clear, no_completion},
-			list_element_t{"help", "show this help", help, no_completion},
 	};
 
 	const commands::list_element_t& find_by_prefix(terminal::buffer_type::const_iterator prefix_begin, terminal::buffer_type::const_iterator prefix_end);

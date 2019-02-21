@@ -124,18 +124,19 @@ namespace {
 	}
 }
 
-resources resources::manager{};
-
-resources::resources() noexcept : maps{} {
+resources::resources() noexcept {
 	if constexpr (disable_resources) {
 		return;
 	}
+	logger::log.info("Loading resources.");
+	load_config();
 	load_maps();
 	load_creatures();
 	load_sprites();
 	load_items();
 	load_translations();
 	load_creature_infos();
+	logger::log.info("Resources loading: done.");
 }
 
 
@@ -260,22 +261,26 @@ void resources::save_map(std::string_view map_name, map::size_type size
 }
 
 void resources::load_config() noexcept {
+	logger::log.debug("Loading config file: {}", paths::config_file);
 	std::ifstream config_file = try_open(paths::config_file);
 	config_file >> config;
 }
 
 void resources::load_maps() noexcept {
+	logger::log.debug("Loading config maps: {}", paths::map_file);
 	std::ifstream maps_file = try_open(paths::map_file);
 	maps_file >> maps;
 	map_list = maps.getMemberNames();
 }
 
 void resources::load_creatures() noexcept {
+	logger::log.debug("Loading creatures stats: {}", paths::creatures_file);
 	std::ifstream creatures_file = try_open(paths::creatures_file);
 	creatures_file >> creatures;
 }
 
 void resources::load_sprites() noexcept {
+	logger::log.debug("Loading sprites and textures: {} :: {}", paths::sprites_file, paths::texture_file);
 	std::ifstream sprites_file = try_open(paths::sprites_file);
 
 	if (!texture.loadFromFile(std::string(paths::texture_file))) {
@@ -302,6 +307,7 @@ void resources::load_sprites() noexcept {
 }
 
 void resources::load_items() noexcept {
+	logger::log.debug("Loading items stats: {}", paths::items_file);
 	std::ifstream items_file = try_open(paths::items_file);
 	items_file >> items;
 	std::vector<std::string> members = items.getMemberNames();
@@ -311,12 +317,15 @@ void resources::load_items() noexcept {
 }
 
 void resources::load_translations() noexcept {
+	logger::log.debug("Loading text strings: {}", paths::default_lang_file);
 	std::ifstream default_lang_file = try_open(paths::default_lang_file);
 	default_lang_file >> text_list_json;
 
 	if (config.isMember(keys::config::language)) {
 		std::string lang = config[keys::config::language].asString();
-		std::ifstream translations_file(paths::lang_folder.data() + std::move(lang), std::ios_base::in);
+		std::string lang_file = paths::lang_folder.data() + std::move(lang);
+		logger::log.debug("Loading translations: {}", lang_file);
+		std::ifstream translations_file(lang_file, std::ios_base::in);
 
 		if (translations_file) {
 			Json::Value translation;
@@ -327,6 +336,7 @@ void resources::load_translations() noexcept {
 }
 
 void resources::load_creature_infos() noexcept {
+	logger::log.debug("Pre-parsing creatures infos");
 	creatures_name_list = creatures.getMemberNames();
 	for (const std::string& name : creatures_name_list) {
 		Json::Value& current_creature = creatures[name];
@@ -337,10 +347,10 @@ void resources::load_creature_infos() noexcept {
 			inf.size.x = static_cast<std::uint8_t>(sprite_rect.width);
 			inf.size.y = static_cast<std::uint8_t>(sprite_rect.height);
 
-			Json::Value& maps = current_creature[keys::creature::map::list];
-			std::vector<std::string> map_names = maps.getMemberNames();
+			Json::Value& maps_ = current_creature[keys::creature::map::list];
+			std::vector<std::string> map_names = maps_.getMemberNames();
 			for (const std::string& map : map_names) {
-				Json::Value& current_map = maps[map];
+				Json::Value& current_map = maps_[map];
 
 				if (current_map.isMember(keys::creature::map::min_level)) {
 					inf.min_level = static_cast<unsigned short>(current_map[keys::creature::map::min_level].asUInt());
@@ -361,6 +371,8 @@ void resources::load_creature_infos() noexcept {
 }
 
 void resources::load_creature_sprites(const std::string& name, const Json::Value& values) noexcept {
+	logger::log.trace("> loading creature sprite: {}", name);
+
 	sf::Texture& the_texture = texture;
 
 	auto load_part = [&the_texture](const Json::Value& sub_value) -> sf::Sprite {
@@ -409,6 +421,7 @@ void resources::load_creature_sprites(const std::string& name, const Json::Value
 }
 
 void resources::load_map_sprites(const std::string& name, const Json::Value& values) noexcept {
+	logger::log.trace("> loading map sprite: {}", name);
 	sf::Texture& the_texture = texture;
 
 	auto load_part = [&the_texture](const Json::Value& sub_value) -> sf::Sprite {

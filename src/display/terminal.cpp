@@ -99,11 +99,11 @@ terminal::terminal()
 
 	const std::string* levels[] = {&trace, &debug, &info, &warning, &error, &critical, &none };
 
-	int current_shift = 0;
+	unsigned int current_shift = 0;
 	longest_log_level = &trace;
 	for (const std::string*& lvl : levels) {
 		std::copy(lvl->begin(), lvl->end(), level_list_text.begin() + current_shift);
-		current_shift += lvl->size() + 1;
+		current_shift += static_cast<unsigned int>(lvl->size()) + 1u;
 		if (lvl->size() > longest_log_level->size()) {
 			longest_log_level = lvl;
 		}
