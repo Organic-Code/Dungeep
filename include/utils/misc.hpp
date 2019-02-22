@@ -27,6 +27,14 @@
 
 namespace misc {
 
+	// std::identity is c++20
+	struct identity {
+		template<typename T>
+		constexpr auto operator()(T&& t) const {
+			return std::forward<T>(t);
+		}
+	};
+
 	// std::is_sorted is not constexpr pre C++20
 	template <typename ForwardIt, typename EndIt, typename Comparator = std::less<std::remove_reference_t<decltype(*std::declval<ForwardIt>())>>>
 	constexpr bool is_sorted(ForwardIt it, EndIt last, Comparator&& comp = {}) {
@@ -61,6 +69,46 @@ namespace misc {
 			*dest_beg++ = *src_beg++;
 		}
 	}
+
+	constexpr bool is_space(char c) {
+		return c == ' ';
+	}
+
+	std::vector<std::string_view> split_by_space(std::string_view in);
+
+	/// Search any element matching "prefix" in the collection formed by [c_beg, c_end)
+	/// str_ext must map types *ForwardIt() to std::string_view
+	/// transform is whatever transformation you want to do to the matching elements.
+	template <typename ForwardIt, typename StrExtractor = identity, typename Transform = identity>
+	auto prefix_search(std::string_view prefix, ForwardIt c_beg, ForwardIt c_end,
+			StrExtractor&& str_ext = {}, Transform&& transform = {}) -> std::vector<decltype(transform(*c_beg))> {
+
+		auto lower = std::lower_bound(c_beg, c_end, prefix);
+		auto higher = std::upper_bound(lower, c_end, prefix, [&str_ext](std::string_view pre, const auto& element) {
+			std::string_view val = str_ext(element);
+			return pre.substr(0, std::min(val.size(), pre.size())) < val.substr(0, std::min(val.size(), pre.size()));
+		});
+
+		std::vector<decltype(transform(*c_beg))> ans;
+		std::transform(lower, higher, std::back_inserter(ans), std::forward<Transform>(transform));
+		return ans;
+	}
+
+	template <typename ForwardIt, typename StrExtractor = identity>
+	ForwardIt find_first_prefixed(std::string_view prefix, ForwardIt beg, ForwardIt end, StrExtractor&& str_ext = {}) {
+		// std::string_view::start_with is C++20
+		auto start_with = [](std::string_view str, std::string_view pr) {
+			return str.size() >= pr.size() ? str.substr(0, pr.size()) == pr : false;
+		};
+		while (beg != end) {
+			if (start_with(str_ext(*beg), prefix)) {
+				return beg;
+			}
+			++beg;
+		}
+		return beg;
+	}
+
 }
 
 #endif //DUNGEEP_MISC_HPP

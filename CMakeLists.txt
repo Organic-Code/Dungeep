@@ -37,6 +37,8 @@ set(DUNGEEP_SOURCES
         src/display/terminal.cpp
         src/display/terminal_commands.cpp
         src/utils/resource_manager.cpp
+        src/utils/misc.cpp
+
         src/main.cpp
         src/static.cpp
         )

@@ -48,6 +48,10 @@ public:
 		return local_logger;
 	}
 
+	void set_should_close() noexcept {
+		close_request = true;
+	}
+
 private:
 
 	void compute_text_size() noexcept;
@@ -62,9 +66,16 @@ private:
 
 	void call_command() noexcept;
 
-	static int command_line_callback(ImGuiInputTextCallbackData* data) noexcept;
+	static int command_line_callback_st(ImGuiInputTextCallbackData * data) noexcept;
+	int command_line_callback(ImGuiInputTextCallbackData* data) noexcept;
+
 
 	bool should_show_next_frame{true};
+	bool close_request{false};
+
+
+	////////////
+	spdlog::logger local_logger;
 
 	// configuration
 	bool autoscroll{true};
@@ -84,16 +95,22 @@ private:
 
 
 	// command line variables
-	std::vector<std::string> command_history{};
 	buffer_type command_buffer{};
 	buffer_type::size_type buffer_usage{0u}; // max accessible: command_buffer[buffer_usage - 1] (buffer_usage might be 0 for empty string)
 	std::vector<std::reference_wrapper<const commands::list_element_t>> current_autocomplete{};
 	bool command_entered{false};
-
-	spdlog::logger local_logger;
+	bool should_take_focus{false};
 
 	ImGuiID previously_active_id{0u};
 	ImGuiID input_text_id{0u};
+
+	// command line: completion using history
+	std::string command_line_backup{};
+	std::string_view command_line_backup_prefix{};
+	std::vector<std::string> command_history{};
+	std::optional<std::vector<std::string>::iterator> current_history_selection{};
+	bool ignore_next_textinput{false};
+
 };
 
 #endif //DUNGEEP_TERMINAL_HPP

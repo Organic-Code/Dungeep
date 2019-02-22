@@ -20,28 +20,49 @@
 #include <utils/logger.hpp>
 #include <display/terminal.hpp>
 #include <environment/world.hpp>
+#include <sstream>
+#include <utils/resource_manager.hpp>
+#include <utils/resource_keys.hpp>
+
+using commands::argument;
+using commands::list_element_t;
+
+namespace {
+	namespace print_resource_args_list {
+
+	}
+
+
+	void help(const argument&);
+	void clear(const argument&);
+}
 
 namespace commands {
 
 	std::vector<std::string> no_completion(std::string_view);
 	void no_command(const argument&);
 
-	void help(const argument&);
+	void print_resource(const argument&);
 
-	void clear(const argument&);
+	void exit(const argument&);
+
+	void quit(const argument&);
+
+	std::vector<std::string> print_resource_completion(std::string_view);
 
 
 
 
 	// Must be sorted
-	constexpr std::array<list_element_t, 2> list{
+	constexpr std::array list{
 			list_element_t{"clear ", "clears the terminal screen", clear, no_completion},
+			list_element_t{"exit ", "closes this terminal", exit, no_completion},
 			list_element_t{"help ", "show this help", help, no_completion},
+			list_element_t{"print_resource ", "prints resources file", print_resource, print_resource_completion},
+			list_element_t{"quit ", "closes this application", quit, no_completion},
 	};
 	static_assert(misc::is_sorted(list.begin(), list.end()),
 	              "commands::list should be lexicographically sorted by command name");
-
-	constexpr unsigned long list_element_name_max_size = misc::max_size(list.begin(), list.end(), [](const list_element_t& elem) { return elem.name.size(); });
 
 	const list_element_t empty_command{"Empty Command", "Placeholder for unknown command", no_command, no_completion};
 
@@ -49,34 +70,47 @@ namespace commands {
 
 
 	std::vector<std::reference_wrapper<const list_element_t>>
-	find_by_prefix(terminal::buffer_type::const_iterator prefix_begin, terminal::buffer_type::const_iterator prefix_end) {
-		std::vector<std::reference_wrapper<const list_element_t>> ans;
+	find_by_prefix(std::string_view prefix) {
+		auto compare_name = [](const list_element_t& el) { return el.name; };
+		auto map_to_cref = [](const list_element_t& el) { return std::cref(el); };
 
-		unsigned int list_idx = 0u;
-		unsigned int char_idx = 0u;
-
-		for (auto it = prefix_begin ; it != prefix_end ; ++it) {
-			while (list_idx < list.size() && list[list_idx].name[char_idx] < *it) {
-				++list_idx;
-			}
-			++char_idx;
-
-			if (list_idx == list.size() || list[list_idx].name.substr(0, char_idx) != std::string_view(&*prefix_begin, char_idx)) {
-				return ans;
-			}
-		}
-		do {
-			ans.emplace_back(list[list_idx++]);
-		} while(list_idx < list.size() && list[list_idx].name.substr(0, char_idx) == std::string_view(&*prefix_begin, char_idx));
-
-		return ans;
+		return misc::prefix_search(prefix, list.begin(), list.end(), std::move(compare_name), std::move(map_to_cref));
 	}
 
 
 	std::vector<std::string> no_completion(std::string_view) {return {};}
 	void no_command(const argument&) {}
 
+	void print_resource(const argument& arg) {
+		arg.terminal_.command_log().error("TODO");
+	}
+
+	void quit(const argument& arg) {
+		arg.terminal_.command_log().error("TODO");
+	}
+
+	void exit(const argument& arg) {
+		arg.terminal_.set_should_close();
+	}
+
+	std::vector<std::string> print_resource_completion(std::string_view command_line) {
+		// TODO
+		// resources::manager.get_item_count();
+		// resources::manager.get_map_list()
+//		resources::manager.get_creature_count()
+//		resources::manager.get_text(keys::text::lang_name);
+//		resources::manager.get_text(keys::text::dflt_lang_name);
+		return {};
+	}
+
+}
+
+namespace {
+
 	void help(const argument& arg) {
+		constexpr unsigned long list_element_name_max_size = misc::max_size(commands::list.begin(), commands::list.end(),
+		                                                                    [](const list_element_t& elem) { return elem.name.size(); });
+
 		arg.terminal_.command_log().info("Available commands:");
 		for (const list_element_t& elem : commands::list) {
 			arg.terminal_.command_log().info("        {:{}}| {}", elem.name, list_element_name_max_size, elem.description);
@@ -88,5 +122,4 @@ namespace commands {
 	void clear(const argument&) {
 		logger::sink->clear();
 	}
-
 }

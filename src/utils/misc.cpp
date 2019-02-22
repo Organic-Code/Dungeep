@@ -15,57 +15,37 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef DUNGEEP_TERMINAL_COMMANDS_HPP
-#define DUNGEEP_TERMINAL_COMMANDS_HPP
-
-#include <array>
-#include <string>
 #include <vector>
+#include <string_view>
+#include <utils/misc.hpp>
 
-#include <display/terminal.hpp>
+std::vector<std::string_view> misc::split_by_space(std::string_view in) {
+	std::vector<std::string_view> out;
 
-class world;
-
-namespace commands {
-	struct argument {
-		world& world_;
-		terminal& terminal_;
-
-		std::vector<std::string_view> cl_arguments;
-	};
-
-	struct list_element_t {
-		using command_function = void (*)(const argument&);
-		using further_completion_function = std::vector<std::string> (*) (std::string_view argument_line);
-
-		const std::string_view name;
-		const std::string_view description;
-		const command_function call;
-		const further_completion_function complete;
-
-		constexpr bool operator<(std::string_view str) const {
-			return name < str;
-		}
-
-		constexpr bool operator<(const list_element_t& el) const {
-			return name < el.name;
-		}
-	};
-
-	extern const list_element_t empty_command;
-
-	// todo: passer par référence ?
-	std::vector<std::reference_wrapper<const list_element_t>> find_by_prefix(std::string_view prefix);
-
-	inline std::vector<std::reference_wrapper<const list_element_t>>
-	find_by_prefix(terminal::buffer_type::const_iterator p_beg, terminal::buffer_type::const_iterator p_end) {
-		return find_by_prefix({p_beg, static_cast<unsigned long>(p_end - p_beg)});
+	auto begin = in.begin();
+	while (begin != in.end() && misc::is_space(*begin)) {
+		++begin;
 	}
 
-	inline std::vector<std::reference_wrapper<const list_element_t>> list_commands() {
-		return find_by_prefix(std::string_view{});
+	if (begin == in.end()) {
+		return out;
 	}
 
+	auto it = std::next(begin);
+	while (it != in.end()) {
+		if (misc::is_space(*it)) {
+			out.emplace_back(begin, it - begin);
+			do {
+				++it;
+			} while (it != in.end() && misc::is_space(*it));
+			begin = it;
+		} else {
+			++it;
+		}
+	}
+	if (begin != in.end()) {
+		out.emplace_back(begin, it - begin);
+	}
+
+	return out;
 }
-
-#endif //DUNGEEP_TERMINAL_COMMANDS_HPP
