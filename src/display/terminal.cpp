@@ -483,14 +483,14 @@ std::pair<bool, std::string> terminal::resolve_history_references(std::string_vi
 
 	auto resolve = [&](std::string_view history_request) -> bool {
 		bool local_modified{};
-		std::optional<std::string_view> solved = resolve_history_reference(history_request, local_modified);
+		std::optional<std::string> solved = resolve_history_reference(history_request, local_modified);
 		if (!solved) {
 			return false;
 		}
 		modified |= local_modified;
 		if (solved->empty()) {
 			ans += R"("")";
-		} else if (misc::is_space(solved->front()) || misc::is_space(solved->back())) {
+		} else if (std::find_if(solved->begin(), solved->end(), misc::is_space) != solved->end()) {
 			ans += '"';
 			ans += *solved;
 			ans += '"';
@@ -544,6 +544,10 @@ std::pair<bool, std::string> terminal::resolve_history_references(std::string_vi
 			case state::part_4:
 				if (misc::is_digit(*it)) {
 					current_state = state::finalize;
+				} else if (*it == '*') {
+					if (!resolve({substr_beg, static_cast<unsigned>(it + 1 - substr_beg)})) {
+						return {false, {substr_beg, it}};
+					}
 				} else {
 					return {false, {substr_beg, it}};
 				}
@@ -585,11 +589,11 @@ std::pair<bool, std::string> terminal::resolve_history_references(std::string_vi
 	return {true,std::move(ans)};
 }
 
-std::optional<std::string_view> terminal::resolve_history_reference(std::string_view str, bool& modified) const noexcept {
+std::optional<std::string> terminal::resolve_history_reference(std::string_view str, bool& modified) const noexcept {
 	modified = false;
 
 	if (str.empty() || str[0] != '!') {
-		return str;
+		return std::string{str.begin(), str.end()};
 	}
 
 	if (str.size() < 2) {
@@ -633,7 +637,25 @@ std::optional<std::string_view> terminal::resolve_history_reference(std::string_
 
 
 	++char_idx;
-	if (str.size() <= char_idx || !misc::is_digit(str[char_idx])) {
+	if (str.size() <= char_idx) {
+		return {};
+	}
+
+	if (str[char_idx] == '*') {
+		modified = true;
+
+		const std::string& cmd = command_history[command_history.size() - backward_jump];
+		auto first_non_space = std::find_if_not(cmd.begin(), cmd.end(), misc::is_space);
+		auto first_space = std::find_if(first_non_space, cmd.end(), misc::is_space);
+		first_non_space = std::find_if_not(first_space, cmd.end(), misc::is_space);
+
+		if (first_non_space == cmd.end()) {
+			return std::string{""};
+		}
+		return std::string{first_non_space, cmd.end()};
+	}
+
+	if (!misc::is_digit(str[char_idx])) {
 		return {};
 	}
 
@@ -670,9 +692,50 @@ int terminal::command_line_callback(ImGuiInputTextCallbackData* data) noexcept {
 		data->CursorPos = data->BufTextLen;
 	};
 
+	auto auto_complete_buffer = [data, this](std::string&& str, auto reference_size) {
+		if (std::find_if(str.begin(), str.end(), misc::is_space) != str.end()) {
+			str = '"' + std::move(str) + '"';
+		}
+
+		auto buff_end = misc::erase_insert(str.begin(), str.end(), data->Buf + data->CursorPos - reference_size
+				, data->Buf + buffer_usage, data->Buf + data->BufSize, reference_size);
+
+		data->BufTextLen = static_cast<unsigned>(std::distance(data->Buf, buff_end));
+		data->Buf[data->BufTextLen] = '\0';
+		data->BufDirty = true;
+		data->SelectionStart = data->SelectionEnd;
+		data->CursorPos = std::min(static_cast<int>(data->CursorPos + str.size() - reference_size), data->BufTextLen);
+		buffer_usage = static_cast<unsigned>(data->BufTextLen);
+	};
+
 	if (data->EventKey == ImGuiKey_Tab) {
 
 		if (current_autocomplete.empty()) {
+			if (buffer_usage == 0 || data->CursorPos < 2) {
+				return 0;
+			}
+			if (command_buffer[data->CursorPos - 1] == '!' && command_buffer[data->CursorPos - 2] == '!') {
+				bool modified{};
+				std::optional<std::string> val = resolve_history_reference("!!", modified);
+				if (!modified) {
+					return 0;
+				}
+				auto_complete_buffer(std::move(*val), 2);
+
+			} else {
+				auto excl = misc::find_last(command_buffer.data(), command_buffer.data() + data->CursorPos, '!');
+				if (excl == command_buffer.data() + data->CursorPos) {
+					return 0;
+				}
+				bool modified{};
+				auto ref_size = static_cast<unsigned>(command_buffer.data() + data->CursorPos - excl);
+				std::optional<std::string> val = resolve_history_reference({excl, ref_size}, modified);
+				if (!modified) {
+					return 0;
+				}
+				auto_complete_buffer(std::move(*val), ref_size);
+			}
+
 			return 0;
 		}
 
@@ -694,7 +757,9 @@ int terminal::command_line_callback(ImGuiInputTextCallbackData* data) noexcept {
 			current_history_selection = command_history.end();
 			command_line_backup = std::string(command_buffer.begin(), command_buffer.begin() + buffer_usage);
 			command_line_backup_prefix = command_line_backup;
-			command_line_backup_prefix.remove_prefix(std::min(command_line_backup_prefix.find_first_not_of(" "), command_line_backup_prefix.size()));
+			command_line_backup_prefix.remove_prefix(std::min(
+					command_line_backup_prefix.end() - std::find_if(command_line_backup_prefix.begin(), command_line_backup_prefix.end(), misc::is_space)
+					, static_cast<long>(command_line_backup_prefix.size())));
 			current_autocomplete.clear();
 		}
 

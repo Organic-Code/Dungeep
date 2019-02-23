@@ -70,6 +70,53 @@ namespace misc {
 		}
 	}
 
+	template <typename BidirIt1, typename BidirIt2>
+	constexpr void copy_backward(BidirIt1 src_beg, BidirIt1 src_end, BidirIt2 dest_beg, BidirIt2 dest_end) {
+		auto copy_length = std::distance(src_beg, src_end);
+		auto avail_length = std::distance(dest_beg, dest_end);
+		if (avail_length < copy_length) {
+			std::advance(src_end, avail_length - copy_length);
+		} else {
+			std::advance(dest_end, copy_length - avail_length);
+		}
+		while(src_beg != src_end && dest_beg != dest_end) {
+			*--dest_end = *--src_end;
+		}
+	}
+
+	// Returns new end of dest collection
+	// does as if the n first values of dest where non existant
+	template <typename ForwardIt, typename RandomAccessIt>
+	constexpr RandomAccessIt erase_insert(ForwardIt src_beg, ForwardIt src_end, RandomAccessIt dest_beg, RandomAccessIt dest_end, RandomAccessIt dest_max, unsigned int n) {
+		n = std::min(static_cast<unsigned>(std::distance(dest_beg, dest_end)), n);
+		auto copy_length = std::distance(src_beg, src_end);
+		auto avail_length = std::distance(dest_end, dest_max) + n;
+
+		if (copy_length <= avail_length) {
+			misc::copy_backward(dest_beg + n, dest_end, dest_beg + copy_length, dest_end + copy_length);
+			misc::copy(src_beg, src_end, dest_beg, dest_beg + copy_length);
+			return dest_end + copy_length - n;
+
+		} else {
+			std::advance(src_beg, copy_length - avail_length);
+			copy_length = avail_length;
+			misc::copy_backward(dest_beg + n, dest_end, dest_beg + copy_length, dest_end + copy_length);
+			misc::copy(src_beg, src_end, dest_beg, dest_beg + copy_length);
+			return dest_end + copy_length - n;
+		}
+	}
+
+	template <typename ForwardIterator, typename ValueType>
+	constexpr ForwardIterator find_last(ForwardIterator begin, ForwardIterator end, const ValueType& val) {
+		auto rend = std::reverse_iterator(begin);
+		auto rbegin = std::reverse_iterator(end);
+		auto search = std::find(rbegin, rend, val);
+		if (search == rend) {
+			return end;
+		}
+		return std::prev(search.base());
+	}
+
 	constexpr bool is_space(char c) {
 		return c == ' ';
 	}
