@@ -65,16 +65,16 @@ private:
 	void show_autocomplete() noexcept;
 
 	void call_command() noexcept;
+	std::optional<std::string_view> resolve_history_reference(std::string_view str, bool& modified) const noexcept;
+
 
 	static int command_line_callback_st(ImGuiInputTextCallbackData * data) noexcept;
 	int command_line_callback(ImGuiInputTextCallbackData* data) noexcept;
 
-
+	////////////
 	bool should_show_next_frame{true};
 	bool close_request{false};
 
-
-	////////////
 	spdlog::logger local_logger;
 
 	// configuration
@@ -101,6 +101,8 @@ private:
 	bool command_entered{false};
 	bool should_take_focus{false};
 
+	std::string_view autocomlete_separator{"| "};
+
 	ImGuiID previously_active_id{0u};
 	ImGuiID input_text_id{0u};
 
@@ -108,7 +110,8 @@ private:
 	std::string command_line_backup{};
 	std::string_view command_line_backup_prefix{};
 	std::vector<std::string> command_history{};
-	std::optional<std::vector<std::string>::iterator> current_history_selection{};
+	std::optional<decltype(command_history)::iterator> current_history_selection{};
+	
 	bool ignore_next_textinput{false};
 
 };

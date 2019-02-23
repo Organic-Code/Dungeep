@@ -74,7 +74,17 @@ namespace misc {
 		return c == ' ';
 	}
 
-	std::vector<std::string_view> split_by_space(std::string_view in);
+	constexpr bool is_digit(char c) {
+		return c >= '0' && c <= '9';
+	}
+
+	constexpr bool success(std::errc ec) {
+		return ec == std::errc{};
+	}
+
+	// Returns a vector containing each element that were space separated
+	// Returns an empty optional if a '"' char was not matched with a closing '"'
+	std::optional<std::vector<std::string>> split_by_space(std::string_view in);
 
 	/// Search any element matching "prefix" in the collection formed by [c_beg, c_end)
 	/// str_ext must map types *ForwardIt() to std::string_view
@@ -98,7 +108,11 @@ namespace misc {
 	ForwardIt find_first_prefixed(std::string_view prefix, ForwardIt beg, ForwardIt end, StrExtractor&& str_ext = {}) {
 		// std::string_view::start_with is C++20
 		auto start_with = [](std::string_view str, std::string_view pr) {
-			return str.size() >= pr.size() ? str.substr(0, pr.size()) == pr : false;
+			std::string_view::size_type idx = 0;
+			while (idx < str.size() && is_space(str[idx])) {
+				++idx;
+			}
+			return (str.size() - idx) >= pr.size() ? str.substr(idx, pr.size()) == pr : false;
 		};
 		while (beg != end) {
 			if (start_with(str_ext(*beg), prefix)) {

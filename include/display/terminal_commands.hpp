@@ -31,7 +31,7 @@ namespace commands {
 		world& world_;
 		terminal& terminal_;
 
-		std::vector<std::string_view> cl_arguments;
+		std::vector<std::string> cl_arguments;
 	};
 
 	struct list_element_t {

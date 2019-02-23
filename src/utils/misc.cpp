@@ -19,32 +19,71 @@
 #include <string_view>
 #include <utils/misc.hpp>
 
-std::vector<std::string_view> misc::split_by_space(std::string_view in) {
-	std::vector<std::string_view> out;
+std::optional<std::vector<std::string>> misc::split_by_space(std::string_view in) {
+	std::vector<std::string> out;
 
-	auto begin = in.begin();
-	while (begin != in.end() && misc::is_space(*begin)) {
-		++begin;
+	auto it = in.begin();
+	while (it != in.end() && misc::is_space(*it)) {
+		++it;
 	}
 
-	if (begin == in.end()) {
+	if (it == in.end()) {
 		return out;
 	}
 
-	auto it = std::next(begin);
-	while (it != in.end()) {
-		if (misc::is_space(*it)) {
-			out.emplace_back(begin, it - begin);
+	auto skip_spaces = [&]() {
+		do {
+			++it;
+		} while (it != in.end() && misc::is_space(*it));
+	};
+
+	std::string current_string{};
+	do {
+		if (*it == '"') {
+			bool escaped;
 			do {
+				escaped = (*it == '\\');
 				++it;
-			} while (it != in.end() && misc::is_space(*it));
-			begin = it;
+
+				if (it != in.end() && (*it != '"' || escaped)) {
+					if (*it == '\\') {
+						if (escaped) {
+							current_string += *it;
+						}
+					} else {
+						current_string += *it;
+					}
+				} else {
+					break;
+				}
+
+			} while (true);
+
+			if (it == in.end()) {
+				return {};
+			}
+			++it;
+
+		} else if (misc::is_space(*it)) {
+			out.emplace_back(std::move(current_string));
+			current_string = {};
+			skip_spaces();
+
+		} else if (*it == '\\') {
+			++it;
+			if (it != in.end()) {
+				current_string += *it;
+				++it;
+			}
 		} else {
+			current_string += *it;
 			++it;
 		}
-	}
-	if (begin != in.end()) {
-		out.emplace_back(begin, it - begin);
+
+	} while (it != in.end());
+
+	if (!current_string.empty()) {
+		out.emplace_back(std::move(current_string));
 	}
 
 	return out;
