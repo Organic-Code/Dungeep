@@ -66,6 +66,7 @@ private:
 
 	void call_command() noexcept;
 	std::optional<std::string_view> resolve_history_reference(std::string_view str, bool& modified) const noexcept;
+	std::pair<bool, std::string> resolve_history_references(std::string_view str, bool& modified) const;
 
 
 	static int command_line_callback_st(ImGuiInputTextCallbackData * data) noexcept;

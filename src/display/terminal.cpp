@@ -76,7 +76,7 @@ namespace {
 		}
 	protected:
 		void sink_it_(const spdlog::details::log_msg &msg) override {
-			if (msg.level == spdlog::level::trace) {
+			if (msg.level == spdlog::level::trace || msg.level == spdlog::level::debug) {
 				if (!is_trace_pattern) {
 					trace_pattern();
 				}
@@ -208,6 +208,8 @@ void terminal::display_messages() noexcept {
 		ImGui::PushStyleColor(ImGuiCol_ChildBg, to_imgui_color(cst::colors::msg_bg));
 		if (ImGui::BeginChild("terminal:logs_window", ImVec2(avail_space.x, avail_space.y - selector_size_global->y), false,
 		                      ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoTitleBar)) {
+
+			unsigned traced_count = 0;
 			for (const logger::message& msg : *logger::sink) {
 				if (msg.severity < level && !msg.important) {
 					continue;
@@ -216,6 +218,11 @@ void terminal::display_messages() noexcept {
 				if (msg.color_beg < msg.color_end) {
 					ImGui::TextUnformatted(msg.value.data(), msg.value.data() + msg.color_beg);
 					ImGui::SameLine(0.f, 0.f);
+					if (msg.important && msg.severity == spdlog::level::trace) {
+						ImGui::Text("[%d] ", static_cast<int>(traced_count - command_history.size()));
+						++traced_count;
+						ImGui::SameLine(0.f, 0.f);
+					}
 					ImGui::PushStyleColor(ImGuiCol_Text, to_imgui_color(cst::colors::log_level_colors[msg.severity]));
 					ImGui::TextUnformatted(msg.value.data() + msg.color_beg, msg.value.data() + msg.color_end);
 					ImGui::PopStyleColor();
@@ -409,106 +416,173 @@ void terminal::show_autocomplete() noexcept {
 }
 
 void terminal::call_command() noexcept {
-	std::optional<std::vector<std::string>> splitted = misc::split_by_space({command_buffer.begin(), buffer_usage});
+	bool modified{};
+	std::pair<bool, std::string> resolved = resolve_history_references({command_buffer.begin(), buffer_usage}, modified);
 
+	if (!resolved.first) {
+		local_logger.error(R"(No such event: {})", resolved.second);
+		return;
+	}
+
+	std::optional<std::vector<std::string>> splitted = misc::split_by_space(resolved.second);
 	if (!splitted) {
 		local_logger.trace("{}", std::string_view{command_buffer.begin(), buffer_usage});
 		local_logger.error(R"(Unmatched ")");
 		return;
 	}
 
-	if (splitted->empty()) {
-		local_logger.trace("{}", std::string_view{command_buffer.begin(), buffer_usage});
-		return;
-	}
-
-	bool modified{};
-	std::optional<std::string_view> solved = resolve_history_reference((*splitted)[0], modified);
-	if (!solved) {
-		local_logger.error(R"("{}": no such event.)", (*splitted)[0]);
-		return;
-	}
-
-	auto concat = [](std::string& str, const std::string_view& sv) {
-
-		if (sv.empty()) {
-			str += R"("")";
-		} else if (misc::is_space(sv[0]) || misc::is_space(sv[sv.size() - 1])) {
-			str += '"';
-			str += sv;
-			str += '"';
-		} else {
-			str += sv;
-		}
-	};
-
-	std::string global_command;
-	concat(global_command, *solved);
-	(*splitted)[0] = *solved;
-
-	for (auto it = std::next(splitted->begin()) ; it != splitted->end() ; ++it) {
-		bool inner_modified{};
-		solved = resolve_history_reference(*it, inner_modified);
-		if (!solved) {
-			local_logger.error(R"("{}": no such event.)", *it);
-			return;
-		}
-		*it = *solved;
-		global_command.reserve(global_command.size() + solved->size() + 1);
-		global_command += ' ';
-		concat(global_command, *solved);
-		modified |= inner_modified;
-	}
-
 	local_logger.trace("{}", std::string_view{command_buffer.begin(), buffer_usage});
-
-	if (modified) {
-		splitted = misc::split_by_space(global_command);
-
-		if (!splitted) {
-			local_logger.error(R"(Unmatched ")");
-			return;
-		}
-
-		if (splitted->empty()) {
-			local_logger.trace("> {}", global_command);
-			return;
-		}
-
-		std::string global_command_reformed;
-		global_command_reformed.reserve(global_command.size());
-		for (const std::string& vs : *splitted) {
-			if (vs.empty()) {
-				global_command_reformed += R"("")";
-			} else if (vs.front() == ' ' || vs.back() == ' ') {
-				global_command_reformed += '"';
-				global_command_reformed += vs;
-				global_command_reformed += '"';
-			} else {
-				global_command_reformed += vs;
-			}
-			global_command_reformed += ' ';
-		}
-
-		local_logger.trace("> {}", global_command_reformed);
-		command_history.emplace_back(std::move(global_command_reformed));
-	} else {
-		command_history.emplace_back(command_buffer.begin(), buffer_usage);
-	}
-
-	std::vector<std::reference_wrapper<const commands::list_element_t>> matching_command_list{};
-	matching_command_list = commands::find_by_prefix((*splitted)[0]);
-
-	if (matching_command_list.empty()) {
-		local_logger.error(R"("{}": command not found.)", splitted->front());
+	if (splitted->empty()) {
 		return;
 	}
+	if (modified) {
+		local_logger.debug("> {}", resolved.second);
+	}
 
+	std::vector<std::reference_wrapper<const commands::list_element_t>> matching_command_list = commands::find_by_prefix(splitted->front());
+	if (matching_command_list.empty()) {
+		local_logger.error(R"("{}": command not found)", splitted->front());
+		command_history.emplace_back(std::move(resolved.second));
+		return;
+	}
 
 	// TODO: REMOVE
 	//vvvvv
 	world w;
 	matching_command_list[0].get().call({w, *this, *splitted});
+	command_history.emplace_back(std::move(resolved.second)); // resolved.second has ownership over *splitted
+}
+
+std::pair<bool, std::string> terminal::resolve_history_references(std::string_view str, bool& modified) const {
+	enum class state {
+		nothing, // matched nothing
+		part_1,  // matched one char: '!'
+		part_2,  // matched !-
+		part_3,  // matched !-[n]
+		part_4,  // matched !-[n]:
+		finalize // matched !-[n]:[n]
+	};
+
+	modified = false;
+	if (str.empty()) {
+		return {true, {}};
+	}
+
+	if (str.size() == 1) {
+		return {(str[0] != '!'), {str.data(), str.size()}};
+	}
+
+	std::string ans;
+	ans.reserve(str.size());
+
+	auto substr_beg = str.data();
+	auto it = std::next(substr_beg);
+
+	state current_state = (*substr_beg == '!') ? state::part_1 : state::nothing;
+	bool escaped = (*substr_beg == '\\');
+
+	auto resolve = [&](std::string_view history_request) -> bool {
+		bool local_modified{};
+		std::optional<std::string_view> solved = resolve_history_reference(history_request, local_modified);
+		if (!solved) {
+			return false;
+		}
+		modified |= local_modified;
+		if (solved->empty()) {
+			ans += R"("")";
+		} else if (misc::is_space(solved->front()) || misc::is_space(solved->back())) {
+			ans += '"';
+			ans += *solved;
+			ans += '"';
+		} else {
+			ans += *solved;
+		}
+		substr_beg = std::next(it);
+		current_state = state::nothing;
+		return true;
+	};
+
+	while (it != str.data() + str.size()) {
+		switch (current_state) {
+			case state::nothing:
+				if (*it == '!' && !escaped) {
+					current_state = state::part_1;
+					ans += std::string_view{substr_beg, static_cast<unsigned>(it - substr_beg)};
+					substr_beg = it;
+				}
+				break;
+
+			case state::part_1:
+				if (*it == '-') {
+					current_state = state::part_2;
+				} else if (*it == ':') {
+					current_state = state::part_4;
+				} else if (*it == '!') {
+					if (!resolve("!!")) {
+						return {false, "!!"};
+					}
+				} else {
+					current_state = state::nothing;
+				}
+				break;
+			case state::part_2:
+				if (misc::is_digit(*it)) {
+					current_state = state::part_3;
+				} else {
+					return {false, {substr_beg, it}};
+				}
+				break;
+			case state::part_3:
+				if (*it == ':') {
+					current_state = state::part_4;
+				} else if (!misc::is_digit(*it)) {
+					if (!resolve({substr_beg, static_cast<unsigned>(it - substr_beg)})) {
+						return {false, {substr_beg, it}};
+					}
+				}
+				break;
+			case state::part_4:
+				if (misc::is_digit(*it)) {
+					current_state = state::finalize;
+				} else {
+					return {false, {substr_beg, it}};
+				}
+				break;
+			case state::finalize:
+				if (!misc::is_digit(*it)) {
+					if (!resolve({substr_beg, static_cast<unsigned>(it - substr_beg)})) {
+						return {false, {substr_beg, it}};
+					}
+				}
+				break;
+		}
+
+		escaped = (*it == '\\');
+		++it;
+	}
+
+	if (substr_beg != it) {
+		switch (current_state) {
+			case state::nothing:
+				[[fallthrough]];
+			case state::part_1:
+				ans += std::string_view{substr_beg, static_cast<unsigned>(it - substr_beg)};
+				break;
+			case state::part_2:
+				[[fallthrough]];
+			case state::part_4:
+				return {false, {substr_beg, it}};
+			case state::part_3:
+				[[fallthrough]];
+			case state::finalize:
+				if (!resolve({substr_beg, static_cast<unsigned>(it - substr_beg)})) {
+					return {false, {substr_beg, it}};
+				}
+				break;
+		}
+	}
+
+	return {true,std::move(ans)};
 }
 
 std::optional<std::string_view> terminal::resolve_history_reference(std::string_view str, bool& modified) const noexcept {
@@ -552,12 +626,9 @@ std::optional<std::string_view> terminal::resolve_history_reference(std::string_
 		return {};
 	}
 
-	if (char_idx == str.size()) {
+	if (char_idx >= str.size() || str[char_idx] != ':') {
+		modified = true;
 		return command_history[command_history.size() - backward_jump];
-	}
-
-	if (char_idx > str.size() || str[char_idx] != ':') {
-		return {};
 	}
 
 
@@ -568,7 +639,7 @@ std::optional<std::string_view> terminal::resolve_history_reference(std::string_
 
 	unsigned int val1{};
 	std::from_chars_result res1 = std::from_chars(str.data() + char_idx, str.data() + str.size(), val1, 10);
-	if (!misc::success(res1.ec)) {
+	if (!misc::success(res1.ec) || res1.ptr != str.data() + str.size()) { // either unsuccessful or we didn't reach the end of the string
 		return {};
 	}
 
