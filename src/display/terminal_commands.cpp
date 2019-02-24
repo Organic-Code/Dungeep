@@ -45,18 +45,59 @@ void terminal_commands::clear(argument_type&) {
 }
 
 void terminal_commands::configure_term(argument_type& arg) {
-	if (arg.command_line.size() <3) {
+	auto parse = [](const std::string& str, auto& val) -> bool {
+		std::from_chars_result fcr = std::from_chars(str.data(), str.data() + str.size(), val, 10);
+		return misc::success(fcr.ec) && fcr.ptr == str.data() + str.size();
+	};
+
+	std::vector<std::string>& cl = arg.command_line;
+	if (cl.size() < 3) {
 		return;
 	}
-	if (arg.command_line[1] == "completion") {
-		if (arg.command_line[2] == "set_up") {
-			arg.term.set_autocomplete_up(true);
-		} else if (arg.command_line[2] == "set_down") {
-			arg.term.set_autocomplete_up(false);
+	if (cl[1] == "completion") {
+		if (cl[2] == "up") {
+			arg.term.set_autocomplete_pos(term_t::position::up);
+		} else if (cl[2] == "down") {
+			arg.term.set_autocomplete_pos(term_t::position::down);
+		} else if (cl[2] == "disable") {
+			arg.term.set_autocomplete_pos(term_t::position::nowhere);
 		}
-	} else if (arg.command_line[1] == "colors") {
-		if (arg.command_line[2] == "reset") {
+	} else if (cl[1] == "colors") {
+		if (cl[2] == "reset") {
 			arg.term.reset_colors();
+		} else if (cl[2] == "set_theme" && (cl.size() == 7 || cl.size() == 8)) {
+
+			unsigned int col_idx;
+			std::uint8_t r, g, b;
+			std::uint8_t a = 255;
+			if (!parse(cl[3], col_idx) || !parse(cl[4], r) || !parse(cl[5], g) || !parse(cl[6], b)) {
+				return;
+			}
+			if (cl.size() == 8) {
+				if (!parse(cl[7], a)) {
+					return;
+				}
+			}
+			if (col_idx >= arg.term.colors().theme_colors.size()) {
+				return;
+			}
+			arg.term.colors().theme_colors[col_idx] = ImVec4{
+				static_cast<float>(r) / 255.f,
+				static_cast<float>(g) / 255.f,
+				static_cast<float>(b) / 255.f,
+				static_cast<float>(a) / 255.f
+			};
+		} else if (cl[2] == "reset_theme" && cl.size() < 5) {
+			if (cl.size() == 4) {
+				std::uint8_t col_idx;
+				if (parse(cl[3], col_idx) && col_idx < arg.term.colors().theme_colors.size()) {
+					arg.term.colors().theme_colors[col_idx].reset();
+				}
+			} else {
+				for (std::optional<ImVec4>& color : arg.term.colors().theme_colors) {
+					color.reset();
+				}
+			}
 		}
 	}
 }

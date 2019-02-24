@@ -48,6 +48,7 @@ static_assert(                                                                  
 		"TerminalHelper should implement the method 'std::vector<command_type_cref> list_commands()'. "                                  \
 		"See term::basic_terminal_helper for reference")
 
+
 namespace term {
 
 	template<typename Terminal>
@@ -82,6 +83,15 @@ namespace term {
 	};
 
 	struct colors_t {
+
+		std::optional<ImVec4>& operator[](ImGuiCol c) {
+			return theme_colors[c];
+		}
+
+		const std::optional<ImVec4>& operator[](ImGuiCol c) const {
+			return theme_colors[c];
+		}
+
 		std::array<std::optional<ImVec4>, 6> log_level_colors{
 				std::optional{ImVec4{0.549f, 0.561f, 0.569f, 1.f}},
 				std::optional{ImVec4{0.153f, 0.596f, 0.498f, 1.f}},
@@ -90,17 +100,24 @@ namespace term {
 				std::optional{ImVec4{1.000f, 0.420f, 0.408f, 1.f}},
 				std::optional{ImVec4{1.000f, 0.420f, 0.408f, 1.f}},
 		};
-		std::optional<ImVec4> background{{0.170f, 0.170f, 0.170f, 1.f}};
-		std::optional<ImVec4> foreground{{0.627f, 0.678f, 0.698f, 1.f}};
 		std::optional<ImVec4> auto_complete_selected{{1.f, 1.f, 1.f, 1.f}};
 		std::optional<ImVec4> auto_complete_non_selected{{0.5f, 0.45f, 0.45f, 1.f}};
 		std::optional<ImVec4> auto_complete_separator{{0.6f, 0.6f, 0.6f, 1.f}};
-		std::optional<ImVec4> msg_bg{{0.1f, 0.1f, 0.1f, 1.f}};
+		std::optional<ImVec4> message_panel{{0.1f, 0.1f, 0.1f, 0.5f}};
+
+		std::array<std::optional<ImVec4>, ImGuiCol_COUNT> theme_colors;
+
 	};
 
 	template<typename TerminalHelper>
 	class terminal {
 	public:
+		enum class position {
+			up,
+			down,
+			nowhere // disabled
+		};
+
 		using buffer_type = std::array<char, 1024>;
 		using value_type = typename TerminalHelper::value_type;
 		using command_type = command_t<terminal<TerminalHelper>>;
@@ -132,8 +149,8 @@ namespace term {
 			return m_colors;
 		}
 
-		void set_autocomplete_up(bool b) {
-			m_autocomplete_up = b;
+		void set_autocomplete_pos(position p) {
+			m_autocomplete_pos = p;
 		}
 
 		void clear_screen();
@@ -244,7 +261,7 @@ namespace term {
 		// autocompletion
 		std::vector<command_type_cref> m_current_autocomplete{};
 		std::string_view m_autocomlete_separator{"| "};
-		bool m_autocomplete_up{false}; // up or down
+		position m_autocomplete_pos{position::down};
 
 		// command line: completion using history
 		std::string m_command_line_backup{};
@@ -253,6 +270,7 @@ namespace term {
 		std::optional<decltype(m_command_history)::iterator> m_current_history_selection{};
 
 		bool m_ignore_next_textinput{false};
+		bool m_has_focus{false};
 
 	};
 }

@@ -111,6 +111,7 @@ terminal<TerminalHelper>::terminal(value_type& arg_value, const char* window_nam
 		, m_log_level_text{resources::manager.get_text(keys::text::log_level)}
 		, m_autowrap_text{resources::manager.get_text(keys::text::autowrap)}
 {
+
 	std::fill(m_command_buffer.begin(), m_command_buffer.end(), '\0');
 
 	m_local_logger.info("welcome to command line.");
@@ -148,10 +149,16 @@ bool terminal<TerminalHelper>::show() noexcept {
 
 	ImGui::SetNextWindowSize(ImVec2(m_base_width, m_base_height), ImGuiCond_Once);
 
-	int pop_count = 1;
-	ImGui::PushStyleColor(ImGuiCol_TitleBgActive, ImGui::GetStyleColorVec4(ImGuiCol_TitleBg));
-	pop_count += try_push_style(ImGuiCol_Text, m_colors.foreground);
-	pop_count += try_push_style(ImGuiCol_WindowBg, m_colors.background);
+	int pop_count = 0;
+	for (auto i = 0u ; i < ImGuiCol_COUNT ; ++i) {
+		pop_count += try_push_style(i, m_colors[i]);
+	}
+
+	if (m_has_focus) {
+		ImGui::PushStyleColor(ImGuiCol_TitleBg, ImGui::GetStyleColorVec4(ImGuiCol_TitleBgActive));
+		++pop_count;
+		m_has_focus = false;
+	}
 
 	if (!ImGui::Begin(m_window_name, nullptr, ImGuiWindowFlags_NoScrollbar)) {
 		ImGui::End();
@@ -172,15 +179,16 @@ bool terminal<TerminalHelper>::show() noexcept {
 
 template <typename TerminalHelper>
 void terminal<TerminalHelper>::reset_colors() noexcept {
-	for (std::optional<ImVec4>& col : m_colors.log_level_colors) {
-		col.reset();
+	for (std::optional<ImVec4>& color : m_colors.theme_colors) {
+		color.reset();
 	}
-	m_colors.background.reset();
-	m_colors.foreground.reset();
+	for (std::optional<ImVec4>& color : m_colors.log_level_colors) {
+		color.reset();
+	}
 	m_colors.auto_complete_selected.reset();
 	m_colors.auto_complete_non_selected.reset();
 	m_colors.auto_complete_separator.reset();
-	m_colors.msg_bg.reset();
+	m_colors.message_panel.reset();
 }
 
 template <typename TerminalHelper>
@@ -232,7 +240,7 @@ void terminal<TerminalHelper>::display_messages() noexcept {
 	ImVec2 avail_space = ImGui::GetContentRegionAvail();
 	if (avail_space.y > m_selector_size_global->y) {
 
-		int pop_count = try_push_style(ImGuiCol_ChildBg, m_colors.msg_bg);
+		int style_push_count = try_push_style(ImGuiCol_ChildBg, m_colors.message_panel);
 		if (ImGui::BeginChild("terminal:logs_window", ImVec2(avail_space.x, avail_space.y - m_selector_size_global->y), false,
 		                      ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoTitleBar)) {
 
@@ -277,15 +285,17 @@ void terminal<TerminalHelper>::display_messages() noexcept {
 		} else {
 			m_last_size = 0u;
 		}
+		ImGui::PopStyleColor(style_push_count);
 		ImGui::EndChild();
-		ImGui::PopStyleColor(pop_count);
 	}
 }
 
 template <typename TerminalHelper>
 void terminal<TerminalHelper>::display_command_line() noexcept {
 	if (!m_command_entered && ImGui::GetActiveID() == m_input_text_id && m_input_text_id != 0 && m_current_autocomplete.empty() && m_buffer_usage == 0u) {
-		m_current_autocomplete = m_t_helper.list_commands();
+		if (m_autocomplete_pos != position::nowhere) {
+			m_current_autocomplete = m_t_helper.list_commands();
+		}
 	}
 
 	ImGui::Separator();
@@ -313,31 +323,37 @@ void terminal<TerminalHelper>::show_input_text() noexcept {
 			m_buffer_usage = std::strlen(m_command_buffer.data());
 		}
 
-		int sp_count = 0;
-		auto is_space_lbd = [this, &sp_count](char c) {
-			if (sp_count > 0) {
-				--sp_count;
-				return true;
-			} else {
-				sp_count = is_space({&c, static_cast<unsigned>(m_command_buffer.begin() + m_buffer_usage - &c)});
+		if (m_autocomplete_pos != position::nowhere) {
+
+			int sp_count = 0;
+			auto is_space_lbd = [this, &sp_count](char c) {
 				if (sp_count > 0) {
 					--sp_count;
 					return true;
+				} else {
+					sp_count = is_space({&c, static_cast<unsigned>(m_command_buffer.begin() + m_buffer_usage - &c)});
+					if (sp_count > 0) {
+						--sp_count;
+						return true;
+					}
+					return false;
 				}
-				return false;
-			}
-		};
-		auto beg = std::find_if_not(m_command_buffer.begin(), m_command_buffer.begin() + m_buffer_usage, is_space_lbd);
-		sp_count = 0;
-		auto ed = std::find_if(beg, m_command_buffer.begin() + m_buffer_usage, is_space_lbd);
+			};
+			auto beg = std::find_if_not(m_command_buffer.begin(), m_command_buffer.begin() + m_buffer_usage,
+			                            is_space_lbd);
+			sp_count = 0;
+			auto ed = std::find_if(beg, m_command_buffer.begin() + m_buffer_usage, is_space_lbd);
 
-		if (ed == m_command_buffer.begin() + m_buffer_usage) {
-			m_current_autocomplete = m_t_helper.find_commands_by_prefix(beg, ed);
-			m_command_entered = false;
+			if (ed == m_command_buffer.begin() + m_buffer_usage) {
+				m_current_autocomplete = m_t_helper.find_commands_by_prefix(beg, ed);
+				m_command_entered = false;
+			} else {
+				// TODO: advanced auto completion
+				m_command_entered = true;
+				m_current_autocomplete.clear();
+			}
 		} else {
-			// TODO: advanced auto completion
-			m_command_entered = true;
-			m_current_autocomplete.clear();
+			m_command_entered = false;
 		}
 	}
 	m_ignore_next_textinput = false;
@@ -381,8 +397,12 @@ void terminal<TerminalHelper>::show_autocomplete() noexcept {
 	constexpr ImGuiWindowFlags overlay_flags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoScrollbar
 	                                           | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize
 	                                           | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
+	if (m_autocomplete_pos == position::nowhere) {
+		return;
+	}
 
 	if ((m_input_text_id == ImGui::GetActiveID() || m_should_take_focus) && !m_current_autocomplete.empty()) {
+		m_has_focus = true;
 
 		ImGui::SetNextWindowBgAlpha(0.9f);
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
@@ -390,7 +410,7 @@ void terminal<TerminalHelper>::show_autocomplete() noexcept {
 
 		ImVec2 auto_complete_pos = ImGui::GetItemRectMin();
 
-		if (m_autocomplete_up) {
+		if (m_autocomplete_pos == position::up) {
 			auto_complete_pos.y -= (m_selector_size_global->y + 3);
 		} else {
 			auto_complete_pos.y = ImGui::GetItemRectMax().y;
