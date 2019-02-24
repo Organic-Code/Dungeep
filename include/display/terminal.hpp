@@ -62,7 +62,7 @@ namespace term {
 	template<typename Terminal>
 	struct command_t {
 		using command_function = void (*)(argument_t<Terminal>&);
-		using further_completion_function = std::vector<std::string> (*)(std::string_view argument_line);
+		using further_completion_function = std::vector<std::string> (*)(const std::vector<std::string>& argument_line);
 
 		std::string_view name{};
 		std::string_view description{};
@@ -210,8 +210,9 @@ namespace term {
 
 
 		// Returns a vector containing each element that were space separated
-		// Returns an empty optional if a '"' char was not matched with a closing '"'
-		std::optional<std::vector<std::string>> split_by_space(std::string_view in) const;
+		// Returns an empty optional if a '"' char was not matched with a closing '"',
+		//                except if ignore_non_match was set to true
+		std::optional<std::vector<std::string>> split_by_space(std::string_view in, bool ignore_non_match = false) const;
 
 		////////////
 		value_type& m_argument_value;
@@ -252,7 +253,6 @@ namespace term {
 		buffer_type m_command_buffer{};
 		buffer_type::size_type m_buffer_usage{0u}; // max accessible: command_buffer[buffer_usage - 1]
 		                                           // (buffer_usage might be 0 for empty string)
-		bool m_command_entered{false};
 		bool m_should_take_focus{false};
 
 		ImGuiID m_previously_active_id{0u};
@@ -260,8 +260,10 @@ namespace term {
 
 		// autocompletion
 		std::vector<command_type_cref> m_current_autocomplete{};
-		std::string_view m_autocomlete_separator{"| "};
+		std::vector<std::string> m_current_autocomplete_strings{};
+		std::string_view m_autocomlete_separator{" | "};
 		position m_autocomplete_pos{position::down};
+		bool m_command_entered{false};
 
 		// command line: completion using history
 		std::string m_command_line_backup{};

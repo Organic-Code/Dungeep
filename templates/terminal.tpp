@@ -292,8 +292,8 @@ void terminal<TerminalHelper>::display_messages() noexcept {
 
 template <typename TerminalHelper>
 void terminal<TerminalHelper>::display_command_line() noexcept {
-	if (!m_command_entered && ImGui::GetActiveID() == m_input_text_id && m_input_text_id != 0 && m_current_autocomplete.empty() && m_buffer_usage == 0u) {
-		if (m_autocomplete_pos != position::nowhere) {
+	if (!m_command_entered && ImGui::GetActiveID() == m_input_text_id && m_input_text_id != 0 && m_current_autocomplete.empty()) {
+		if (m_autocomplete_pos != position::nowhere && m_buffer_usage == 0u && m_current_autocomplete_strings.empty()) {
 			m_current_autocomplete = m_t_helper.list_commands();
 		}
 	}
@@ -339,18 +339,39 @@ void terminal<TerminalHelper>::show_input_text() noexcept {
 					return false;
 				}
 			};
-			auto beg = std::find_if_not(m_command_buffer.begin(), m_command_buffer.begin() + m_buffer_usage,
+			const char* beg = std::find_if_not(m_command_buffer.begin(), m_command_buffer.begin() + m_buffer_usage,
 			                            is_space_lbd);
 			sp_count = 0;
-			auto ed = std::find_if(beg, m_command_buffer.begin() + m_buffer_usage, is_space_lbd);
+			const char* ed = std::find_if(beg, m_command_buffer.cbegin() + m_buffer_usage, is_space_lbd);
 
 			if (ed == m_command_buffer.begin() + m_buffer_usage) {
 				m_current_autocomplete = m_t_helper.find_commands_by_prefix(beg, ed);
-				m_command_entered = false;
-			} else {
-				// TODO: advanced auto completion
+				m_current_autocomplete_strings.clear();
 				m_command_entered = true;
+			} else {
+				m_command_entered = false;
 				m_current_autocomplete.clear();
+				std::vector<command_type_cref> cmds = m_t_helper.find_commands_by_prefix(beg, ed);
+				if (!cmds.empty()) {
+					std::string_view sv{m_command_buffer.data(), m_buffer_usage};
+					std::optional<std::vector<std::string>> splitted = split_by_space(sv, true);
+					if (!splitted) {
+						m_local_logger.error("Internal error: 'split_by_space(\"{}\", false) returned an empty optional", sv);
+					} else {
+						unsigned int i = 1;
+						while (i < 10 && m_buffer_usage >= i) {
+							int count = is_space({m_command_buffer.data() + m_buffer_usage - i, i}) ;
+							if (count != 0) {
+								if (count == static_cast<int>(i)) {
+									splitted->emplace_back();
+								}
+								break;
+							}
+							++i;
+						}
+						m_current_autocomplete_strings = cmds[0].get().complete(*splitted);
+					}
+				}
 			}
 		} else {
 			m_command_entered = false;
@@ -372,7 +393,6 @@ void terminal<TerminalHelper>::handle_unfocus() noexcept {
 		m_command_line_backup_prefix.remove_prefix(m_command_line_backup_prefix.size());
 		m_command_line_backup.clear();
 		m_current_history_selection = {};
-		m_command_entered = false;
 		m_current_autocomplete.clear();
 	};
 
@@ -401,7 +421,7 @@ void terminal<TerminalHelper>::show_autocomplete() noexcept {
 		return;
 	}
 
-	if ((m_input_text_id == ImGui::GetActiveID() || m_should_take_focus) && !m_current_autocomplete.empty()) {
+	if ((m_input_text_id == ImGui::GetActiveID() || m_should_take_focus) && (!m_current_autocomplete.empty() || !m_current_autocomplete_strings.empty())) {
 		m_has_focus = true;
 
 		ImGui::SetNextWindowBgAlpha(0.9f);
@@ -435,8 +455,22 @@ void terminal<TerminalHelper>::show_autocomplete() noexcept {
 			float separator_length = ImGui::CalcTextSize(m_autocomlete_separator.data(),
 			                                             m_autocomlete_separator.data() + m_autocomlete_separator.size()).x;
 			float total_text_length = ImGui::CalcTextSize("...").x;
-			for (const command_type& cmd : m_current_autocomplete) {
-				float t_len = ImGui::CalcTextSize(cmd.name.data(), cmd.name.data() + cmd.name.size()).x + separator_length;
+
+			std::vector<std::string_view> autocomplete_text;
+			if (m_current_autocomplete_strings.empty()) {
+				autocomplete_text.reserve(m_current_autocomplete.size());
+				for (const command_type& cmd : m_current_autocomplete) {
+					autocomplete_text.emplace_back(cmd.name);
+				}
+			} else {
+				autocomplete_text.reserve(m_current_autocomplete_strings.size());
+				for (const std::string& str : m_current_autocomplete_strings) {
+					autocomplete_text.emplace_back(str);
+				}
+			}
+
+			for (const std::string_view& sv : autocomplete_text) {
+				float t_len = ImGui::CalcTextSize(sv.data(), sv.data() + sv.size()).x + separator_length;
 				if (t_len + total_text_length < auto_complete_max_size.x) {
 					total_text_length += t_len;
 					++max_displayable_sv;
@@ -449,26 +483,26 @@ void terminal<TerminalHelper>::show_autocomplete() noexcept {
 			int pop_count = 0;
 
 			if (max_displayable_sv != 0) {
-				const std::string_view& first = m_current_autocomplete[0].get().name;
+				const std::string_view& first = autocomplete_text[0];
 				pop_count += try_push_style(ImGuiCol_Text, m_colors.auto_complete_selected);
 				ImGui::TextUnformatted(first.data(), first.data() + first.size());
 				pop_count += try_push_style(ImGuiCol_Text, m_colors.auto_complete_non_selected);
 				for (int i = 1 ; i < max_displayable_sv ; ++i) {
-					const std::string_view vs = m_current_autocomplete[i].get().name;
+					const std::string_view vs = autocomplete_text[i];
 					print_separator();
 					ImGui::TextUnformatted(vs.data(), vs.data() + vs.size());
 				}
 				ImGui::PopStyleColor(pop_count);
-				if (max_displayable_sv < static_cast<long>(m_current_autocomplete.size())) {
-					last = m_current_autocomplete[max_displayable_sv].get().name;
+				if (max_displayable_sv < static_cast<long>(autocomplete_text.size())) {
+					last = autocomplete_text[max_displayable_sv];
 				}
 			}
 
 			pop_count = 0;
-			if (max_displayable_sv < static_cast<long>(m_current_autocomplete.size())) {
+			if (max_displayable_sv < static_cast<long>(autocomplete_text.size())) {
 
 				if (max_displayable_sv == 0) {
-					last = m_current_autocomplete.front().get().name;
+					last = autocomplete_text.front();
 					pop_count += try_push_style(ImGuiCol_Text, m_colors.auto_complete_selected);
 					total_text_length -= separator_length;
 				} else {
@@ -499,6 +533,9 @@ void terminal<TerminalHelper>::show_autocomplete() noexcept {
 
 template <typename TerminalHelper>
 void terminal<TerminalHelper>::call_command() noexcept {
+	m_current_autocomplete_strings.clear();
+	m_current_autocomplete.clear();
+
 	bool modified{};
 	std::pair<bool, std::string> resolved = resolve_history_references({m_command_buffer.begin(), m_buffer_usage}, modified);
 
@@ -822,8 +859,21 @@ int terminal<TerminalHelper>::command_line_callback(ImGuiInputTextCallbackData* 
 	};
 
 	if (data->EventKey == ImGuiKey_Tab) {
+		std::vector<std::string_view> autocomplete_text;
+		if (m_current_autocomplete_strings.empty()) {
+			autocomplete_text.reserve(m_current_autocomplete.size());
+			for (const command_type& cmd : m_current_autocomplete) {
+				autocomplete_text.emplace_back(cmd.name);
+			}
+		} else {
+			autocomplete_text.reserve(m_current_autocomplete_strings.size());
+			for (const std::string& str : m_current_autocomplete_strings) {
+				autocomplete_text.emplace_back(str);
+			}
+		}
 
-		if (m_current_autocomplete.empty()) {
+
+		if (autocomplete_text.empty()) {
 			if (m_buffer_usage == 0 || data->CursorPos < 2) {
 				return 0;
 			}
@@ -856,28 +906,15 @@ int terminal<TerminalHelper>::command_line_callback(ImGuiInputTextCallbackData* 
 			return 0;
 		}
 
-		std::string_view complete = m_current_autocomplete[0].get().name;
+		std::string_view complete = autocomplete_text[0];
 
-		int sp_count = 0;
-		auto is_space_lbd = [this, &sp_count](char c) {
-			if (sp_count > 0) {
-				--sp_count;
-				return true;
-			} else {
-				sp_count = is_space({&c, static_cast<unsigned>(m_command_buffer.begin() + m_buffer_usage - &c)});
-				if (sp_count > 0) {
-					--sp_count;
-					return true;
-				}
-				return false;
-			}
-		};
-
-		auto command_beg = std::find_if_not(m_command_buffer.begin(), m_command_buffer.begin() + m_buffer_usage, is_space_lbd);
+		auto command_beg = misc::find_terminating_word(m_command_buffer.begin(), m_command_buffer.begin() + m_buffer_usage
+				, [this](std::string_view sv) { return is_space(sv); });
 		unsigned long leading_space = command_beg - m_command_buffer.begin();
 		paste_buffer(complete.data() + m_buffer_usage - leading_space, complete.data() + complete.size(), m_buffer_usage);
 		m_buffer_usage = static_cast<unsigned>(data->BufTextLen);
 		m_current_autocomplete.clear();
+		m_current_autocomplete_strings.clear();
 
 	} else if (data->EventKey == ImGuiKey_UpArrow) {
 		if (m_command_history.empty()) {
@@ -906,6 +943,7 @@ int terminal<TerminalHelper>::command_line_callback(ImGuiInputTextCallbackData* 
 
 			m_command_line_backup_prefix.remove_prefix(idx);
 			m_current_autocomplete.clear();
+			m_current_autocomplete_strings.clear();
 		}
 
 		auto it = misc::find_first_prefixed(
@@ -985,7 +1023,7 @@ unsigned long terminal<TerminalHelper>::get_length(std::string_view str) const {
 }
 
 template <typename TerminalHelper>
-std::optional<std::vector<std::string>> terminal<TerminalHelper>::split_by_space(std::string_view in) const {
+std::optional<std::vector<std::string>> terminal<TerminalHelper>::split_by_space(std::string_view in, bool ignore_non_match) const {
 	std::vector<std::string> out;
 
 	auto it = in.begin();
@@ -1029,9 +1067,12 @@ std::optional<std::vector<std::string>> terminal<TerminalHelper>::split_by_space
 			} while (true);
 
 			if (it == in.end()) {
-				return {};
+				if (!ignore_non_match) {
+					return {};
+				}
+			} else {
+				++it;
 			}
-			++it;
 
 		} else if (is_space({it, static_cast<unsigned>(in.end() - it)}) > 0) {
 			out.emplace_back(std::move(current_string));

@@ -116,6 +116,28 @@ namespace misc {
 		}
 		return std::prev(search.base());
 	}
+
+	// returns an iterator to the first character that has no a space after him
+	template <typename ForwardIterator, typename SpaceDetector>
+	constexpr ForwardIterator find_terminating_word(ForwardIterator begin, ForwardIterator end, SpaceDetector&& is_space_pred) {
+		auto rend = std::reverse_iterator(begin);
+		auto rbegin = std::reverse_iterator(end);
+
+		int sp_size = 0;
+		auto is_space = [&sp_size, &is_space_pred, &end] (char c) {
+			sp_size = is_space_pred(std::string_view{&c, static_cast<unsigned>(&*std::prev(end) - &c)});
+			return sp_size > 0;
+		};
+
+		auto search = std::find_if(rbegin, rend, is_space);
+		if (search == rend) {
+			return begin;
+		}
+		ForwardIterator it = std::prev(search.base());
+		it += sp_size;
+		return it;
+	}
+
 	constexpr bool success(std::errc ec) {
 		return ec == std::errc{};
 	}

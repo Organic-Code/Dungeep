@@ -23,14 +23,14 @@
 namespace {
 
 	constexpr std::array local_command_list {
-			terminal_commands::command_type{"clear ", "clears the terminal screen", terminal_commands::clear, terminal_commands::no_completion},
-			terminal_commands::command_type{"configure_terminal ", "configures terminal behaviour and appearance", terminal_commands::configure_term, terminal_commands::no_completion},
-			terminal_commands::command_type{"echo ", "prints text", terminal_commands::echo, terminal_commands::no_completion},
-			terminal_commands::command_type{"exit ", "closes this terminal", terminal_commands::exit, terminal_commands::no_completion},
-			terminal_commands::command_type{"help ", "show this help", terminal_commands::help, terminal_commands::no_completion},
-			terminal_commands::command_type{"print ", "prints text", terminal_commands::echo, terminal_commands::no_completion},
-			terminal_commands::command_type{"print_resource ", "prints resources file", terminal_commands::print_resource, terminal_commands::no_completion},
-			terminal_commands::command_type{"quit ", "closes this application", terminal_commands::quit, terminal_commands::no_completion},
+			terminal_commands::command_type{"clear", "clears the terminal screen", terminal_commands::clear, terminal_commands::no_completion},
+			terminal_commands::command_type{"configure_terminal", "configures terminal behaviour and appearance", terminal_commands::configure_term, terminal_commands::configure_term_autocomplete},
+			terminal_commands::command_type{"echo", "prints text", terminal_commands::echo, terminal_commands::no_completion},
+			terminal_commands::command_type{"exit", "closes this terminal", terminal_commands::exit, terminal_commands::no_completion},
+			terminal_commands::command_type{"help", "show this help", terminal_commands::help, terminal_commands::no_completion},
+			terminal_commands::command_type{"print", "prints text", terminal_commands::echo, terminal_commands::no_completion},
+			terminal_commands::command_type{"print_resource", "prints resources file", terminal_commands::print_resource, terminal_commands::no_completion},
+			terminal_commands::command_type{"quit", "closes this application", terminal_commands::quit, terminal_commands::no_completion},
 	};
 }
 
@@ -100,6 +100,33 @@ void terminal_commands::configure_term(argument_type& arg) {
 			}
 		}
 	}
+}
+
+std::vector<std::string> terminal_commands::configure_term_autocomplete(const std::vector<std::string>& args) {
+	std::vector<std::string> ans;
+	auto try_match = [&ans](std::string_view vs, const std::string& str) {
+		if (vs.substr(0, std::min(vs.size(), str.size())) == str) {
+			ans.emplace_back(vs.data(), vs.size());
+		}
+	};
+
+	if (args.size() == 2) {
+		try_match("completion", args[1]);
+		try_match("colors", args[1]);
+	} else if (args.size() == 3) {
+		if (args[1] == "completion") {
+			try_match("down", args[2]);
+			try_match("disable", args[2]);
+			try_match("up", args[2]);
+
+		} else if (args[1] == "colors") {
+			try_match("reset", args[2]);
+			try_match("reset_theme", args[2]);
+			try_match("set_theme", args[2]);
+
+		}
+	}
+	return ans;
 }
 
 void terminal_commands::echo(argument_type& arg) {
