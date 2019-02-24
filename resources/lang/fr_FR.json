@@ -2,6 +2,7 @@
   "language name": "Français - France",
   "terminal: autoscroll checkbox" :  "défilement auto",
   "terminal: clear button" : "vider",
+  "terminal: autowrap long lines": "cassage auto",
   "terminal: log level selector" :  "niveau de log",
   "terminal: log level: trace" : "≥ trace",
   "terminal: log level: debug" :  "≥ debug",

@@ -78,6 +78,7 @@ namespace keys {
 		constexpr const char * dflt_lang_name          = "default language name";
 		constexpr const char * autoscroll              = "terminal: autoscroll checkbox";
 		constexpr const char * clear                   = "terminal: clear button";
+		constexpr const char * autowrap                = "terminal: autowrap long lines";
 		constexpr const char * log_level               = "terminal: log level selector";
 		constexpr const char * trace                   = "terminal: log level: trace";
 		constexpr const char * debug                   = "terminal: log level: debug";

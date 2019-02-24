@@ -2,6 +2,7 @@
   "default language name": "English",
   "terminal: autoscroll checkbox" :  "autoscroll",
   "terminal: clear button" : "clear",
+  "terminal: autowrap long lines": "autowrap",
   "terminal: log level selector" :  "log level",
   "terminal: log level: trace" : "≥ trace",
   "terminal: log level: debug" :  "≥ debug",

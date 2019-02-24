@@ -110,6 +110,7 @@ terminal::terminal()
 	, autoscroll_text{resources::manager.get_text(keys::text::autoscroll)}
 	, clear_text{resources::manager.get_text(keys::text::clear)}
 	, log_level_text{resources::manager.get_text(keys::text::log_level)}
+	, autowrap_text{resources::manager.get_text(keys::text::autowrap)}
 {
 	std::fill(command_buffer.begin(), command_buffer.end(), '\0');
 
@@ -179,9 +180,12 @@ void terminal::compute_text_size() noexcept {
 }
 
 void terminal::display_settings_bar() noexcept {
+
 	if (ImGui::Button(clear_text.data())) {
 		logger::sink->clear();
 	}
+	ImGui::SameLine();
+	ImGui::Checkbox(autowrap_text.data(), &autowrap);
 	ImGui::SameLine();
 	ImGui::Checkbox(autoscroll_text.data(), &autoscroll);
 
@@ -210,26 +214,33 @@ void terminal::display_messages() noexcept {
 		                      ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoTitleBar)) {
 
 			unsigned traced_count = 0;
+			void (*text_formatted) (const char*, ...);
+			if (autowrap) {
+				text_formatted = ImGui::TextWrapped;
+			} else {
+				text_formatted = ImGui::Text;
+			}
+
 			for (const logger::message& msg : *logger::sink) {
 				if (msg.severity < level && !msg.important) {
 					continue;
 				}
 
 				if (msg.color_beg < msg.color_end) {
-					ImGui::TextUnformatted(msg.value.data(), msg.value.data() + msg.color_beg);
+					text_formatted("%.*s", msg.color_beg, msg.value.data());
 					ImGui::SameLine(0.f, 0.f);
 					if (msg.important && msg.severity == spdlog::level::trace) {
-						ImGui::Text("[%d] ", static_cast<int>(traced_count - command_history.size()));
+						text_formatted("[%d] ", static_cast<int>(traced_count - command_history.size()));
 						++traced_count;
 						ImGui::SameLine(0.f, 0.f);
 					}
 					ImGui::PushStyleColor(ImGuiCol_Text, to_imgui_color(cst::colors::log_level_colors[msg.severity]));
-					ImGui::TextUnformatted(msg.value.data() + msg.color_beg, msg.value.data() + msg.color_end);
+					text_formatted("%.*s", msg.color_end - msg.color_beg, msg.value.data() + msg.color_beg);
 					ImGui::PopStyleColor();
 					ImGui::SameLine(0.f, 0.f);
-					ImGui::TextUnformatted(msg.value.data() + msg.color_end, msg.value.data() + msg.value.size());
+					text_formatted("%.*s", msg.value.size() - msg.color_end, msg.value.data() + msg.color_end);
 				} else {
-					ImGui::TextUnformatted(msg.value.data(), msg.value.data() + msg.value.size());
+					text_formatted("%.*s", msg.value.size(), msg.value.data());
 				}
 			}
 		}
