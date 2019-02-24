@@ -31,10 +31,6 @@
 
 namespace cst {
 	namespace {
-		constexpr int base_width = 900;
-		constexpr int base_height = 200;
-
-		constexpr const char* window_name = "terminal";
 
 		struct colors {
 			static_assert(spdlog::level::trace    == 0);
@@ -43,31 +39,11 @@ namespace cst {
 			static_assert(spdlog::level::warn     == 3);
 			static_assert(spdlog::level::err      == 4);
 			static_assert(spdlog::level::critical == 5);
-
-			static constexpr std::array<std::array<float,4>,6> log_level_colors
-			{
-				std::array{0.549f, 0.561f, 0.569f, 1.f},
-				std::array{0.153f, 0.596f, 0.498f, 1.f},
-				std::array{0.459f, 0.686f, 0.129f, 1.f},
-				std::array{0.839f, 0.749f, 0.333f, 1.f},
-				std::array{1.000f, 0.420f, 0.408f, 1.f},
-				std::array{1.000f, 0.420f, 0.408f, 1.f},
-			};
-
-			static constexpr std::array background{0.170f, 0.170f, 0.170f, 1.f};
-			static constexpr std::array foreground{0.627f, 0.678f, 0.698f, 1.f};
-			static constexpr std::array auto_complete_selected{1.f, 1.f, 1.f, 1.f};
-			static constexpr std::array auto_complete_non_selected{0.5f, 0.45f, 0.45f, 1.f};
-			static constexpr std::array auto_complete_separator{0.6f, 0.6f, 0.6f, 1.f};
-			static constexpr std::array msg_bg{0.1f, 0.1f, 0.1f, 1.f};
 		};
 	}
 }
 
 namespace {
-	inline ImVec4 to_imgui_color(const std::array<float, 4>& color) {
-		return ImVec4(color[0], color[1], color[2], color[3]);
-	}
 
 	class forwarding_sink final : public spdlog::sinks::base_sink<std::mutex> {
 	public:
@@ -105,8 +81,11 @@ namespace {
 	};
 }
 
-terminal::terminal()
-	: local_logger{cst::window_name, std::make_shared<forwarding_sink>()}
+terminal::terminal(const char* window_name_, int base_width_, int base_height_)
+	: window_name(window_name_)
+	, base_width(base_width_)
+	, base_height(base_height_)
+	, local_logger{window_name_, std::make_shared<forwarding_sink>()}
 	, autoscroll_text{resources::manager.get_text(keys::text::autoscroll)}
 	, clear_text{resources::manager.get_text(keys::text::clear)}
 	, log_level_text{resources::manager.get_text(keys::text::log_level)}
@@ -146,15 +125,16 @@ bool terminal::show() noexcept {
 	should_show_next_frame = !close_request;
 	close_request = false;
 
-	ImGui::SetNextWindowSize(ImVec2(cst::base_width, cst::base_height), ImGuiCond_Once);
+	ImGui::SetNextWindowSize(ImVec2(base_width, base_height), ImGuiCond_Once);
 
-	ImGui::PushStyleColor(ImGuiCol_Text, to_imgui_color(cst::colors::foreground));
-	ImGui::PushStyleColor(ImGuiCol_WindowBg, to_imgui_color(cst::colors::background));
+	int pop_count = 1;
 	ImGui::PushStyleColor(ImGuiCol_TitleBgActive, ImGui::GetStyleColorVec4(ImGuiCol_TitleBg));
+	pop_count += try_push_style(ImGuiCol_Text, colors.foreground);
+	pop_count += try_push_style(ImGuiCol_WindowBg, colors.background);
 
-	if (!ImGui::Begin(cst::window_name, nullptr, ImGuiWindowFlags_NoScrollbar)) {
+	if (!ImGui::Begin(window_name, nullptr, ImGuiWindowFlags_NoScrollbar)) {
 		ImGui::End();
-		ImGui::PopStyleColor(2);
+		ImGui::PopStyleColor(pop_count);
 		return true;
 	}
 
@@ -164,7 +144,7 @@ bool terminal::show() noexcept {
 	display_command_line();
 
 	ImGui::End();
-	ImGui::PopStyleColor(3);
+	ImGui::PopStyleColor(pop_count);
 
 	return should_show_next_frame;
 }
@@ -209,7 +189,8 @@ void terminal::display_settings_bar() noexcept {
 void terminal::display_messages() noexcept {
 	ImVec2 avail_space = ImGui::GetContentRegionAvail();
 	if (avail_space.y > selector_size_global->y) {
-		ImGui::PushStyleColor(ImGuiCol_ChildBg, to_imgui_color(cst::colors::msg_bg));
+
+		int pop_count = try_push_style(ImGuiCol_ChildBg, colors.msg_bg);
 		if (ImGui::BeginChild("terminal:logs_window", ImVec2(avail_space.x, avail_space.y - selector_size_global->y), false,
 		                      ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoTitleBar)) {
 
@@ -234,9 +215,11 @@ void terminal::display_messages() noexcept {
 						++traced_count;
 						ImGui::SameLine(0.f, 0.f);
 					}
-					ImGui::PushStyleColor(ImGuiCol_Text, to_imgui_color(cst::colors::log_level_colors[msg.severity]));
+
+					int pop = try_push_style(ImGuiCol_Text, colors.log_level_colors[msg.severity]);
 					text_formatted("%.*s", msg.color_end - msg.color_beg, msg.value.data() + msg.color_beg);
-					ImGui::PopStyleColor();
+					ImGui::PopStyleColor(pop);
+
 					ImGui::SameLine(0.f, 0.f);
 					text_formatted("%.*s", msg.value.size() - msg.color_end, msg.value.data() + msg.color_end);
 				} else {
@@ -253,7 +236,7 @@ void terminal::display_messages() noexcept {
 			last_size = 0u;
 		}
 		ImGui::EndChild();
-		ImGui::PopStyleColor();
+		ImGui::PopStyleColor(pop_count);
 	}
 }
 
@@ -345,8 +328,12 @@ void terminal::show_autocomplete() noexcept {
 		ImGui::SetNextWindowFocus();
 
 		ImVec2 auto_complete_pos = ImGui::GetItemRectMin();
-//		auto_complete_pos.y -= (selector_size_global->y + 3);
-		auto_complete_pos.y = ImGui::GetItemRectMax().y;
+
+		if (autocomplete_up) {
+			auto_complete_pos.y -= (selector_size_global->y + 3);
+		} else {
+			auto_complete_pos.y = ImGui::GetItemRectMax().y;
+		}
 
 		ImVec2 auto_complete_max_size = ImGui::GetItemRectSize();
 		auto_complete_max_size.y = -1.f;
@@ -356,10 +343,10 @@ void terminal::show_autocomplete() noexcept {
 
 			auto print_separator = [this]() {
 				ImGui::SameLine(0.f, 0.f);
-				ImGui::PushStyleColor(ImGuiCol_Text, to_imgui_color(cst::colors::auto_complete_separator));
+				int pop = try_push_style(ImGuiCol_Text, colors.auto_complete_separator);
 				ImGui::TextUnformatted(autocomlete_separator.data(),
 				                       autocomlete_separator.data() + autocomlete_separator.size());
-				ImGui::PopStyleColor();
+				ImGui::PopStyleColor(pop);
 				ImGui::SameLine(0.f, 0.f);
 			};
 
@@ -378,30 +365,33 @@ void terminal::show_autocomplete() noexcept {
 			}
 
 			std::string_view last;
+			int pop_count = 0;
+
 			if (max_displayable_sv != 0) {
 				const std::string_view& first = current_autocomplete[0].get().name;
-				ImGui::PushStyleColor(ImGuiCol_Text, to_imgui_color(cst::colors::auto_complete_selected));
+				pop_count += try_push_style(ImGuiCol_Text, colors.auto_complete_selected);
 				ImGui::TextUnformatted(first.data(), first.data() + first.size());
-				ImGui::PushStyleColor(ImGuiCol_Text, to_imgui_color(cst::colors::auto_complete_non_selected));
+				pop_count += try_push_style(ImGuiCol_Text, colors.auto_complete_non_selected);
 				for (int i = 1 ; i < max_displayable_sv ; ++i) {
 					const std::string_view vs = current_autocomplete[i].get().name;
 					print_separator();
 					ImGui::TextUnformatted(vs.data(), vs.data() + vs.size());
 				}
-				ImGui::PopStyleColor(2);
+				ImGui::PopStyleColor(pop_count);
 				if (max_displayable_sv < static_cast<long>(current_autocomplete.size())) {
 					last = current_autocomplete[max_displayable_sv].get().name;
 				}
 			}
 
+			pop_count = 0;
 			if (max_displayable_sv < static_cast<long>(current_autocomplete.size())) {
 
 				if (max_displayable_sv == 0) {
 					last = current_autocomplete.front().get().name;
-					ImGui::PushStyleColor(ImGuiCol_Text, to_imgui_color(cst::colors::auto_complete_selected));
+					pop_count += try_push_style(ImGuiCol_Text, colors.auto_complete_selected);
 					total_text_length -= separator_length;
 				} else {
-					ImGui::PushStyleColor(ImGuiCol_Text, to_imgui_color(cst::colors::auto_complete_non_selected));
+					pop_count += try_push_style(ImGuiCol_Text, colors.auto_complete_non_selected);
 					print_separator();
 				}
 
@@ -418,7 +408,7 @@ void terminal::show_autocomplete() noexcept {
 					--size;
 				}
 				ImGui::TextUnformatted(buf.data(), buf.data() + size);
-				ImGui::PopStyleColor();
+				ImGui::PopStyleColor(pop_count);
 			}
 		}
 		ImGui::End();
@@ -704,10 +694,6 @@ int terminal::command_line_callback(ImGuiInputTextCallbackData* data) noexcept {
 	};
 
 	auto auto_complete_buffer = [data, this](std::string&& str, auto reference_size) {
-		if (std::find_if(str.begin(), str.end(), misc::is_space) != str.end()) {
-			str = '"' + std::move(str) + '"';
-		}
-
 		auto buff_end = misc::erase_insert(str.begin(), str.end(), data->Buf + data->CursorPos - reference_size
 				, data->Buf + buffer_usage, data->Buf + data->BufSize, reference_size);
 
@@ -743,6 +729,10 @@ int terminal::command_line_callback(ImGuiInputTextCallbackData* data) noexcept {
 				std::optional<std::string> val = resolve_history_reference({excl, ref_size}, modified);
 				if (!modified) {
 					return 0;
+				}
+
+				if (std::find_if(val->begin(), val->end(), misc::is_space) != val->end()) {
+					val = '"' + std::move(*val) + '"';
 				}
 				auto_complete_buffer(std::move(*val), ref_size);
 			}

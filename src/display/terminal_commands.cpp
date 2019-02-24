@@ -35,6 +35,7 @@ namespace {
 
 namespace {
 	void clear(const argument&);
+	void configure_term(const argument&);
 	void echo(const argument&);
 	void exit(const argument&);
 	void help(const argument&);
@@ -65,6 +66,7 @@ namespace commands {
 	// Must be sorted
 	constexpr std::array list{
 			list_element_t{"clear ", "clears the terminal screen", clear, no_completion},
+			list_element_t{"configure_terminal ", "configures terminal behaviour and appearance", configure_term, no_completion},
 			list_element_t{"echo ", "prints text", echo, no_completion},
 			list_element_t{"exit ", "closes this terminal", exit, no_completion},
 			list_element_t{"help ", "show this help", help, no_completion},
@@ -110,6 +112,23 @@ namespace {
 
 	void clear(const argument&) {
 		logger::sink->clear();
+	}
+
+	void configure_term(const argument& arg) {
+		if (arg.cl_arguments.size() <3) {
+			return;
+		}
+		if (arg.cl_arguments[1] == "completion") {
+			if (arg.cl_arguments[2] == "set_up") {
+				arg.terminal_.set_autocomplete_up(true);
+			} else if (arg.cl_arguments[2] == "set_down") {
+				arg.terminal_.set_autocomplete_up(false);
+			}
+		} else if (arg.cl_arguments[1] == "colors") {
+			if (arg.cl_arguments[2] == "reset") {
+				arg.terminal_.reset_colors();
+			}
+		}
 	}
 
 	void echo(const argument& arg) {
