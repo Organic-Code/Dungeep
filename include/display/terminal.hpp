@@ -20,96 +20,69 @@
 
 #include <vector>
 #include <string>
+#include <utility>
 #include <spdlog/spdlog.h>
+#include <utils/misc.hpp>
 
 #include <imgui.h>
 
-namespace commands {
-	struct list_element_t;
-}
+#define TERM_STATIC_ASSERT_TPARAM_WELLFORMED(tparam)                                                                                     \
+template<typename T>                                                                                                                     \
+using find_commands_by_prefix_method_v1 =                                                                                                \
+decltype(std::declval<T&>().find_commands_by_prefix(std::declval<std::string_view>()));                                                  \
+template<typename T>                                                                                                                     \
+using find_commands_by_prefix_method_v2 =                                                                                                \
+decltype(std::declval<T&>().find_commands_by_prefix(std::declval<const char *>(), std::declval<const char *>()));                        \
+template<typename T>                                                                                                                     \
+using list_commands_method = decltype(std::declval<T&>().list_commands());                                                               \
+static_assert(                                                                                                                           \
+		misc::is_detected_with_return_type_v<find_commands_by_prefix_method_v1, std::vector<command_type_cref>, tparam>,                 \
+		"TerminalHelper should implement the method 'std::vector<command_type_cref> find_command_by_prefix(std::string_view)'. "         \
+		"See term::basic_terminal_helper for reference");                                                                                \
+static_assert(                                                                                                                           \
+		misc::is_detected_with_return_type_v<find_commands_by_prefix_method_v2, std::vector<command_type_cref>, tparam>,                 \
+		"TerminalHelper should implement the method 'std::vector<command_type_cref> find_command_by_prefix(const char*, const char*)'. " \
+		"See term::basic_terminal_helper for reference");                                                                                \
+static_assert(                                                                                                                           \
+		misc::is_detected_with_return_type_v<list_commands_method, std::vector<command_type_cref>, tparam>,                              \
+		"TerminalHelper should implement the method 'std::vector<command_type_cref> list_commands()'. "                                  \
+		"See term::basic_terminal_helper for reference")
 
-class terminal {
-public:
-	using buffer_type = std::array<char, 1024>;
+namespace term {
 
-	explicit terminal(const char * window_name_ = "terminal", int base_widh_ = 900, int base_height_ = 200);
+	template<typename Terminal>
+	struct argument_t {
+		typename Terminal::value_type& val;
+		Terminal& term;
 
-	bool show() noexcept;
+		std::vector<std::string> command_line;
+	};
 
-	void hide() noexcept {
-		previously_active_id = 0;
-	}
+	template<typename Terminal>
+	struct command_t {
+		using command_function = void (*)(argument_t<Terminal>&);
+		using further_completion_function = std::vector<std::string> (*)(std::string_view argument_line);
 
-	const std::vector<std::string>& get_history() const noexcept {
-		return command_history;
-	}
+		std::string_view name{};
+		std::string_view description{};
+		command_function call{};
+		further_completion_function complete{};
 
-	spdlog::logger& command_log() noexcept {
-		return local_logger;
-	}
-
-	void set_should_close() noexcept {
-		close_request = true;
-	}
-
-	void reset_colors() noexcept {
-		for (std::optional<ImVec4>& col : colors.log_level_colors) {
-			col.reset();
+		friend constexpr bool operator<(const command_t& lhs, const command_t& rhs) {
+			return lhs.name < rhs.name;
 		}
-		colors.background.reset();
-		colors.foreground.reset();
-		colors.auto_complete_selected.reset();
-		colors.auto_complete_non_selected.reset();
-		colors.auto_complete_separator.reset();
-		colors.msg_bg.reset();
-	}
 
-	void set_autocomplete_up(bool b) {
-		autocomplete_up = b;
-	}
-
-private:
-
-	void compute_text_size() noexcept;
-	void display_settings_bar() noexcept;
-	void display_messages() noexcept;
-	void display_command_line() noexcept;
-
-	// displaying command_line itself
-	void show_input_text() noexcept;
-	void handle_unfocus() noexcept;
-	void show_autocomplete() noexcept;
-
-	void call_command() noexcept;
-	std::optional<std::string> resolve_history_reference(std::string_view str, bool& modified) const noexcept;
-	std::pair<bool, std::string> resolve_history_references(std::string_view str, bool& modified) const;
-
-
-	static int command_line_callback_st(ImGuiInputTextCallbackData * data) noexcept;
-	int command_line_callback(ImGuiInputTextCallbackData* data) noexcept;
-
-	static int try_push_style(ImGuiCol col, const std::optional<ImVec4>& color) {
-		if (color) {
-			ImGui::PushStyleColor(col, *color);
-			return 1;
+		friend constexpr bool operator<(const command_t& lhs, const std::string_view& rhs) {
+			return lhs.name < rhs;
 		}
-		return 0;
-	}
 
-	////////////
-	bool should_show_next_frame{true};
-	bool close_request{false};
+		friend constexpr bool operator<(const std::string_view& lhs, const command_t& rhs) {
+			return lhs < rhs.name;
+		}
+	};
 
-	const char * const window_name;
-
-	const int base_width;
-	const int base_height;
-
-	spdlog::logger local_logger;
-
-	// colors
 	struct colors_t {
-		std::array<std::optional<ImVec4>, 6> log_level_colors {
+		std::array<std::optional<ImVec4>, 6> log_level_colors{
 				std::optional{ImVec4{0.549f, 0.561f, 0.569f, 1.f}},
 				std::optional{ImVec4{0.153f, 0.596f, 0.498f, 1.f}},
 				std::optional{ImVec4{0.459f, 0.686f, 0.129f, 1.f}},
@@ -124,49 +97,168 @@ private:
 		std::optional<ImVec4> auto_complete_separator{{0.6f, 0.6f, 0.6f, 1.f}};
 		std::optional<ImVec4> msg_bg{{0.1f, 0.1f, 0.1f, 1.f}};
 	};
-	colors_t colors{};
 
-	// configuration
-	bool autoscroll{true};
-	bool autowrap{true};
-	std::vector<std::string>::size_type last_size{0u};
-	int level{spdlog::level::trace};
+	template<typename TerminalHelper>
+	class terminal {
+	public:
+		using buffer_type = std::array<char, 1024>;
+		using value_type = typename TerminalHelper::value_type;
+		using command_type = command_t<terminal<TerminalHelper>>;
+		using command_type_cref = std::reference_wrapper<const command_type>;
+		using argument_type = argument_t<terminal>;
 
-	const std::string_view autoscroll_text;
-	const std::string_view clear_text;
-	const std::string_view log_level_text;
-	const std::string_view autowrap_text;
+		TERM_STATIC_ASSERT_TPARAM_WELLFORMED(TerminalHelper);
 
-	// messages view variables
-	std::string level_list_text{};
-	std::optional<ImVec2> selector_size_global{};
-	ImVec2 selector_label_size{};
+		explicit terminal(value_type& arg_value, const char * window_name_ = "terminal", int base_width_ = 900,
+		                  int base_height_ = 200, TerminalHelper&& th = {});
 
-	const std::string* longest_log_level;
+		bool show() noexcept;
+
+		void hide() noexcept {
+			m_previously_active_id = 0;
+		}
+
+		const std::vector<std::string>& get_history() const noexcept {
+			return m_command_history;
+		}
+
+		void set_should_close() noexcept {
+			m_close_request = true;
+		}
+
+		void reset_colors() noexcept;
+
+		colors_t& colors() {
+			return m_colors;
+		}
+
+		void set_autocomplete_up(bool b) {
+			m_autocomplete_up = b;
+		}
+
+		void clear_screen();
+
+		template<typename... Args>
+		void print(const char *fmt, Args&&... args) {
+			m_local_logger.info(fmt, std::forward<Args>(args)...);
+		}
+
+		template<typename... Args>
+		void print_error(const char *fmt, Args&&... args) {
+			m_local_logger.error(fmt, std::forward<Args>(args)...);
+		}
+
+	private:
+
+		void compute_text_size() noexcept;
+
+		void display_settings_bar() noexcept;
+
+		void display_messages() noexcept;
+
+		void display_command_line() noexcept;
+
+		// displaying command_line itself
+		void show_input_text() noexcept;
+
+		void handle_unfocus() noexcept;
+
+		void show_autocomplete() noexcept;
+
+		void call_command() noexcept;
+
+		std::optional<std::string> resolve_history_reference(std::string_view str, bool& modified) const noexcept;
+
+		std::pair<bool, std::string> resolve_history_references(std::string_view str, bool& modified) const;
 
 
-	// command line variables
-	buffer_type command_buffer{};
-	buffer_type::size_type buffer_usage{0u}; // max accessible: command_buffer[buffer_usage - 1] (buffer_usage might be 0 for empty string)
-	bool command_entered{false};
-	bool should_take_focus{false};
+		static int command_line_callback_st(ImGuiInputTextCallbackData * data) noexcept;
 
-	ImGuiID previously_active_id{0u};
-	ImGuiID input_text_id{0u};
+		int command_line_callback(ImGuiInputTextCallbackData * data) noexcept;
 
-	// autocompletion
-	std::vector<std::reference_wrapper<const commands::list_element_t>> current_autocomplete{};
-	std::string_view autocomlete_separator{"| "};
-	bool autocomplete_up{false}; // up or down
+		static int try_push_style(ImGuiCol col, const std::optional<ImVec4>& color) {
+			if (color) {
+				ImGui::PushStyleColor(col, *color);
+				return 1;
+			}
+			return 0;
+		}
 
-	// command line: completion using history
-	std::string command_line_backup{};
-	std::string_view command_line_backup_prefix{};
-	std::vector<std::string> command_history{};
-	std::optional<decltype(command_history)::iterator> current_history_selection{};
-	
-	bool ignore_next_textinput{false};
 
-};
+		int is_space(std::string_view str) const;
+
+		bool is_digit(char c) const;
+
+		unsigned long get_length(std::string_view str) const;
+
+
+		// Returns a vector containing each element that were space separated
+		// Returns an empty optional if a '"' char was not matched with a closing '"'
+		std::optional<std::vector<std::string>> split_by_space(std::string_view in) const;
+
+		////////////
+		value_type& m_argument_value;
+		mutable TerminalHelper m_t_helper;
+
+		bool m_should_show_next_frame{true};
+		bool m_close_request{false};
+
+		const char * const m_window_name;
+
+		const int m_base_width;
+		const int m_base_height;
+
+		spdlog::logger m_local_logger;
+
+		colors_t m_colors{};
+
+		// configuration
+		bool m_autoscroll{true};
+		bool m_autowrap{true};
+		std::vector<std::string>::size_type m_last_size{0u};
+		int m_level{spdlog::level::trace};
+
+		const std::string_view m_autoscroll_text;
+		const std::string_view m_clear_text;
+		const std::string_view m_log_level_text;
+		const std::string_view m_autowrap_text;
+
+		// messages view variables
+		std::string m_level_list_text{};
+		std::optional<ImVec2> m_selector_size_global{};
+		ImVec2 m_selector_label_size{};
+
+		const std::string * m_longest_log_level;
+
+
+		// command line variables
+		buffer_type m_command_buffer{};
+		buffer_type::size_type m_buffer_usage{0u}; // max accessible: command_buffer[buffer_usage - 1]
+		                                           // (buffer_usage might be 0 for empty string)
+		bool m_command_entered{false};
+		bool m_should_take_focus{false};
+
+		ImGuiID m_previously_active_id{0u};
+		ImGuiID m_input_text_id{0u};
+
+		// autocompletion
+		std::vector<command_type_cref> m_current_autocomplete{};
+		std::string_view m_autocomlete_separator{"| "};
+		bool m_autocomplete_up{false}; // up or down
+
+		// command line: completion using history
+		std::string m_command_line_backup{};
+		std::string_view m_command_line_backup_prefix{};
+		std::vector<std::string> m_command_history{};
+		std::optional<decltype(m_command_history)::iterator> m_current_history_selection{};
+
+		bool m_ignore_next_textinput{false};
+
+	};
+}
+
+#include "terminal.tpp"
+
+#undef TERM_STATIC_ASSERT_TERMINALHELPER_WELLFORMED
 
 #endif //DUNGEEP_TERMINAL_HPP

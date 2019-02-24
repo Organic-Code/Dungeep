@@ -22,50 +22,25 @@
 #include <string>
 #include <vector>
 
+#include <environment/world.hpp>
 #include <display/terminal.hpp>
+#include <display/demo_terminal_helpers.hpp>
 
-class world;
+class terminal_commands : public term::basic_terminal_helper<terminal_commands, world> {
+public:
 
-namespace commands {
-	struct argument {
-		world& world_;
-		terminal& terminal_;
+	terminal_commands();
 
-		std::vector<std::string> cl_arguments;
-	};
+	static std::vector<std::string> no_completion(std::string_view) { return {}; };
 
-	struct list_element_t {
-		using command_function = void (*)(const argument&);
-		using further_completion_function = std::vector<std::string> (*) (std::string_view argument_line);
+	static void clear(argument_type&);
+	static void configure_term(argument_type&);
+	static void echo(argument_type&);
+	static void exit(argument_type&);
+	static void help(argument_type&);
+	static void print_resource(argument_type&);
+	static void quit(argument_type&);
+};
 
-		const std::string_view name;
-		const std::string_view description;
-		const command_function call;
-		const further_completion_function complete;
-
-		constexpr bool operator<(std::string_view str) const {
-			return name < str;
-		}
-
-		constexpr bool operator<(const list_element_t& el) const {
-			return name < el.name;
-		}
-	};
-
-	extern const list_element_t empty_command;
-
-	// todo: passer par référence ?
-	std::vector<std::reference_wrapper<const list_element_t>> find_by_prefix(std::string_view prefix);
-
-	inline std::vector<std::reference_wrapper<const list_element_t>>
-	find_by_prefix(terminal::buffer_type::const_iterator p_beg, terminal::buffer_type::const_iterator p_end) {
-		return find_by_prefix({p_beg, static_cast<unsigned long>(p_end - p_beg)});
-	}
-
-	inline std::vector<std::reference_wrapper<const list_element_t>> list_commands() {
-		return find_by_prefix(std::string_view{});
-	}
-
-}
 
 #endif //DUNGEEP_TERMINAL_COMMANDS_HPP

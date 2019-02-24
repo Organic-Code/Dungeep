@@ -34,10 +34,8 @@ set(DUNGEEP_SOURCES
         src/environment/world_objects/mob.cpp
         src/environment/world_objects/player.cpp
         src/display/map_tester.cpp
-        src/display/terminal.cpp
         src/display/terminal_commands.cpp
         src/utils/resource_manager.cpp
-        src/utils/misc.cpp
 
         src/main.cpp
         src/static.cpp

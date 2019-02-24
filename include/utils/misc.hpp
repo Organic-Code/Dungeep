@@ -30,7 +30,7 @@ namespace misc {
 	// std::identity is c++20
 	struct identity {
 		template<typename T>
-		constexpr auto operator()(T&& t) const {
+		constexpr T&& operator()(T&& t) const {
 			return std::forward<T>(t);
 		}
 	};
@@ -116,22 +116,9 @@ namespace misc {
 		}
 		return std::prev(search.base());
 	}
-
-	constexpr bool is_space(char c) {
-		return c == ' ';
-	}
-
-	constexpr bool is_digit(char c) {
-		return c >= '0' && c <= '9';
-	}
-
 	constexpr bool success(std::errc ec) {
 		return ec == std::errc{};
 	}
-
-	// Returns a vector containing each element that were space separated
-	// Returns an empty optional if a '"' char was not matched with a closing '"'
-	std::optional<std::vector<std::string>> split_by_space(std::string_view in);
 
 	/// Search any element matching "prefix" in the collection formed by [c_beg, c_end)
 	/// str_ext must map types *ForwardIt() to std::string_view
@@ -151,13 +138,14 @@ namespace misc {
 		return ans;
 	}
 
-	template <typename ForwardIt, typename StrExtractor = identity>
-	ForwardIt find_first_prefixed(std::string_view prefix, ForwardIt beg, ForwardIt end, StrExtractor&& str_ext = {}) {
+	template <typename ForwardIt, typename IsSpace, typename StrExtractor = identity>
+	ForwardIt find_first_prefixed(std::string_view prefix, ForwardIt beg, ForwardIt end, IsSpace&& is_space, StrExtractor&& str_ext = {}) {
 		// std::string_view::start_with is C++20
-		auto start_with = [](std::string_view str, std::string_view pr) {
+		auto start_with = [&](std::string_view str, std::string_view pr) {
 			std::string_view::size_type idx = 0;
-			while (idx < str.size() && is_space(str[idx])) {
-				++idx;
+			int space_count;
+			while (idx < str.size() && (space_count = is_space(str.substr(idx))) > 0) {
+				idx += space_count;
 			}
 			return (str.size() - idx) >= pr.size() ? str.substr(idx, pr.size()) == pr : false;
 		};
@@ -169,6 +157,29 @@ namespace misc {
 		}
 		return beg;
 	}
+
+
+	namespace detail {
+		template <typename AlwaysVoid, template<typename...> typename Op, typename... Args>
+		struct detector {
+			using value_t = std::false_type;
+		};
+
+		template <template<typename...> typename Op, typename... Args>
+		struct detector<std::void_t<Op<Args...>>, Op, Args...> {
+			using value_t = std::true_type;
+		};
+	}
+
+	template <template<typename...> typename Op, typename... Args>
+	using is_detected = typename detail::detector<void, Op, Args...>::value_t;
+
+	template <template<typename...> typename Op, typename... Args>
+	constexpr bool is_detected_v = is_detected<Op, Args...>::value;
+
+	template <template<typename...> typename Op, typename ReturnType, typename... Args>
+	constexpr bool is_detected_with_return_type_v = is_detected_v<Op, Args...> && std::is_same_v<Op<Args...>, ReturnType>;
+
 
 }
 

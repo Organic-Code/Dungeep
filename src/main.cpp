@@ -34,6 +34,8 @@
 #include <spdlog/spdlog.h>
 #include <utils/logger.hpp>
 #include <display/terminal.hpp>
+#include <display/terminal_commands.hpp>
+#include <environment/world.hpp>
 
 namespace
 {
@@ -97,7 +99,8 @@ int main()
 	io.ConfigDockingWithShift = true; // hold shift to use docking
 	io.IniFilename = nullptr; // disable .ini saving
 
-	terminal terminal_log;
+	world w;
+	term::terminal<terminal_commands> terminal_log(w);
 
 	while(window.isOpen())
 	{

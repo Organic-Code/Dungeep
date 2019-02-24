@@ -1,0 +1,1042 @@
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///                                                                                                                                     ///
+///  Copyright C 2019, Lucas Lazare                                                                                                     ///
+///  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation         ///
+///  files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy,         ///
+///  modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software     ///
+///  is furnished to do so, subject to the following conditions:                                                                        ///
+///                                                                                                                                     ///
+///  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.     ///
+///                                                                                                                                     ///
+///  The Software is provided “as is”, without warranty of any kind, express or implied, including but not limited to the               ///
+///  warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or              ///
+///  copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise,        ///
+///  arising from, out of or in connection with the software or the use or other dealings in the Software.                              ///
+///                                                                                                                                     ///
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#include <imgui.h>
+#include <imgui_internal.h>
+#include <array>
+#include <cctype>
+#include <charconv>
+
+#include <utils/logger.hpp>
+#include <utils/resource_manager.hpp>
+#include <utils/resource_keys.hpp>
+#include <environment/world.hpp>
+#include <utils/misc.hpp>
+namespace term {
+namespace details {
+	template <typename T>
+	using is_space_method = decltype(std::declval<T&>().is_space(std::declval<std::string_view>()));
+
+	template <typename TerminalHelper>
+	std::enable_if_t<misc::is_detected_v<is_space_method, TerminalHelper>, int>
+	constexpr is_space(TerminalHelper&& t_h, std::string_view str) {
+		static_assert(std::is_same_v<decltype(t_h.is_space(str)), int>, "TerminalHelper::is_space(std::string_view) should return an int");
+		return t_h.is_space(str);
+	}
+
+	template <typename TerminalHelper>
+	std::enable_if_t<!misc::is_detected_v<is_space_method, TerminalHelper>, int>
+	constexpr is_space(TerminalHelper&&, std::string_view str) {
+		return str[0] == ' ' ? 1 : 0;
+	}
+
+	template <typename T>
+	using get_length_method = decltype(std::declval<T&>().get_length(std::declval<std::string_view>()));
+
+	template <typename TerminalHelper>
+	std::enable_if_t<misc::is_detected_v<get_length_method, TerminalHelper>, unsigned long>
+	constexpr get_length(TerminalHelper&& t_h, std::string_view str) {
+		return t_h.get_length(str);
+	}
+
+	template <typename TerminalHelper>
+	std::enable_if_t<!misc::is_detected_v<get_length_method, TerminalHelper>, unsigned long>
+	constexpr get_length(TerminalHelper&&, std::string_view str) {
+		return str.size();
+	}
+}
+
+namespace {
+
+	class forwarding_sink final : public spdlog::sinks::base_sink<std::mutex> {
+	public:
+		forwarding_sink() {
+			non_trace_pattern();
+		}
+	protected:
+		void sink_it_(const spdlog::details::log_msg &msg) override {
+			if (msg.level == spdlog::level::trace || msg.level == spdlog::level::debug) {
+				if (!is_trace_pattern) {
+					trace_pattern();
+				}
+			} else if (is_trace_pattern) {
+				non_trace_pattern();
+			}
+			fmt::memory_buffer buff;
+			sink::formatter_->format(msg, buff);
+			logger::sink->force_add_message(logger::message{msg.level, msg.color_range_start, msg.color_range_end, fmt::to_string(buff), true});
+		}
+
+		void flush_() override {}
+
+	private:
+
+		void non_trace_pattern() {
+			set_pattern_("%T.%e - [%^command line%$]: %v");
+			is_trace_pattern = false;
+		}
+		void trace_pattern() {
+			set_pattern_("%T.%e - %^%v%$");
+			is_trace_pattern = true;
+		}
+
+		bool is_trace_pattern{false};
+	};
+}
+
+template <typename TerminalHelper>
+terminal<TerminalHelper>::terminal(value_type& arg_value, const char* window_name_, int base_width_, int base_height_, TerminalHelper&& th)
+		: m_argument_value{arg_value}
+		, m_t_helper{std::move(th)}
+		, m_window_name(window_name_)
+		, m_base_width(base_width_)
+		, m_base_height(base_height_)
+		, m_local_logger{window_name_, std::make_shared<forwarding_sink>()}
+		, m_autoscroll_text{resources::manager.get_text(keys::text::autoscroll)}
+		, m_clear_text{resources::manager.get_text(keys::text::clear)}
+		, m_log_level_text{resources::manager.get_text(keys::text::log_level)}
+		, m_autowrap_text{resources::manager.get_text(keys::text::autowrap)}
+{
+	std::fill(m_command_buffer.begin(), m_command_buffer.end(), '\0');
+
+	m_local_logger.info("welcome to command line.");
+	m_local_logger.set_level(spdlog::level::trace);
+
+	const std::string& trace = resources::manager.get_text(keys::text::trace);
+	const std::string& debug = resources::manager.get_text(keys::text::debug);
+	const std::string& info = resources::manager.get_text(keys::text::info);
+	const std::string& warning = resources::manager.get_text(keys::text::warning);
+	const std::string& error = resources::manager.get_text(keys::text::error);
+	const std::string& critical = resources::manager.get_text(keys::text::critical);
+	const std::string& none = resources::manager.get_text(keys::text::none);
+
+	m_level_list_text.resize(trace.size() + 1 + debug.size() + 1 + info.size() + 1 + warning.size() + 1
+	                       + error.size() + 1 + critical.size() + 1 + none.size() + 2, '\0');
+
+	const std::string* levels[] = {&trace, &debug, &info, &warning, &error, &critical, &none };
+
+	unsigned int current_shift = 0;
+	m_longest_log_level = &trace;
+	for (const std::string*& lvl : levels) {
+		std::copy(lvl->begin(), lvl->end(), m_level_list_text.begin() + current_shift);
+		current_shift += static_cast<unsigned int>(lvl->size()) + 1u;
+		if (lvl->size() > m_longest_log_level->size()) {
+			m_longest_log_level = lvl;
+		}
+	}
+
+}
+
+template <typename TerminalHelper>
+bool terminal<TerminalHelper>::show() noexcept {
+	m_should_show_next_frame = !m_close_request;
+	m_close_request = false;
+
+	ImGui::SetNextWindowSize(ImVec2(m_base_width, m_base_height), ImGuiCond_Once);
+
+	int pop_count = 1;
+	ImGui::PushStyleColor(ImGuiCol_TitleBgActive, ImGui::GetStyleColorVec4(ImGuiCol_TitleBg));
+	pop_count += try_push_style(ImGuiCol_Text, m_colors.foreground);
+	pop_count += try_push_style(ImGuiCol_WindowBg, m_colors.background);
+
+	if (!ImGui::Begin(m_window_name, nullptr, ImGuiWindowFlags_NoScrollbar)) {
+		ImGui::End();
+		ImGui::PopStyleColor(pop_count);
+		return true;
+	}
+
+	compute_text_size();
+	display_settings_bar();
+	display_messages();
+	display_command_line();
+
+	ImGui::End();
+	ImGui::PopStyleColor(pop_count);
+
+	return m_should_show_next_frame;
+}
+
+template <typename TerminalHelper>
+void terminal<TerminalHelper>::reset_colors() noexcept {
+	for (std::optional<ImVec4>& col : m_colors.log_level_colors) {
+		col.reset();
+	}
+	m_colors.background.reset();
+	m_colors.foreground.reset();
+	m_colors.auto_complete_selected.reset();
+	m_colors.auto_complete_non_selected.reset();
+	m_colors.auto_complete_separator.reset();
+	m_colors.msg_bg.reset();
+}
+
+template <typename TerminalHelper>
+void terminal<TerminalHelper>::clear_screen() {
+	logger::sink->clear();
+}
+
+template <typename TerminalHelper>
+void terminal<TerminalHelper>::compute_text_size() noexcept {
+	if (!m_selector_size_global) {
+		m_selector_size_global = ImGui::CalcTextSize(m_longest_log_level->data());
+		m_selector_label_size = ImGui::CalcTextSize(m_log_level_text.data());
+		m_selector_label_size.x += 10;
+		m_selector_size_global->x += m_selector_label_size.x + 30;
+		m_selector_size_global->y += m_selector_label_size.y + 5;
+	}
+}
+
+template <typename TerminalHelper>
+void terminal<TerminalHelper>::display_settings_bar() noexcept {
+
+	if (ImGui::Button(m_clear_text.data())) {
+		logger::sink->clear();
+	}
+	ImGui::SameLine();
+	ImGui::Checkbox(m_autowrap_text.data(), &m_autowrap);
+	ImGui::SameLine();
+	ImGui::Checkbox(m_autoscroll_text.data(), &m_autoscroll);
+
+	ImGui::SameLine();
+	ImGui::BeginChild("terminal:settings:empty space"
+			, ImVec2(ImGui::GetContentRegionAvailWidth() - m_selector_size_global.value().x, m_selector_size_global.value().y));
+	ImGui::EndChild();
+
+	ImGui::SameLine();
+	if (ImGui::BeginChild("terminal:settings:log level selector", m_selector_size_global.value())) {
+		ImGui::TextUnformatted(m_log_level_text.data(), m_log_level_text.data() + m_log_level_text.size());
+
+		ImGui::SameLine();
+		ImGui::PushItemWidth(-5);
+		ImGui::Combo("##terminal:log_level_selector:combo", &m_level, m_level_list_text.data());
+		ImGui::PopItemWidth();
+	}
+	ImGui::EndChild();
+}
+
+template <typename TerminalHelper>
+void terminal<TerminalHelper>::display_messages() noexcept {
+	ImVec2 avail_space = ImGui::GetContentRegionAvail();
+	if (avail_space.y > m_selector_size_global->y) {
+
+		int pop_count = try_push_style(ImGuiCol_ChildBg, m_colors.msg_bg);
+		if (ImGui::BeginChild("terminal:logs_window", ImVec2(avail_space.x, avail_space.y - m_selector_size_global->y), false,
+		                      ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoTitleBar)) {
+
+			unsigned traced_count = 0;
+			void (*text_formatted) (const char*, ...);
+			if (m_autowrap) {
+				text_formatted = ImGui::TextWrapped;
+			} else {
+				text_formatted = ImGui::Text;
+			}
+
+			for (const logger::message& msg : *logger::sink) {
+				if (msg.severity < m_level && !msg.important) {
+					continue;
+				}
+
+				if (msg.color_beg < msg.color_end) {
+					text_formatted("%.*s", msg.color_beg, msg.value.data());
+					ImGui::SameLine(0.f, 0.f);
+					if (msg.important && msg.severity == spdlog::level::trace) {
+						text_formatted("[%d] ", static_cast<int>(traced_count - m_command_history.size()));
+						++traced_count;
+						ImGui::SameLine(0.f, 0.f);
+					}
+
+					int pop = try_push_style(ImGuiCol_Text, m_colors.log_level_colors[msg.severity]);
+					text_formatted("%.*s", msg.color_end - msg.color_beg, msg.value.data() + msg.color_beg);
+					ImGui::PopStyleColor(pop);
+
+					ImGui::SameLine(0.f, 0.f);
+					text_formatted("%.*s", msg.value.size() - msg.color_end, msg.value.data() + msg.color_end);
+				} else {
+					text_formatted("%.*s", msg.value.size(), msg.value.data());
+				}
+			}
+		}
+		if (m_autoscroll) {
+			if (m_last_size != logger::sink->size()) {
+				ImGui::SetScrollHereY(1.f);
+				m_last_size = logger::sink->size();
+			}
+		} else {
+			m_last_size = 0u;
+		}
+		ImGui::EndChild();
+		ImGui::PopStyleColor(pop_count);
+	}
+}
+
+template <typename TerminalHelper>
+void terminal<TerminalHelper>::display_command_line() noexcept {
+	if (!m_command_entered && ImGui::GetActiveID() == m_input_text_id && m_input_text_id != 0 && m_current_autocomplete.empty() && m_buffer_usage == 0u) {
+		m_current_autocomplete = m_t_helper.list_commands();
+	}
+
+	ImGui::Separator();
+	show_input_text();
+	handle_unfocus();
+	show_autocomplete();
+}
+
+template <typename TerminalHelper>
+void terminal<TerminalHelper>::show_input_text() noexcept {
+	ImGui::PushItemWidth(-1.f);
+	if (m_should_take_focus) {
+		ImGui::SetKeyboardFocusHere();
+		m_should_take_focus = false;
+	}
+	if (ImGui::InputText("##terminal:input_text", m_command_buffer.data(), m_command_buffer.size(),
+	                     ImGuiInputTextFlags_CallbackCompletion | ImGuiInputTextFlags_CallbackHistory,
+	                     terminal::command_line_callback_st, this) && !m_ignore_next_textinput) {
+		m_current_history_selection = {};
+		if (m_buffer_usage > 0u && m_command_buffer[m_buffer_usage - 1] == '\0') {
+			--m_buffer_usage;
+		} else if (m_buffer_usage + 1 < m_command_buffer.size() && m_command_buffer[m_buffer_usage + 1] == '\0' && m_command_buffer[m_buffer_usage] != '\0'){
+			++m_buffer_usage;
+		} else {
+			m_buffer_usage = std::strlen(m_command_buffer.data());
+		}
+
+		int sp_count = 0;
+		auto is_space_lbd = [this, &sp_count](char c) {
+			if (sp_count > 0) {
+				--sp_count;
+				return true;
+			} else {
+				sp_count = is_space({&c, static_cast<unsigned>(m_command_buffer.begin() + m_buffer_usage - &c)});
+				if (sp_count > 0) {
+					--sp_count;
+					return true;
+				}
+				return false;
+			}
+		};
+		auto beg = std::find_if_not(m_command_buffer.begin(), m_command_buffer.begin() + m_buffer_usage, is_space_lbd);
+		sp_count = 0;
+		auto ed = std::find_if(beg, m_command_buffer.begin() + m_buffer_usage, is_space_lbd);
+
+		if (ed == m_command_buffer.begin() + m_buffer_usage) {
+			m_current_autocomplete = m_t_helper.find_commands_by_prefix(beg, ed);
+			m_command_entered = false;
+		} else {
+			// TODO: advanced auto completion
+			m_command_entered = true;
+			m_current_autocomplete.clear();
+		}
+	}
+	m_ignore_next_textinput = false;
+	ImGui::PopItemWidth();
+
+	if (m_input_text_id == 0u) {
+		m_input_text_id = ImGui::GetItemID();
+	}
+}
+
+template <typename TerminalHelper>
+void terminal<TerminalHelper>::handle_unfocus() noexcept {
+	auto clear_frame = [this]() {
+		m_command_buffer[0] = '\0';
+		m_buffer_usage = 0u;
+		m_command_line_backup_prefix.remove_prefix(m_command_line_backup_prefix.size());
+		m_command_line_backup.clear();
+		m_current_history_selection = {};
+		m_command_entered = false;
+		m_current_autocomplete.clear();
+	};
+
+	if (m_previously_active_id == m_input_text_id && ImGui::GetActiveID() != m_input_text_id) {
+		if (ImGui::IsKeyPressedMap(ImGuiKey_Enter)) {
+			call_command();
+			m_should_take_focus = true;
+			clear_frame();
+
+		} else if (ImGui::IsKeyPressedMap(ImGuiKey_Escape)) {
+			if (m_buffer_usage == 0u) {
+				m_should_show_next_frame = false; // should hide on next frames
+			}
+			clear_frame();
+		}
+	}
+	m_previously_active_id = ImGui::GetActiveID();
+}
+
+template <typename TerminalHelper>
+void terminal<TerminalHelper>::show_autocomplete() noexcept {
+	constexpr ImGuiWindowFlags overlay_flags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoScrollbar
+	                                           | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize
+	                                           | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
+
+	if ((m_input_text_id == ImGui::GetActiveID() || m_should_take_focus) && !m_current_autocomplete.empty()) {
+
+		ImGui::SetNextWindowBgAlpha(0.9f);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+		ImGui::SetNextWindowFocus();
+
+		ImVec2 auto_complete_pos = ImGui::GetItemRectMin();
+
+		if (m_autocomplete_up) {
+			auto_complete_pos.y -= (m_selector_size_global->y + 3);
+		} else {
+			auto_complete_pos.y = ImGui::GetItemRectMax().y;
+		}
+
+		ImVec2 auto_complete_max_size = ImGui::GetItemRectSize();
+		auto_complete_max_size.y = -1.f;
+		ImGui::SetNextWindowPos(auto_complete_pos);
+		ImGui::SetNextWindowSizeConstraints({0.f, 0.f}, auto_complete_max_size);
+		if (ImGui::Begin("##terminal:auto_complete", nullptr, overlay_flags)) {
+
+			auto print_separator = [this]() {
+				ImGui::SameLine(0.f, 0.f);
+				int pop = try_push_style(ImGuiCol_Text, m_colors.auto_complete_separator);
+				ImGui::TextUnformatted(m_autocomlete_separator.data(),
+				                       m_autocomlete_separator.data() + m_autocomlete_separator.size());
+				ImGui::PopStyleColor(pop);
+				ImGui::SameLine(0.f, 0.f);
+			};
+
+			int max_displayable_sv = 0;
+			float separator_length = ImGui::CalcTextSize(m_autocomlete_separator.data(),
+			                                             m_autocomlete_separator.data() + m_autocomlete_separator.size()).x;
+			float total_text_length = ImGui::CalcTextSize("...").x;
+			for (const command_type& cmd : m_current_autocomplete) {
+				float t_len = ImGui::CalcTextSize(cmd.name.data(), cmd.name.data() + cmd.name.size()).x + separator_length;
+				if (t_len + total_text_length < auto_complete_max_size.x) {
+					total_text_length += t_len;
+					++max_displayable_sv;
+				} else {
+					break;
+				}
+			}
+
+			std::string_view last;
+			int pop_count = 0;
+
+			if (max_displayable_sv != 0) {
+				const std::string_view& first = m_current_autocomplete[0].get().name;
+				pop_count += try_push_style(ImGuiCol_Text, m_colors.auto_complete_selected);
+				ImGui::TextUnformatted(first.data(), first.data() + first.size());
+				pop_count += try_push_style(ImGuiCol_Text, m_colors.auto_complete_non_selected);
+				for (int i = 1 ; i < max_displayable_sv ; ++i) {
+					const std::string_view vs = m_current_autocomplete[i].get().name;
+					print_separator();
+					ImGui::TextUnformatted(vs.data(), vs.data() + vs.size());
+				}
+				ImGui::PopStyleColor(pop_count);
+				if (max_displayable_sv < static_cast<long>(m_current_autocomplete.size())) {
+					last = m_current_autocomplete[max_displayable_sv].get().name;
+				}
+			}
+
+			pop_count = 0;
+			if (max_displayable_sv < static_cast<long>(m_current_autocomplete.size())) {
+
+				if (max_displayable_sv == 0) {
+					last = m_current_autocomplete.front().get().name;
+					pop_count += try_push_style(ImGuiCol_Text, m_colors.auto_complete_selected);
+					total_text_length -= separator_length;
+				} else {
+					pop_count += try_push_style(ImGuiCol_Text, m_colors.auto_complete_non_selected);
+					print_separator();
+				}
+
+				std::vector<char> buf;
+				buf.resize(last.size() + 4);
+				std::copy(last.begin(), last.end(), buf.begin());
+				std::fill(buf.begin() + last.size(), buf.end(), '.');
+				auto size = static_cast<unsigned>(last.size() + 3);
+				while (size >= 4 && total_text_length + ImGui::CalcTextSize(buf.data(), buf.data() + size).x >= auto_complete_max_size.x) {
+					buf[size - 4] = '.';
+					--size;
+				}
+				while (size != 0 && total_text_length + ImGui::CalcTextSize(buf.data(), buf.data() + size).x >= auto_complete_max_size.x) {
+					--size;
+				}
+				ImGui::TextUnformatted(buf.data(), buf.data() + size);
+				ImGui::PopStyleColor(pop_count);
+			}
+		}
+		ImGui::End();
+		ImGui::PopStyleVar();
+	}
+}
+
+template <typename TerminalHelper>
+void terminal<TerminalHelper>::call_command() noexcept {
+	bool modified{};
+	std::pair<bool, std::string> resolved = resolve_history_references({m_command_buffer.begin(), m_buffer_usage}, modified);
+
+	if (!resolved.first) {
+		m_local_logger.error(R"(No such event: {})", resolved.second);
+		return;
+	}
+
+	std::optional<std::vector<std::string>> splitted = split_by_space(resolved.second);
+	if (!splitted) {
+		m_local_logger.trace("{}", std::string_view{m_command_buffer.begin(), m_buffer_usage});
+		m_local_logger.error(R"(Unmatched ")");
+		return;
+	}
+
+	m_local_logger.trace("{}", std::string_view{m_command_buffer.begin(), m_buffer_usage});
+	if (splitted->empty()) {
+		return;
+	}
+	if (modified) {
+		m_local_logger.debug("> {}", resolved.second);
+	}
+
+	std::vector<command_type_cref> matching_command_list = m_t_helper.find_commands_by_prefix(splitted->front());
+	if (matching_command_list.empty()) {
+		m_local_logger.error(R"("{}": command not found)", splitted->front());
+		m_command_history.emplace_back(std::move(resolved.second));
+		return;
+	}
+
+	argument_type arg{m_argument_value, *this, *splitted};
+	matching_command_list[0].get().call(arg);
+	m_command_history.emplace_back(std::move(resolved.second)); // resolved.second has ownership over *splitted
+}
+
+template <typename TerminalHelper>
+std::pair<bool, std::string> terminal<TerminalHelper>::resolve_history_references(std::string_view str, bool& modified) const {
+	enum class state {
+		nothing, // matched nothing
+		part_1,  // matched one char: '!'
+		part_2,  // matched !-
+		part_3,  // matched !-[n]
+		part_4,  // matched !-[n]:
+		finalize // matched !-[n]:[n]
+	};
+
+	modified = false;
+	if (str.empty()) {
+		return {true, {}};
+	}
+
+	if (str.size() == 1) {
+		return {(str[0] != '!'), {str.data(), str.size()}};
+	}
+
+	std::string ans;
+	ans.reserve(str.size());
+
+	auto substr_beg = str.data();
+	auto it = std::next(substr_beg);
+
+	state current_state = (*substr_beg == '!') ? state::part_1 : state::nothing;
+	bool escaped = (*substr_beg == '\\');
+
+	auto resolve = [&](std::string_view history_request, bool add_escaping = true) -> bool {
+		bool local_modified{};
+		std::optional<std::string> solved = resolve_history_reference(history_request, local_modified);
+		if (!solved) {
+			return false;
+		}
+
+		auto is_space_lbd = [&solved, this](char c) {
+			return is_space({&c, static_cast<unsigned>(&*solved->end() - &c)}) > 0;
+		};
+
+		modified |= local_modified;
+		if (add_escaping) {
+			if (solved->empty()) {
+				ans += R"("")";
+			} else if (std::find_if(solved->begin(), solved->end(), is_space_lbd) != solved->end()) {
+				ans += '"';
+				ans += *solved;
+				ans += '"';
+			} else {
+				ans += *solved;
+			}
+		} else {
+			ans += *solved;
+		}
+		substr_beg = std::next(it);
+		current_state = state::nothing;
+		return true;
+	};
+
+	while (it != str.data() + str.size()) {
+		switch (current_state) {
+			case state::nothing:
+				if (*it == '!' && !escaped) {
+					current_state = state::part_1;
+					ans += std::string_view{substr_beg, static_cast<unsigned>(it - substr_beg)};
+					substr_beg = it;
+				}
+				break;
+
+			case state::part_1:
+				if (*it == '-') {
+					current_state = state::part_2;
+				} else if (*it == ':') {
+					current_state = state::part_4;
+				} else if (*it == '!') {
+					if (!resolve("!!", false)) {
+						return {false, "!!"};
+					}
+				} else {
+					current_state = state::nothing;
+				}
+				break;
+			case state::part_2:
+				if (is_digit(*it)) {
+					current_state = state::part_3;
+				} else {
+					return {false, {substr_beg, it}};
+				}
+				break;
+			case state::part_3:
+				if (*it == ':') {
+					current_state = state::part_4;
+				} else if (!is_digit(*it)) {
+					if (!resolve({substr_beg, static_cast<unsigned>(it - substr_beg)}, false)) {
+						return {false, {substr_beg, it}};
+					}
+				}
+				break;
+			case state::part_4:
+				if (is_digit(*it)) {
+					current_state = state::finalize;
+				} else if (*it == '*') {
+					if (!resolve({substr_beg, static_cast<unsigned>(it + 1 - substr_beg)}, false)) {
+						return {false, {substr_beg, it}};
+					}
+				} else {
+					return {false, {substr_beg, it}};
+				}
+				break;
+			case state::finalize:
+				if (!is_digit(*it)) {
+					if (!resolve({substr_beg, static_cast<unsigned>(it - substr_beg)})) {
+						return {false, {substr_beg, it}};
+					}
+				}
+				break;
+		}
+
+		escaped = (*it == '\\');
+		++it;
+	}
+
+	bool escape = true;
+	if (substr_beg != it) {
+		switch (current_state) {
+			case state::nothing:
+				[[fallthrough]];
+			case state::part_1:
+				ans += std::string_view{substr_beg, static_cast<unsigned>(it - substr_beg)};
+				break;
+			case state::part_2:
+				[[fallthrough]];
+			case state::part_4:
+				return {false, {substr_beg, it}};
+			case state::part_3:
+				escape = false;
+				[[fallthrough]];
+			case state::finalize:
+				if (!resolve({substr_beg, static_cast<unsigned>(it - substr_beg)}, escape)) {
+					return {false, {substr_beg, it}};
+				}
+				break;
+		}
+	}
+
+	return {true,std::move(ans)};
+}
+
+template <typename TerminalHelper>
+std::optional<std::string> terminal<TerminalHelper>::resolve_history_reference(std::string_view str, bool& modified) const noexcept {
+	modified = false;
+
+	if (str.empty() || str[0] != '!') {
+		return std::string{str.begin(), str.end()};
+	}
+
+	if (str.size() < 2) {
+		return {};
+	}
+
+	if (str[1] == '!') {
+		if (m_command_history.empty() || str.size() != 2) {
+			return {};
+		} else {
+			modified = true;
+			return {m_command_history.back()};
+		}
+	}
+
+	// ![stuff]
+	unsigned int backward_jump = 1;
+	unsigned int char_idx = 1;
+	if (str[1] == '-') {
+		if (str.size() <= 2 || !is_digit(str[2])) {
+			return {};
+		}
+
+		unsigned int val{0};
+		std::from_chars_result res = std::from_chars(str.data() + 2, str.data() + str.size(), val, 10);
+		if (val == 0) {
+			return {}; // val == 0  <=> (garbage input || user inputted 0)
+		}
+
+		backward_jump = val;
+		char_idx = static_cast<unsigned int>(res.ptr - str.data());
+	}
+
+	if (m_command_history.size() < backward_jump) {
+		return {};
+	}
+
+	if (char_idx >= str.size()) {
+		modified = true;
+		return m_command_history[m_command_history.size() - backward_jump];
+	}
+
+	if (str[char_idx] != ':') {
+		return {};
+	}
+
+
+	++char_idx;
+	if (str.size() <= char_idx) {
+		return {};
+	}
+
+	if (str[char_idx] == '*') {
+		modified = true;
+		const std::string& cmd = m_command_history[m_command_history.size() - backward_jump];
+
+		int sp_count = 0;
+		auto is_space_lbd = [&sp_count, &cmd, this] (char c) {
+			if (sp_count > 0) {
+				--sp_count;
+				return true;
+			}
+			sp_count = is_space({&c, static_cast<unsigned>(&*cmd.end() - &c)});
+			if (sp_count > 0) {
+				--sp_count;
+				return true;
+			}
+			return false;
+		};
+
+		auto first_non_space = std::find_if_not(cmd.begin(), cmd.end(), is_space_lbd);
+		sp_count = 0;
+		auto first_space = std::find_if(first_non_space, cmd.end(), is_space_lbd);
+		sp_count = 0;
+		first_non_space = std::find_if_not(first_space, cmd.end(), is_space_lbd);
+
+		if (first_non_space == cmd.end()) {
+			return std::string{""};
+		}
+		return std::string{first_non_space, cmd.end()};
+	}
+
+	if (!is_digit(str[char_idx])) {
+		return {};
+	}
+
+	unsigned int val1{};
+	std::from_chars_result res1 = std::from_chars(str.data() + char_idx, str.data() + str.size(), val1, 10);
+	if (!misc::success(res1.ec) || res1.ptr != str.data() + str.size()) { // either unsuccessful or we didn't reach the end of the string
+		return {};
+	}
+
+	const std::string& cmd = m_command_history[m_command_history.size() - backward_jump]; // 1 <= backward_jump <= command_history.size()
+	std::optional<std::vector<std::string>> args = split_by_space(cmd);
+
+	if (!args || args->size() <= val1) {
+		return {};
+	}
+
+	modified = true;
+	return (*args)[val1];
+
+}
+
+template <typename TerminalHelper>
+int terminal<TerminalHelper>::command_line_callback_st(ImGuiInputTextCallbackData * data) noexcept {
+	return reinterpret_cast<terminal *>(data->UserData)->command_line_callback(data);
+}
+
+template <typename TerminalHelper>
+int terminal<TerminalHelper>::command_line_callback(ImGuiInputTextCallbackData* data) noexcept {
+
+	auto paste_buffer = [data](auto begin, auto end, auto buffer_shift) {
+		misc::copy(begin, end, data->Buf + buffer_shift, data->Buf + data->BufSize - 1);
+		data->BufTextLen = std::min(static_cast<int>(std::distance(begin, end) + buffer_shift), data->BufSize - 1);
+		data->Buf[data->BufTextLen] = '\0';
+		data->BufDirty = true;
+		data->SelectionStart = data->SelectionEnd;
+		data->CursorPos = data->BufTextLen;
+	};
+
+	auto auto_complete_buffer = [data, this](std::string&& str, auto reference_size) {
+		auto buff_end = misc::erase_insert(str.begin(), str.end(), data->Buf + data->CursorPos - reference_size
+				, data->Buf + m_buffer_usage, data->Buf + data->BufSize, reference_size);
+
+		data->BufTextLen = static_cast<unsigned>(std::distance(data->Buf, buff_end));
+		data->Buf[data->BufTextLen] = '\0';
+		data->BufDirty = true;
+		data->SelectionStart = data->SelectionEnd;
+		data->CursorPos = std::min(static_cast<int>(data->CursorPos + str.size() - reference_size), data->BufTextLen);
+		m_buffer_usage = static_cast<unsigned>(data->BufTextLen);
+	};
+
+	if (data->EventKey == ImGuiKey_Tab) {
+
+		if (m_current_autocomplete.empty()) {
+			if (m_buffer_usage == 0 || data->CursorPos < 2) {
+				return 0;
+			}
+
+			auto excl = misc::find_last(m_command_buffer.data(), m_command_buffer.data() + data->CursorPos, '!');
+			if (excl == m_command_buffer.data() + data->CursorPos) {
+				return 0;
+			}
+			if (excl == m_command_buffer.data() + data->CursorPos - 1 && m_command_buffer[data->CursorPos - 2] == '!') {
+				--excl;
+			}
+			bool modified{};
+			std::string_view reference{excl, static_cast<unsigned>(m_command_buffer.data() + data->CursorPos - excl)};
+			std::optional<std::string> val = resolve_history_reference(reference, modified);
+			if (!modified) {
+				return 0;
+			}
+
+			if (reference.substr(reference.size() - 2) != ":*" && reference.find(':') != std::string_view::npos) {
+				auto is_space_lbd = [&val, this] (char c) {
+					return is_space({&c, static_cast<unsigned>(&*val->end() - &c)}) > 0;
+				};
+
+				if (std::find_if(val->begin(), val->end(), is_space_lbd) != val->end()) {
+					val = '"' + std::move(*val) + '"';
+				}
+			}
+			auto_complete_buffer(std::move(*val), static_cast<unsigned>(reference.size()));
+
+			return 0;
+		}
+
+		std::string_view complete = m_current_autocomplete[0].get().name;
+
+		int sp_count = 0;
+		auto is_space_lbd = [this, &sp_count](char c) {
+			if (sp_count > 0) {
+				--sp_count;
+				return true;
+			} else {
+				sp_count = is_space({&c, static_cast<unsigned>(m_command_buffer.begin() + m_buffer_usage - &c)});
+				if (sp_count > 0) {
+					--sp_count;
+					return true;
+				}
+				return false;
+			}
+		};
+
+		auto command_beg = std::find_if_not(m_command_buffer.begin(), m_command_buffer.begin() + m_buffer_usage, is_space_lbd);
+		unsigned long leading_space = command_beg - m_command_buffer.begin();
+		paste_buffer(complete.data() + m_buffer_usage - leading_space, complete.data() + complete.size(), m_buffer_usage);
+		m_buffer_usage = static_cast<unsigned>(data->BufTextLen);
+		m_current_autocomplete.clear();
+
+	} else if (data->EventKey == ImGuiKey_UpArrow) {
+		if (m_command_history.empty()) {
+			return 0;
+		}
+		m_ignore_next_textinput = true;
+
+		if (!m_current_history_selection) {
+
+			m_current_history_selection = m_command_history.end();
+			m_command_line_backup = std::string(m_command_buffer.begin(), m_command_buffer.begin() + m_buffer_usage);
+			m_command_line_backup_prefix = m_command_line_backup;
+
+			auto is_space_lbd = [this](unsigned int idx) {
+				const char* ptr = &m_command_line_backup_prefix[idx];
+				return is_space({ptr, static_cast<unsigned>(m_command_line_backup_prefix.size() - idx)});
+			};
+			unsigned int idx = 0;
+			int space_count = 0;
+			while (idx < m_command_line_backup_prefix.size() && (space_count = is_space_lbd(idx)) > 0) {
+				idx += space_count;
+			}
+			if (idx > m_command_line_backup_prefix.size()) {
+				idx = static_cast<unsigned>(m_command_line_backup_prefix.size());
+			}
+
+			m_command_line_backup_prefix.remove_prefix(idx);
+			m_current_autocomplete.clear();
+		}
+
+		auto it = misc::find_first_prefixed(
+				m_command_line_backup_prefix
+				, std::reverse_iterator(*m_current_history_selection)
+				, m_command_history.rend()
+				, [this](std::string_view str) { return is_space(str); }
+		);
+
+		if (it != m_command_history.rend()) {
+			m_current_history_selection = std::prev(it.base());
+			paste_buffer((*m_current_history_selection)->begin() + m_command_line_backup_prefix.size()
+					, (*m_current_history_selection)->end(), m_command_line_backup.size());
+			m_buffer_usage = static_cast<unsigned>(data->BufTextLen);
+		} else {
+			if (m_current_history_selection == m_command_history.end()) {
+				// no auto completion occured
+				m_ignore_next_textinput = false;
+				m_current_history_selection = {};
+				m_command_line_backup_prefix = {};
+				m_command_line_backup.clear();
+			}
+		}
+
+	} else if (data->EventKey == ImGuiKey_DownArrow) {
+
+		if (!m_current_history_selection) {
+			return 0;
+		}
+		m_ignore_next_textinput = true;
+
+		m_current_history_selection = misc::find_first_prefixed(
+				m_command_line_backup_prefix
+				, std::next(*m_current_history_selection)
+				, m_command_history.end()
+				, [this](std::string_view str) { return is_space(str); }
+		);
+
+		if (m_current_history_selection != m_command_history.end()) {
+			paste_buffer((*m_current_history_selection)->begin() + m_command_line_backup_prefix.size()
+					, (*m_current_history_selection)->end(), m_command_line_backup.size());
+			m_buffer_usage = static_cast<unsigned>(data->BufTextLen);
+
+		} else {
+			data->BufTextLen = static_cast<int>(m_command_line_backup.size());
+			data->Buf[data->BufTextLen] = '\0';
+			data->BufDirty = true;
+			data->SelectionStart = data->SelectionEnd;
+			data->CursorPos = data->BufTextLen;
+			m_buffer_usage = static_cast<unsigned>(data->BufTextLen);
+
+			m_current_history_selection = {};
+			m_command_line_backup_prefix = {};
+			m_command_line_backup.clear();
+		}
+
+	} else {
+		m_local_logger.warn("Unexpected event thrown to autocompletion system: {}", data->EventFlag);
+	}
+
+	return 0;
+}
+
+template<typename TerminalHelper>
+int terminal<TerminalHelper>::is_space(std::string_view str) const {
+	return details::is_space(m_t_helper, str);
+}
+
+template<typename TerminalHelper>
+bool terminal<TerminalHelper>::is_digit(char c) const {
+	return c >= '0' && c <= '9';
+}
+
+template<typename TerminalHelper>
+unsigned long terminal<TerminalHelper>::get_length(std::string_view str) const {
+	return details::get_length(m_t_helper, str);
+}
+
+template <typename TerminalHelper>
+std::optional<std::vector<std::string>> terminal<TerminalHelper>::split_by_space(std::string_view in) const {
+	std::vector<std::string> out;
+
+	auto it = in.begin();
+
+	auto skip_spaces = [&]() {
+		int space_count;
+		do {
+			space_count = is_space({it, static_cast<unsigned>(in.end() - it)});
+			it += space_count;
+		} while (it != in.end() && space_count > 0);
+	};
+
+	if (it != in.end()) {
+		skip_spaces();
+	}
+
+	if (it == in.end()) {
+		return out;
+	}
+
+	std::string current_string{};
+	do {
+		if (*it == '"') {
+			bool escaped;
+			do {
+				escaped = (*it == '\\');
+				++it;
+
+				if (it != in.end() && (*it != '"' || escaped)) {
+					if (*it == '\\') {
+						if (escaped) {
+							current_string += *it;
+						}
+					} else {
+						current_string += *it;
+					}
+				} else {
+					break;
+				}
+
+			} while (true);
+
+			if (it == in.end()) {
+				return {};
+			}
+			++it;
+
+		} else if (is_space({it, static_cast<unsigned>(in.end() - it)}) > 0) {
+			out.emplace_back(std::move(current_string));
+			current_string = {};
+			skip_spaces();
+
+		} else if (*it == '\\') {
+			++it;
+			if (it != in.end()) {
+				current_string += *it;
+				++it;
+			}
+		} else {
+			current_string += *it;
+			++it;
+		}
+
+	} while (it != in.end());
+
+	if (!current_string.empty()) {
+		out.emplace_back(std::move(current_string));
+	}
+
+	return out;
+}
+
+
+} // namespace term

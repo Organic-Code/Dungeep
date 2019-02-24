@@ -19,162 +19,100 @@
 #include <utils/misc.hpp>
 #include <utils/logger.hpp>
 #include <display/terminal.hpp>
-#include <environment/world.hpp>
-#include <sstream>
-#include <utils/resource_manager.hpp>
-#include <utils/resource_keys.hpp>
-
-using commands::argument;
-using commands::list_element_t;
 
 namespace {
-	namespace print_resource_args_list {
-	}
-	std::vector<std::string> print_resource_completion(std::string_view);
-}
 
-namespace {
-	void clear(const argument&);
-	void configure_term(const argument&);
-	void echo(const argument&);
-	void exit(const argument&);
-	void help(const argument&);
-	void print_resource(const argument&);
-	void quit(const argument&);
-}
-
-namespace {
-	template <typename... Args>
-	void print(const argument& arg, Args&&... args) {
-		arg.terminal_.command_log().info(std::forward<Args>(args)...);
-	}
-
-	template <typename... Args>
-	void error(const argument& arg, Args&&... args) {
-		arg.terminal_.command_log().error(std::forward<Args>(args)...);
-	}
-}
-
-namespace commands {
-
-	std::vector<std::string> no_completion(std::string_view);
-	void no_command(const argument&);
-
-
-
-
-	// Must be sorted
-	constexpr std::array list{
-			list_element_t{"clear ", "clears the terminal screen", clear, no_completion},
-			list_element_t{"configure_terminal ", "configures terminal behaviour and appearance", configure_term, no_completion},
-			list_element_t{"echo ", "prints text", echo, no_completion},
-			list_element_t{"exit ", "closes this terminal", exit, no_completion},
-			list_element_t{"help ", "show this help", help, no_completion},
-			list_element_t{"print ", "prints text", echo, no_completion},
-			list_element_t{"print_resource ", "prints resources file", print_resource, print_resource_completion},
-			list_element_t{"quit ", "closes this application", quit, no_completion},
+	constexpr std::array local_command_list {
+			terminal_commands::command_type{"clear ", "clears the terminal screen", terminal_commands::clear, terminal_commands::no_completion},
+			terminal_commands::command_type{"configure_terminal ", "configures terminal behaviour and appearance", terminal_commands::configure_term, terminal_commands::no_completion},
+			terminal_commands::command_type{"echo ", "prints text", terminal_commands::echo, terminal_commands::no_completion},
+			terminal_commands::command_type{"exit ", "closes this terminal", terminal_commands::exit, terminal_commands::no_completion},
+			terminal_commands::command_type{"help ", "show this help", terminal_commands::help, terminal_commands::no_completion},
+			terminal_commands::command_type{"print ", "prints text", terminal_commands::echo, terminal_commands::no_completion},
+			terminal_commands::command_type{"print_resource ", "prints resources file", terminal_commands::print_resource, terminal_commands::no_completion},
+			terminal_commands::command_type{"quit ", "closes this application", terminal_commands::quit, terminal_commands::no_completion},
 	};
-	static_assert(misc::is_sorted(list.begin(), list.end()),
-	              "commands::list should be lexicographically sorted by command name");
-
-	const list_element_t empty_command{"Empty Command", "Placeholder for unknown command", no_command, no_completion};
-
-
-
-
-	std::vector<std::reference_wrapper<const list_element_t>>
-	find_by_prefix(std::string_view prefix) {
-		auto compare_name = [](const list_element_t& el) { return el.name; };
-		auto map_to_cref = [](const list_element_t& el) { return std::cref(el); };
-
-		return misc::prefix_search(prefix, list.begin(), list.end(), std::move(compare_name), std::move(map_to_cref));
-	}
-
-
-	std::vector<std::string> no_completion(std::string_view) {return {};}
-	void no_command(const argument&) {}
-
 }
 
-namespace {
-	std::vector<std::string> print_resource_completion(std::string_view command_line) {
-		// TODO
-		// resources::manager.get_item_count();
-		// resources::manager.get_map_list()
-//		resources::manager.get_creature_count()
-//		resources::manager.get_text(keys::text::lang_name);
-//		resources::manager.get_text(keys::text::dflt_lang_name);
-		return {};
+terminal_commands::terminal_commands() {
+	for (const command_type& cmd : local_command_list) {
+		add_command_(cmd);
 	}
 }
 
-namespace {
+void terminal_commands::clear(argument_type&) {
+	logger::sink->clear();
+}
 
-	void clear(const argument&) {
-		logger::sink->clear();
+void terminal_commands::configure_term(argument_type& arg) {
+	if (arg.command_line.size() <3) {
+		return;
 	}
-
-	void configure_term(const argument& arg) {
-		if (arg.cl_arguments.size() <3) {
-			return;
+	if (arg.command_line[1] == "completion") {
+		if (arg.command_line[2] == "set_up") {
+			arg.term.set_autocomplete_up(true);
+		} else if (arg.command_line[2] == "set_down") {
+			arg.term.set_autocomplete_up(false);
 		}
-		if (arg.cl_arguments[1] == "completion") {
-			if (arg.cl_arguments[2] == "set_up") {
-				arg.terminal_.set_autocomplete_up(true);
-			} else if (arg.cl_arguments[2] == "set_down") {
-				arg.terminal_.set_autocomplete_up(false);
-			}
-		} else if (arg.cl_arguments[1] == "colors") {
-			if (arg.cl_arguments[2] == "reset") {
-				arg.terminal_.reset_colors();
-			}
+	} else if (arg.command_line[1] == "colors") {
+		if (arg.command_line[2] == "reset") {
+			arg.term.reset_colors();
 		}
 	}
+}
 
-	void echo(const argument& arg) {
-		if (arg.cl_arguments.size() < 2) {
-			print(arg, "");
-			return;
-		}
-		if (arg.cl_arguments[1][0] == '-') {
-			if (arg.cl_arguments[1] == "--help" || arg.cl_arguments[1] == "-help") {
-				print(arg, "usage: {} [text to be printed]", arg.cl_arguments[0]);
-			} else {
-				error(arg, "Unknown argument: {}", arg.cl_arguments[1]);
-			}
+void terminal_commands::echo(argument_type& arg) {
+	if (arg.command_line.size() < 2) {
+		arg.term.print("");
+		return;
+	}
+	if (arg.command_line[1][0] == '-') {
+		if (arg.command_line[1] == "--help" || arg.command_line[1] == "-help") {
+			arg.term.print("usage: {} [text to be printed]", arg.command_line[0]);
 		} else {
-			std::string str{};
-			str = arg.cl_arguments[1];
-			for (auto it = std::next(arg.cl_arguments.begin(), 2) ; it != arg.cl_arguments.end() ; ++it) {
+			arg.term.print_error("Unknown argument: {}", arg.command_line[1]);
+		}
+	} else {
+		std::string str{};
+		auto it = std::next(arg.command_line.begin(), 1);
+		while (it != arg.command_line.end() && it->empty()) {
+			++it;
+		}
+		if (it != arg.command_line.end()) {
+			str = *it;
+			for (++it ; it != arg.command_line.end() ; ++it) {
+				if (it->empty()) {
+					continue;
+				}
 				str.reserve(str.size() + it->size() + 1);
 				str += ' ';
 				str += *it;
 			}
-			print(arg, "{}", str);
 		}
+		arg.term.print("{}", str);
 	}
+}
 
-	void exit(const argument& arg) {
-		arg.terminal_.set_should_close();
+void terminal_commands::exit(argument_type& arg) {
+	arg.term.set_should_close();
+}
+
+void terminal_commands::help(argument_type& arg) {
+	constexpr unsigned long list_element_name_max_size = misc::max_size(local_command_list.begin(), local_command_list.end(),
+			[](const command_type& cmd) { return cmd.name.size(); });
+
+	arg.term.print("Available commands:");
+	for (const command_type& cmd : local_command_list) {
+		arg.term.print("        {:{}}| {}", cmd.name, list_element_name_max_size, cmd.description);
 	}
+	arg.term.print("");
+	arg.term.print("Additional information might be available using \"'command' --help\"");
+}
 
-	void help(const argument& arg) {
-		constexpr unsigned long list_element_name_max_size = misc::max_size(commands::list.begin(), commands::list.end(),
-		                                                                    [](const list_element_t& elem) { return elem.name.size(); });
+void terminal_commands::print_resource(argument_type& arg) {
+	arg.term.print_error("TODO");
+}
 
-		print(arg, "Available commands:");
-		for (const list_element_t& elem : commands::list) {
-			print(arg, "        {:{}}| {}", elem.name, list_element_name_max_size, elem.description);
-		}
-		print(arg, "");
-		print(arg, "Additional information might be available using \"'command' --help\"");
-	}
-
-	void print_resource(const argument& arg) {
-		error(arg, "TODO");
-	}
-
-	void quit(const argument& arg) {
-		error(arg, "TODO");
-	}
+void terminal_commands::quit(argument_type& arg) {
+	arg.term.print_error("TODO");
 }
