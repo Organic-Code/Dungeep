@@ -40,8 +40,8 @@ terminal_commands::terminal_commands() {
 	}
 }
 
-void terminal_commands::clear(argument_type&) {
-	logger::sink->clear();
+void terminal_commands::clear(argument_type& arg) {
+	arg.term.clear();
 }
 
 void terminal_commands::configure_term(argument_type& arg) {

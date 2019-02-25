@@ -153,7 +153,9 @@ namespace term {
 			m_autocomplete_pos = p;
 		}
 
-		void clear_screen();
+		position get_autocomplete_pos() const {
+			return m_autocomplete_pos;
+		}
 
 		template<typename... Args>
 		void print(const char *fmt, Args&&... args) {
@@ -164,6 +166,8 @@ namespace term {
 		void print_error(const char *fmt, Args&&... args) {
 			m_local_logger.error(fmt, std::forward<Args>(args)...);
 		}
+
+		void clear();
 
 	private:
 
@@ -253,6 +257,7 @@ namespace term {
 		buffer_type m_command_buffer{};
 		buffer_type::size_type m_buffer_usage{0u}; // max accessible: command_buffer[buffer_usage - 1]
 		                                           // (buffer_usage might be 0 for empty string)
+		buffer_type::size_type m_previous_buffer_usage{0u};
 		bool m_should_take_focus{false};
 
 		ImGuiID m_previously_active_id{0u};
@@ -269,7 +274,9 @@ namespace term {
 		std::string m_command_line_backup{};
 		std::string_view m_command_line_backup_prefix{};
 		std::vector<std::string> m_command_history{};
-		std::optional<decltype(m_command_history)::iterator> m_current_history_selection{};
+		std::optional<std::vector<std::string>::iterator> m_current_history_selection{};
+		unsigned long m_last_flush_at_history{0u}; // for the [-n] indicator on command line
+		bool m_flush_bit{false};
 
 		bool m_ignore_next_textinput{false};
 		bool m_has_focus{false};

@@ -24,8 +24,8 @@
 #include <utils/logger.hpp>
 #include <utils/resource_manager.hpp>
 #include <utils/resource_keys.hpp>
-#include <environment/world.hpp>
 #include <utils/misc.hpp>
+
 namespace term {
 namespace details {
 	template <typename T>
@@ -135,7 +135,7 @@ terminal<TerminalHelper>::terminal(value_type& arg_value, const char* window_nam
 	for (const std::string*& lvl : levels) {
 		std::copy(lvl->begin(), lvl->end(), m_level_list_text.begin() + current_shift);
 		current_shift += static_cast<unsigned int>(lvl->size()) + 1u;
-		if (lvl->size() > m_longest_log_level->size()) {
+		if (get_length(*lvl) > get_length(*m_longest_log_level)) {
 			m_longest_log_level = lvl;
 		}
 	}
@@ -144,6 +144,11 @@ terminal<TerminalHelper>::terminal(value_type& arg_value, const char* window_nam
 
 template <typename TerminalHelper>
 bool terminal<TerminalHelper>::show() noexcept {
+	if (m_flush_bit) {
+		m_last_flush_at_history = m_command_history.size();
+		m_flush_bit = false;
+	}
+
 	m_should_show_next_frame = !m_close_request;
 	m_close_request = false;
 
@@ -192,7 +197,8 @@ void terminal<TerminalHelper>::reset_colors() noexcept {
 }
 
 template <typename TerminalHelper>
-void terminal<TerminalHelper>::clear_screen() {
+void terminal<TerminalHelper>::clear() {
+	m_flush_bit = true;
 	logger::sink->clear();
 }
 
@@ -211,7 +217,7 @@ template <typename TerminalHelper>
 void terminal<TerminalHelper>::display_settings_bar() noexcept {
 
 	if (ImGui::Button(m_clear_text.data())) {
-		logger::sink->clear();
+		clear();
 	}
 	ImGui::SameLine();
 	ImGui::Checkbox(m_autowrap_text.data(), &m_autowrap);
@@ -311,6 +317,8 @@ void terminal<TerminalHelper>::show_input_text() noexcept {
 		ImGui::SetKeyboardFocusHere();
 		m_should_take_focus = false;
 	}
+	m_previous_buffer_usage = m_buffer_usage;
+
 	if (ImGui::InputText("##terminal:input_text", m_command_buffer.data(), m_command_buffer.size(),
 	                     ImGuiInputTextFlags_CallbackCompletion | ImGuiInputTextFlags_CallbackHistory,
 	                     terminal::command_line_callback_st, this) && !m_ignore_next_textinput) {
@@ -356,7 +364,7 @@ void terminal<TerminalHelper>::show_input_text() noexcept {
 					std::string_view sv{m_command_buffer.data(), m_buffer_usage};
 					std::optional<std::vector<std::string>> splitted = split_by_space(sv, true);
 					if (!splitted) {
-						m_local_logger.error("Internal error: 'split_by_space(\"{}\", false) returned an empty optional", sv);
+						m_local_logger.error("Internal error: 'split_by_space(\"{}\", true) returned an empty optional", sv);
 					} else {
 						unsigned int i = 1;
 						while (i < 10 && m_buffer_usage >= i) {
@@ -403,8 +411,10 @@ void terminal<TerminalHelper>::handle_unfocus() noexcept {
 			clear_frame();
 
 		} else if (ImGui::IsKeyPressedMap(ImGuiKey_Escape)) {
-			if (m_buffer_usage == 0u) {
+			if (m_buffer_usage == 0u && m_previous_buffer_usage == 0u) {
 				m_should_show_next_frame = false; // should hide on next frames
+			} else {
+				m_should_take_focus = true;
 			}
 			clear_frame();
 		}
@@ -567,8 +577,12 @@ void terminal<TerminalHelper>::call_command() noexcept {
 	}
 
 	argument_type arg{m_argument_value, *this, *splitted};
+	m_flush_bit = false;
 	matching_command_list[0].get().call(arg);
 	m_command_history.emplace_back(std::move(resolved.second)); // resolved.second has ownership over *splitted
+	if (m_flush_bit) {
+		m_last_flush_at_history = m_command_history.size();
+	}
 }
 
 template <typename TerminalHelper>
@@ -1044,6 +1058,8 @@ std::optional<std::vector<std::string>> terminal<TerminalHelper>::split_by_space
 		return out;
 	}
 
+	bool matched_quote = false;
+	bool matched_space = false;
 	std::string current_string{};
 	do {
 		if (*it == '"') {
@@ -1073,19 +1089,27 @@ std::optional<std::vector<std::string>> terminal<TerminalHelper>::split_by_space
 			} else {
 				++it;
 			}
+			matched_quote = true;
+			matched_space = false;
 
 		} else if (is_space({it, static_cast<unsigned>(in.end() - it)}) > 0) {
 			out.emplace_back(std::move(current_string));
 			current_string = {};
 			skip_spaces();
+			matched_space = true;
+			matched_quote = false;
 
 		} else if (*it == '\\') {
+			matched_quote = false;
+			matched_space = false;
 			++it;
 			if (it != in.end()) {
 				current_string += *it;
 				++it;
 			}
 		} else {
+			matched_space = false;
+			matched_quote = false;
 			current_string += *it;
 			++it;
 		}
@@ -1094,6 +1118,8 @@ std::optional<std::vector<std::string>> terminal<TerminalHelper>::split_by_space
 
 	if (!current_string.empty()) {
 		out.emplace_back(std::move(current_string));
+	} else if (matched_quote || matched_space) {
+		out.emplace_back();
 	}
 
 	return out;
