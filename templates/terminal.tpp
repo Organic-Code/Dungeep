@@ -155,9 +155,31 @@ bool terminal<TerminalHelper>::show() noexcept {
 	ImGui::SetNextWindowSize(ImVec2(m_base_width, m_base_height), ImGuiCond_Once);
 
 	int pop_count = 0;
-	for (auto i = 0u ; i < ImGuiCol_COUNT ; ++i) {
-		pop_count += try_push_style(i, m_colors[i]);
-	}
+	pop_count += try_push_style(ImGuiCol_Text, m_colors.text);
+	pop_count += try_push_style(ImGuiCol_WindowBg, m_colors.window_bg);
+	pop_count += try_push_style(ImGuiCol_ChildBg, m_colors.window_bg);
+	pop_count += try_push_style(ImGuiCol_Border, m_colors.border);
+	pop_count += try_push_style(ImGuiCol_BorderShadow, m_colors.border_shadow);
+	pop_count += try_push_style(ImGuiCol_Button, m_colors.button);
+	pop_count += try_push_style(ImGuiCol_ButtonHovered, m_colors.button_hovered);
+	pop_count += try_push_style(ImGuiCol_ButtonActive, m_colors.button_active);
+	pop_count += try_push_style(ImGuiCol_FrameBg, m_colors.frame_bg);
+	pop_count += try_push_style(ImGuiCol_FrameBgHovered, m_colors.frame_bg_hovered);
+	pop_count += try_push_style(ImGuiCol_FrameBgActive, m_colors.frame_bg_active);
+	pop_count += try_push_style(ImGuiCol_TextSelectedBg, m_colors.text_selected_bg);
+	pop_count += try_push_style(ImGuiCol_CheckMark, m_colors.check_mark);
+	pop_count += try_push_style(ImGuiCol_TitleBg, m_colors.title_bg);
+	pop_count += try_push_style(ImGuiCol_TitleBgActive, m_colors.title_bg_active);
+	pop_count += try_push_style(ImGuiCol_TitleBgCollapsed, m_colors.title_bg_collapsed);
+	pop_count += try_push_style(ImGuiCol_Header, m_colors.log_level_selected);
+	pop_count += try_push_style(ImGuiCol_HeaderActive, m_colors.log_level_active);
+	pop_count += try_push_style(ImGuiCol_HeaderHovered, m_colors.log_level_hovered);
+	pop_count += try_push_style(ImGuiCol_PopupBg, m_colors.log_level_drop_down_list_bg);
+	pop_count += try_push_style(ImGuiCol_ScrollbarBg, m_colors.scrollbar_bg);
+	pop_count += try_push_style(ImGuiCol_ScrollbarGrab, m_colors.scrollbar_grab);
+	pop_count += try_push_style(ImGuiCol_ScrollbarGrabActive, m_colors.scrollbar_grab_active);
+	pop_count += try_push_style(ImGuiCol_ScrollbarGrabHovered, m_colors.scrollbar_grab_hovered);
+
 
 	if (m_has_focus) {
 		ImGui::PushStyleColor(ImGuiCol_TitleBg, ImGui::GetStyleColorVec4(ImGuiCol_TitleBgActive));
@@ -184,12 +206,28 @@ bool terminal<TerminalHelper>::show() noexcept {
 
 template <typename TerminalHelper>
 void terminal<TerminalHelper>::reset_colors() noexcept {
-	for (std::optional<ImVec4>& color : m_colors.theme_colors) {
+	for (std::optional<theme::constexpr_color>& color : m_colors.log_level_colors) {
 		color.reset();
 	}
-	for (std::optional<ImVec4>& color : m_colors.log_level_colors) {
-		color.reset();
-	}
+	m_colors.text.reset();
+	m_colors.window_bg.reset();
+	m_colors.border.reset();
+	m_colors.border_shadow.reset();
+	m_colors.button.reset();
+	m_colors.button_hovered.reset();
+	m_colors.button_active.reset();
+	m_colors.frame_bg.reset();
+	m_colors.frame_bg_hovered.reset();
+	m_colors.frame_bg_active.reset();
+	m_colors.text_selected_bg.reset();
+	m_colors.check_mark.reset();
+	m_colors.title_bg.reset();
+	m_colors.title_bg_active.reset();
+	m_colors.title_bg_collapsed.reset();
+	m_colors.message_panel.reset();
+	m_colors.auto_complete_selected.reset();
+	m_colors.auto_complete_non_selected.reset();
+	m_colors.auto_complete_separator.reset();
 	m_colors.auto_complete_selected.reset();
 	m_colors.auto_complete_non_selected.reset();
 	m_colors.auto_complete_separator.reset();
@@ -266,13 +304,21 @@ void terminal<TerminalHelper>::display_messages() noexcept {
 				if (msg.color_beg < msg.color_end) {
 					text_formatted("%.*s", msg.color_beg, msg.value.data());
 					ImGui::SameLine(0.f, 0.f);
-					if (msg.important && msg.severity == spdlog::level::trace) {
-						text_formatted("[%d] ", static_cast<int>(traced_count - m_command_history.size()));
-						++traced_count;
-						ImGui::SameLine(0.f, 0.f);
+
+					int pop = 0;
+					if (msg.important) {
+						if (msg.severity == spdlog::level::trace) {
+							pop += try_push_style(ImGuiCol_Text, m_colors.cmd_backlog);
+							text_formatted("[%d] ", static_cast<int>(traced_count + m_last_flush_at_history - m_command_history.size()));
+							++traced_count;
+							ImGui::SameLine(0.f, 0.f);
+						} else if (msg.severity == spdlog::level::debug) {
+							pop += try_push_style(ImGuiCol_Text, m_colors.cmd_history_completed);
+						}
+					} else {
+						pop += try_push_style(ImGuiCol_Text, m_colors.log_level_colors[msg.severity]);
 					}
 
-					int pop = try_push_style(ImGuiCol_Text, m_colors.log_level_colors[msg.severity]);
 					text_formatted("%.*s", msg.color_end - msg.color_beg, msg.value.data() + msg.color_beg);
 					ImGui::PopStyleColor(pop);
 
@@ -366,18 +412,8 @@ void terminal<TerminalHelper>::show_input_text() noexcept {
 					if (!splitted) {
 						m_local_logger.error("Internal error: 'split_by_space(\"{}\", true) returned an empty optional", sv);
 					} else {
-						unsigned int i = 1;
-						while (i < 10 && m_buffer_usage >= i) {
-							int count = is_space({m_command_buffer.data() + m_buffer_usage - i, i}) ;
-							if (count != 0) {
-								if (count == static_cast<int>(i)) {
-									splitted->emplace_back();
-								}
-								break;
-							}
-							++i;
-						}
-						m_current_autocomplete_strings = cmds[0].get().complete(*splitted);
+						argument_type arg{m_argument_value, *this, *splitted};
+						m_current_autocomplete_strings = cmds[0].get().complete(arg);
 					}
 				}
 			}
@@ -920,12 +956,32 @@ int terminal<TerminalHelper>::command_line_callback(ImGuiInputTextCallbackData* 
 			return 0;
 		}
 
-		std::string_view complete = autocomplete_text[0];
+		std::string_view complete_sv = autocomplete_text[0];
 
-		auto command_beg = misc::find_terminating_word(m_command_buffer.begin(), m_command_buffer.begin() + m_buffer_usage
-				, [this](std::string_view sv) { return is_space(sv); });
-		unsigned long leading_space = command_beg - m_command_buffer.begin();
-		paste_buffer(complete.data() + m_buffer_usage - leading_space, complete.data() + complete.size(), m_buffer_usage);
+		auto quote_count = std::count(m_command_buffer.begin(), m_command_buffer.begin() + m_buffer_usage, '"');
+		const char* command_beg = nullptr;
+		if (quote_count % 2) {
+			command_beg = misc::find_last(m_command_buffer.begin(), m_command_buffer.begin() + m_buffer_usage, '"');
+		} else {
+			command_beg = misc::find_terminating_word(m_command_buffer.begin(), m_command_buffer.begin() + m_buffer_usage
+					, [this](std::string_view sv) { return is_space(sv); });;
+		}
+
+
+		bool space_found = std::find_if(complete_sv.begin(), complete_sv.end(), [this,&complete_sv](char c)
+				{ return is_space({&c, static_cast<unsigned>(complete_sv.end() - &c)}) > 0; }) != complete_sv.end();
+
+		if (space_found) {
+			std::string complete;
+			complete.reserve(complete_sv.size() + 2);
+			complete = '"';
+			complete += complete_sv;
+			complete += '"';
+			paste_buffer(complete.data(), complete.data() + complete.size(), command_beg - m_command_buffer.begin());
+		} else {
+			paste_buffer(complete_sv.data(), complete_sv.data() + complete_sv.size(), command_beg - m_command_buffer.begin());
+		}
+
 		m_buffer_usage = static_cast<unsigned>(data->BufTextLen);
 		m_current_autocomplete.clear();
 		m_current_autocomplete_strings.clear();

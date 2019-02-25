@@ -31,11 +31,11 @@ public:
 
 	terminal_commands();
 
-	static std::vector<std::string> no_completion(const std::vector<std::string>&) { return {}; };
+	static std::vector<std::string> no_completion(argument_type&) { return {}; };
 
 	static void clear(argument_type&);
 	static void configure_term(argument_type&);
-	static std::vector<std::string> configure_term_autocomplete(const std::vector<std::string>&);
+	static std::vector<std::string> configure_term_autocomplete(argument_type&);
 	static void echo(argument_type&);
 	static void exit(argument_type&);
 	static void help(argument_type&);

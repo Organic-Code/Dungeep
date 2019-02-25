@@ -101,6 +101,8 @@ int main()
 
 	world w;
 	term::terminal<terminal_commands> terminal_log(w);
+	terminal_log.theme() = term::themes::cherry;
+	bool showing_term = true;
 
 	while(window.isOpen())
 	{
@@ -112,6 +114,10 @@ int main()
 			if(event.type == sf::Event::Closed)
 			{
 				window.close();
+			} else if (event.type == sf::Event::KeyPressed) {
+				if (event.key.code == sf::Keyboard::F11) {
+					showing_term = true;
+				}
 			}
 		}
 
@@ -127,7 +133,10 @@ int main()
 		tester.showViewerConfigWindow();
 		tester.showDebugInfoWindow();
 
-		terminal_log.show();
+		ImGui::ShowDemoWindow();
+		if (showing_term) {
+			showing_term = terminal_log.show();
+		}
 
 		window.clear();
 		ImGui::SFML::Render(window);

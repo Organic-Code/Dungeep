@@ -62,7 +62,7 @@ namespace term {
 	template<typename Terminal>
 	struct command_t {
 		using command_function = void (*)(argument_t<Terminal>&);
-		using further_completion_function = std::vector<std::string> (*)(const std::vector<std::string>& argument_line);
+		using further_completion_function = std::vector<std::string> (*)(argument_t<Terminal>& argument_line);
 
 		std::string_view name{};
 		std::string_view description{};
@@ -82,31 +82,48 @@ namespace term {
 		}
 	};
 
-	struct colors_t {
+	struct theme {
+		struct constexpr_color {
+			float r,g,b,a;
 
-		std::optional<ImVec4>& operator[](ImGuiCol c) {
-			return theme_colors[c];
-		}
-
-		const std::optional<ImVec4>& operator[](ImGuiCol c) const {
-			return theme_colors[c];
-		}
-
-		std::array<std::optional<ImVec4>, 6> log_level_colors{
-				std::optional{ImVec4{0.549f, 0.561f, 0.569f, 1.f}},
-				std::optional{ImVec4{0.153f, 0.596f, 0.498f, 1.f}},
-				std::optional{ImVec4{0.459f, 0.686f, 0.129f, 1.f}},
-				std::optional{ImVec4{0.839f, 0.749f, 0.333f, 1.f}},
-				std::optional{ImVec4{1.000f, 0.420f, 0.408f, 1.f}},
-				std::optional{ImVec4{1.000f, 0.420f, 0.408f, 1.f}},
+			ImVec4 imv4() const {
+				return {r,g,b,a};
+			}
 		};
-		std::optional<ImVec4> auto_complete_selected{{1.f, 1.f, 1.f, 1.f}};
-		std::optional<ImVec4> auto_complete_non_selected{{0.5f, 0.45f, 0.45f, 1.f}};
-		std::optional<ImVec4> auto_complete_separator{{0.6f, 0.6f, 0.6f, 1.f}};
-		std::optional<ImVec4> message_panel{{0.1f, 0.1f, 0.1f, 0.5f}};
 
-		std::array<std::optional<ImVec4>, ImGuiCol_COUNT> theme_colors;
+		std::string_view name;
 
+		std::optional<constexpr_color> text;
+		std::optional<constexpr_color> window_bg;
+		std::optional<constexpr_color> border;
+		std::optional<constexpr_color> border_shadow;
+		std::optional<constexpr_color> button;
+		std::optional<constexpr_color> button_hovered;
+		std::optional<constexpr_color> button_active;
+		std::optional<constexpr_color> frame_bg;
+		std::optional<constexpr_color> frame_bg_hovered;
+		std::optional<constexpr_color> frame_bg_active;
+		std::optional<constexpr_color> text_selected_bg;
+		std::optional<constexpr_color> check_mark;
+		std::optional<constexpr_color> title_bg;
+		std::optional<constexpr_color> title_bg_active;
+		std::optional<constexpr_color> title_bg_collapsed;
+		std::optional<constexpr_color> message_panel;
+		std::optional<constexpr_color> auto_complete_selected;
+		std::optional<constexpr_color> auto_complete_non_selected;
+		std::optional<constexpr_color> auto_complete_separator;
+		std::optional<constexpr_color> cmd_backlog;
+		std::optional<constexpr_color> cmd_history_completed;
+		std::optional<constexpr_color> log_level_drop_down_list_bg;
+		std::optional<constexpr_color> log_level_active;
+		std::optional<constexpr_color> log_level_hovered;
+		std::optional<constexpr_color> log_level_selected;
+		std::optional<constexpr_color> scrollbar_bg;
+		std::optional<constexpr_color> scrollbar_grab;
+		std::optional<constexpr_color> scrollbar_grab_active;
+		std::optional<constexpr_color> scrollbar_grab_hovered;
+
+		std::array<std::optional<constexpr_color>, 6> log_level_colors{};
 	};
 
 	template<typename TerminalHelper>
@@ -145,7 +162,7 @@ namespace term {
 
 		void reset_colors() noexcept;
 
-		colors_t& colors() {
+		theme& theme() {
 			return m_colors;
 		}
 
@@ -205,6 +222,14 @@ namespace term {
 			return 0;
 		}
 
+		static int try_push_style(ImGuiCol col, const std::optional<theme::constexpr_color>& color) {
+			if (color) {
+				ImGui::PushStyleColor(col, color->imv4());
+				return 1;
+			}
+			return 0;
+		}
+
 
 		int is_space(std::string_view str) const;
 
@@ -232,7 +257,7 @@ namespace term {
 
 		spdlog::logger m_local_logger;
 
-		colors_t m_colors{};
+		struct theme m_colors{};
 
 		// configuration
 		bool m_autoscroll{true};
@@ -282,6 +307,97 @@ namespace term {
 		bool m_has_focus{false};
 
 	};
+
+
+	namespace themes {
+
+		constexpr theme light = {
+				"Light Rainbow",
+				theme::constexpr_color{0.100f, 0.100f, 0.100f, 1.000f}, //text
+				theme::constexpr_color{0.243f, 0.443f, 0.624f, 1.000f}, //window_bg
+				theme::constexpr_color{0.600f, 0.600f, 0.600f, 1.000f}, //border
+				theme::constexpr_color{0.000f, 0.000f, 0.000f, 0.000f}, //border_shadow
+				theme::constexpr_color{0.902f, 0.843f, 0.843f, 0.875f}, //button
+				theme::constexpr_color{0.824f, 0.765f, 0.765f, 0.875f}, //button_hovered
+				theme::constexpr_color{0.627f, 0.569f, 0.569f, 0.875f}, //button_active
+				theme::constexpr_color{0.902f, 0.843f, 0.843f, 0.875f}, //frame_bg
+				theme::constexpr_color{0.824f, 0.765f, 0.765f, 0.875f}, //frame_bg_hovered
+				theme::constexpr_color{0.627f, 0.569f, 0.569f, 0.875f}, //frame_bg_active
+				theme::constexpr_color{0.260f, 0.590f, 0.980f, 0.350f}, //text_selected_bg
+				theme::constexpr_color{0.843f, 0.000f, 0.373f, 1.000f}, //check_mark
+				theme::constexpr_color{0.243f, 0.443f, 0.624f, 0.850f}, //title_bg
+				theme::constexpr_color{0.165f, 0.365f, 0.506f, 1.000f}, //title_bg_active
+				theme::constexpr_color{0.243f, 0.443f, 0.624f, 0.850f}, //title_collapsed
+				theme::constexpr_color{0.902f, 0.843f, 0.843f, 0.875f}, //message_panel
+				theme::constexpr_color{0.196f, 1.000f, 0.196f, 1.000f}, //auto_complete_selected
+				theme::constexpr_color{0.000f, 0.000f, 0.000f, 1.000f}, //auto_complete_non_selected
+				theme::constexpr_color{0.000f, 0.000f, 0.000f, 0.392f}, //auto_complete_separator
+				theme::constexpr_color{0.519f, 0.118f, 0.715f, 1.000f}, //cmd_backlog
+				theme::constexpr_color{1.000f, 0.430f, 0.059f, 1.000f}, //cmd_history_completed
+				theme::constexpr_color{0.901f, 0.843f, 0.843f, 0.784f}, //log_level_drop_down_list_bg
+				theme::constexpr_color{0.443f, 0.705f, 1.000f, 1.000f}, //log_level_active
+				theme::constexpr_color{0.443f, 0.705f, 0.784f, 0.705f}, //log_level_hovered
+				theme::constexpr_color{0.443f, 0.623f, 0.949f, 1.000f}, //log_level_selected
+				theme::constexpr_color{0.000f, 0.000f, 0.000f, 0.000f}, //scrollbar_bg
+				theme::constexpr_color{0.470f, 0.470f, 0.588f, 1.000f}, //scrollbar_grab
+				theme::constexpr_color{0.392f, 0.392f, 0.509f, 1.000f}, //scrollbar_grab_active
+				theme::constexpr_color{0.509f, 0.509f, 0.666f, 1.000f}, //scrollbar_grab_hovered
+				{
+					theme::constexpr_color{0.078f, 0.117f, 0.764f, 1.f}, // log_level::trace
+					{}, // log_level::debug
+					theme::constexpr_color{0.301f, 0.529f, 0.000f, 1.f}, // log_level::info
+					theme::constexpr_color{0.784f, 0.431f, 0.058f, 1.f}, // log_level::warning
+					theme::constexpr_color{0.901f, 0.117f, 0.117f, 1.f}, // log_level::error
+					theme::constexpr_color{0.901f, 0.117f, 0.117f, 1.f}, // log_level::critical
+				}
+		};
+
+		constexpr theme cherry {
+			"Dark Cherry",
+			theme::constexpr_color{0.649f, 0.661f, 0.669f, 1.000f}, //text
+			theme::constexpr_color{0.130f, 0.140f, 0.170f, 1.000f}, //window_bg
+			theme::constexpr_color{0.310f, 0.310f, 1.000f, 0.000f}, //border
+			theme::constexpr_color{0.000f, 0.000f, 0.000f, 0.000f}, //border_shadow
+			theme::constexpr_color{0.470f, 0.770f, 0.830f, 0.140f}, //button
+			theme::constexpr_color{0.455f, 0.198f, 0.301f, 0.860f}, //button_hovered
+			theme::constexpr_color{0.455f, 0.198f, 0.301f, 1.000f}, //button_active
+			theme::constexpr_color{0.200f, 0.220f, 0.270f, 1.000f}, //frame_bg
+			theme::constexpr_color{0.455f, 0.198f, 0.301f, 0.780f}, //frame_bg_hovered
+			theme::constexpr_color{0.455f, 0.198f, 0.301f, 1.000f}, //frame_bg_active
+			theme::constexpr_color{0.455f, 0.198f, 0.301f, 0.430f}, //text_selected_bg
+			theme::constexpr_color{0.710f, 0.202f, 0.207f, 1.000f}, //check_mark
+			theme::constexpr_color{0.232f, 0.201f, 0.271f, 1.000f}, //title_bg
+			theme::constexpr_color{0.502f, 0.075f, 0.256f, 1.000f}, //title_bg_active
+			theme::constexpr_color{0.200f, 0.220f, 0.270f, 0.750f}, //title_bg_collapsed
+			theme::constexpr_color{0.100f, 0.100f, 0.100f, 0.500f}, //message_panel
+			theme::constexpr_color{1.000f, 1.000f, 1.000f, 1.000f}, //auto_complete_selected
+			theme::constexpr_color{0.500f, 0.450f, 0.450f, 1.000f}, //auto_complete_non_selected
+			theme::constexpr_color{0.600f, 0.600f, 0.600f, 1.000f}, //auto_complete_separator
+			theme::constexpr_color{0.860f, 0.930f, 0.890f, 1.000f}, //cmd_backlog
+			theme::constexpr_color{0.153f, 0.596f, 0.498f, 1.000f}, //cmd_history_completed
+			theme::constexpr_color{0.100f, 0.100f, 0.100f, 0.860f}, //log_level_drop_down_list_bg
+			theme::constexpr_color{0.730f, 0.130f, 0.370f, 1.000f}, //log_level_active
+			theme::constexpr_color{0.450f, 0.190f, 0.300f, 0.430f}, //log_level_hovered
+			theme::constexpr_color{0.730f, 0.130f, 0.370f, 0.580f}, //log_level_selected
+			theme::constexpr_color{0.000f, 0.000f, 0.000f, 0.000f}, //scrollbar_bg
+			theme::constexpr_color{0.690f, 0.690f, 0.690f, 0.800f}, //scrollbar_grab
+			theme::constexpr_color{0.490f, 0.490f, 0.490f, 0.800f}, //scrollbar_grab_active
+			theme::constexpr_color{0.490f, 0.490f, 0.490f, 1.000f}, //scrollbar_grab_hovered
+			{
+				theme::constexpr_color{0.549f, 0.561f, 0.569f, 1.f}, // log_level::trace
+				theme::constexpr_color{0.153f, 0.596f, 0.498f, 1.f}, // log_level::debug
+				theme::constexpr_color{0.459f, 0.686f, 0.129f, 1.f}, // log_level::info
+				theme::constexpr_color{0.839f, 0.749f, 0.333f, 1.f}, // log_level::warning
+				theme::constexpr_color{1.000f, 0.420f, 0.408f, 1.f}, // log_level::error
+				theme::constexpr_color{1.000f, 0.420f, 0.408f, 1.f}, // log_level::critical
+			},
+		};
+
+		constexpr std::array list {
+				cherry,
+				light
+		};
+	}
 }
 
 #include "terminal.tpp"

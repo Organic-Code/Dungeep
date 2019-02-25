@@ -165,7 +165,7 @@ namespace misc {
 		// std::string_view::start_with is C++20
 		auto start_with = [&](std::string_view str, std::string_view pr) {
 			std::string_view::size_type idx = 0;
-			int space_count;
+			int space_count{};
 			while (idx < str.size() && (space_count = is_space(str.substr(idx))) > 0) {
 				idx += space_count;
 			}

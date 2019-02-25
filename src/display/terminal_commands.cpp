@@ -32,6 +32,110 @@ namespace {
 			terminal_commands::command_type{"print_resource", "prints resources file", terminal_commands::print_resource, terminal_commands::no_completion},
 			terminal_commands::command_type{"quit", "closes this application", terminal_commands::quit, terminal_commands::no_completion},
 	};
+
+	namespace cfg_term {
+		constexpr std::array strings {
+				"completion",
+				"disable",
+				"to-bottom",
+				"to-top",
+				"colors",
+				"get-value",
+				"list-themes",
+				"reset-theme",
+				"set-theme",
+				"set-value",
+				"auto_complete_non_selected",
+				"auto_complete_selected",
+				"auto_complete_separator",
+				"border",
+				"border_shadow",
+				"button",
+				"button_active",
+				"button_hovered",
+				"cmd_backlog",
+				"cmd_history_completed",
+				"check_mark",
+				"frame_bg",
+				"frame_bg_active",
+				"frame_bg_hovered",
+				"log_level_drop_down_bg",
+				"log_level_active",
+				"log_level_hovered",
+				"log_level_selected",
+				"log_trace",
+				"log_debug",
+				"log_info",
+				"log_warning",
+				"log_error",
+				"log_critical",
+				"message_panel",
+				"scrollbar_bg",
+				"scrollbar_grab",
+				"scrollbar_grab_active",
+				"scrollbar_grab_hovered",
+				"text",
+				"text_selected_bg",
+				"title_bg",
+				"title_bg_active",
+				"title_bg_collapsed",
+				"window_bg",
+		};
+
+		namespace cmds {
+			enum cmds {
+				completion,
+				cpl_disable,
+				cpl_down,
+				cpl_up,
+				colors,
+				col_get_value,
+				col_list_themes,
+				col_reset_theme,
+				col_set_theme,
+				col_set_value,
+				csv_begin,
+				csv_auto_complete_non_selected = csv_begin,
+				csv_auto_complete_selected,
+				csv_auto_complete_separator,
+				csv_border,
+				csv_border_shadow,
+				csv_button,
+				csv_button_active,
+				csv_button_hovered,
+				csv_cmd_backlog,
+				csv_cmd_history_completed,
+				csv_check_mark,
+				csv_frame_bg,
+				csv_frame_bg_active,
+				csv_frame_bg_hovered,
+				csv_log_level_drop_down_bg,
+				csv_log_level_active,
+				csv_log_level_hovered,
+				csv_log_level_selected,
+				csv_l_trace,
+				csv_l_debug,
+				csv_l_info,
+				csv_l_warning,
+				csv_l_error,
+				csv_l_critical,
+				csv_message_panel,
+				csv_scrollbar_bg,
+				csv_scrollbar_grab,
+				csv_scrollbar_grab_active,
+				csv_scrollbar_grab_hovered,
+				csv_text,
+				csv_text_selected_bg,
+				csv_title_bg,
+				csv_title_bg_active,
+				csv_title_bg_collapsed,
+				csv_window_bg,
+				csv_end,
+				NEXT_ONE = csv_end,
+			};
+		}
+		static_assert(strings.size() == cmds::NEXT_ONE);
+	}
 }
 
 terminal_commands::terminal_commands() {
@@ -45,85 +149,194 @@ void terminal_commands::clear(argument_type& arg) {
 }
 
 void terminal_commands::configure_term(argument_type& arg) {
-	auto parse = [](const std::string& str, auto& val) -> bool {
-		std::from_chars_result fcr = std::from_chars(str.data(), str.data() + str.size(), val, 10);
-		return misc::success(fcr.ec) && fcr.ptr == str.data() + str.size();
+	using namespace cfg_term;
+
+	auto fail = [&arg]() -> void {
+		arg.term.print_error("What would you like, master?");
 	};
 
 	std::vector<std::string>& cl = arg.command_line;
 	if (cl.size() < 3) {
-		return;
+		return fail();
 	}
-	if (cl[1] == "completion") {
-		if (cl[2] == "up") {
+	if (cl[1] == strings[cmds::completion] && cl.size() == 3) {
+		if (cl[2] == strings[cmds::cpl_up]) {
 			arg.term.set_autocomplete_pos(term_t::position::up);
-		} else if (cl[2] == "down") {
+		} else if (cl[2] == strings[cmds::cpl_down]) {
 			arg.term.set_autocomplete_pos(term_t::position::down);
-		} else if (cl[2] == "disable") {
+		} else if (cl[2] == strings[cmds::cpl_disable]) {
 			arg.term.set_autocomplete_pos(term_t::position::nowhere);
+		} else {
+			return fail();
 		}
-	} else if (cl[1] == "colors") {
-		if (cl[2] == "reset") {
-			arg.term.reset_colors();
-		} else if (cl[2] == "set_theme" && (cl.size() == 7 || cl.size() == 8)) {
-
-			unsigned int col_idx;
-			std::uint8_t r, g, b;
-			std::uint8_t a = 255;
-			if (!parse(cl[3], col_idx) || !parse(cl[4], r) || !parse(cl[5], g) || !parse(cl[6], b)) {
-				return;
+	} else if (cl[1] == strings[cmds::colors]) {
+		if (cl[2] == strings[cmds::col_list_themes] && cl.size() == 3) {
+			unsigned long max_size = 0;
+			for (const term::theme& theme : term::themes::list) {
+				max_size = std::max(max_size, theme.name.size());
 			}
-			if (cl.size() == 8) {
-				if (!parse(cl[7], a)) {
+
+			arg.term.print("Available styles: ");
+			for (const term::theme& theme : term::themes::list) {
+				arg.term.print("     {:{}}", theme.name, max_size);
+			}
+
+
+		} else if(cl[2] == strings[cmds::col_reset_theme] && cl.size() == 3) {
+			arg.term.reset_colors();
+
+		} else if (cl[2] == strings[cmds::col_set_theme] && cl.size() == 4) {
+
+			for (const term::theme& theme : term::themes::list) {
+				if (theme.name == cl[3]) {
+					arg.term.theme() = theme;
 					return;
 				}
 			}
-			if (col_idx >= arg.term.colors().theme_colors.size()) {
-				return;
+			return fail();
+		} else if ((cl[2] == strings[cmds::col_set_value] && (cl.size() == 8 || cl.size() == 7 || cl.size() == 4))
+					|| (cl[2] == strings[cmds::col_get_value] && (cl.size() == 4))) {
+			auto it = misc::find_first_prefixed(cl[3], strings.begin() + cmds::csv_begin, strings.begin() + cmds::csv_end, [](auto&&){return false;});
+			if (it == strings.begin() + cmds::csv_end) {
+				return fail();
 			}
-			arg.term.colors().theme_colors[col_idx] = ImVec4{
-				static_cast<float>(r) / 255.f,
-				static_cast<float>(g) / 255.f,
-				static_cast<float>(b) / 255.f,
-				static_cast<float>(a) / 255.f
-			};
-		} else if (cl[2] == "reset_theme" && cl.size() < 5) {
-			if (cl.size() == 4) {
-				std::uint8_t col_idx;
-				if (parse(cl[3], col_idx) && col_idx < arg.term.colors().theme_colors.size()) {
-					arg.term.colors().theme_colors[col_idx].reset();
+
+			std::optional<term::theme::constexpr_color>* theme_color = nullptr;
+			auto enum_v = static_cast<cmds::cmds>(it - strings.begin());
+			switch (enum_v) {
+				case cmds::csv_text:                       theme_color = &arg.term.theme().text;                        break;
+				case cmds::csv_window_bg:                  theme_color = &arg.term.theme().window_bg;                   break;
+				case cmds::csv_border:                     theme_color = &arg.term.theme().border;                      break;
+				case cmds::csv_border_shadow:              theme_color = &arg.term.theme().border_shadow;               break;
+				case cmds::csv_button:                     theme_color = &arg.term.theme().button;                      break;
+				case cmds::csv_button_hovered:             theme_color = &arg.term.theme().button_hovered;              break;
+				case cmds::csv_button_active:              theme_color = &arg.term.theme().button_active;               break;
+				case cmds::csv_frame_bg:                   theme_color = &arg.term.theme().frame_bg;                    break;
+				case cmds::csv_frame_bg_hovered:           theme_color = &arg.term.theme().frame_bg_hovered;            break;
+				case cmds::csv_frame_bg_active:            theme_color = &arg.term.theme().frame_bg_active;             break;
+				case cmds::csv_text_selected_bg:           theme_color = &arg.term.theme().text_selected_bg;            break;
+				case cmds::csv_check_mark:                 theme_color = &arg.term.theme().check_mark;                  break;
+				case cmds::csv_title_bg:                   theme_color = &arg.term.theme().title_bg;                    break;
+				case cmds::csv_title_bg_active:            theme_color = &arg.term.theme().title_bg_active;             break;
+				case cmds::csv_title_bg_collapsed:         theme_color = &arg.term.theme().title_bg_collapsed;          break;
+				case cmds::csv_message_panel:              theme_color = &arg.term.theme().message_panel;               break;
+				case cmds::csv_auto_complete_selected:     theme_color = &arg.term.theme().auto_complete_selected;      break;
+				case cmds::csv_auto_complete_non_selected: theme_color = &arg.term.theme().auto_complete_non_selected;  break;
+				case cmds::csv_auto_complete_separator:    theme_color = &arg.term.theme().auto_complete_separator;     break;
+				case cmds::csv_cmd_backlog:                theme_color = &arg.term.theme().cmd_backlog;                 break;
+				case cmds::csv_cmd_history_completed:      theme_color = &arg.term.theme().cmd_history_completed;       break;
+				case cmds::csv_log_level_drop_down_bg:     theme_color = &arg.term.theme().log_level_drop_down_list_bg; break;
+				case cmds::csv_log_level_active:           theme_color = &arg.term.theme().log_level_active;            break;
+				case cmds::csv_log_level_hovered:          theme_color = &arg.term.theme().log_level_hovered;           break;
+				case cmds::csv_log_level_selected:         theme_color = &arg.term.theme().log_level_selected;          break;
+				case cmds::csv_scrollbar_bg:               theme_color = &arg.term.theme().scrollbar_bg;                break;
+				case cmds::csv_scrollbar_grab:             theme_color = &arg.term.theme().scrollbar_grab;              break;
+				case cmds::csv_scrollbar_grab_active:      theme_color = &arg.term.theme().scrollbar_grab_active;       break;
+				case cmds::csv_scrollbar_grab_hovered:     theme_color = &arg.term.theme().scrollbar_grab_hovered;      break;
+				case cmds::csv_l_trace:                    [[fallthrough]];
+				case cmds::csv_l_debug:                    [[fallthrough]];
+				case cmds::csv_l_info:                     [[fallthrough]];
+				case cmds::csv_l_warning:                  [[fallthrough]];
+				case cmds::csv_l_error:                    [[fallthrough]];
+				case cmds::csv_l_critical:                 theme_color = &arg.term.theme().log_level_colors[enum_v - cmds::csv_l_trace];    break;
+				default:
+					return fail();
+			}
+
+			if (cl[2] == strings[cmds::col_set_value]) {
+				if (cl.size() == 3) {
+					theme_color->reset();
+					return;
 				}
+				auto try_parse = [](std::string_view str, auto& value) {
+					auto res = std::from_chars(str.begin(), str.end(), value, 10);
+					return misc::success(res.ec) && res.ptr == str.end();
+				};
+				std::uint8_t r{}, g{}, b{}, a{255};
+				if (!try_parse(cl[4], r) || !try_parse(cl[5], g) || !try_parse(cl[6], b) || (cl.size() == 8 && !try_parse(cl[7], a))) {
+					return fail();
+				}
+
+				*theme_color = {static_cast<float>(r) / 255.f,static_cast<float>(g) / 255.f,static_cast<float>(b) / 255.f,static_cast<float>(a) / 255.f};
 			} else {
-				for (std::optional<ImVec4>& color : arg.term.colors().theme_colors) {
-					color.reset();
+				if (*theme_color) {
+					auto to_255 = [](float v) {
+						return static_cast<int>(v * 255.f + 0.5f);
+					};
+					arg.term.print("Current value for {}: [R: {}] [G: {}] [B: {}] [A: {}]", cl[3],
+							to_255((**theme_color).r), to_255((**theme_color).g), to_255((**theme_color).b), to_255((**theme_color).a));
+				} else {
+					arg.term.print("Current value for {}: unset", cl[3]);
 				}
 			}
 		}
+	} else {
+		return fail();
 	}
 }
 
-std::vector<std::string> terminal_commands::configure_term_autocomplete(const std::vector<std::string>& args) {
+std::vector<std::string> terminal_commands::configure_term_autocomplete(argument_type& all_args) {
+	using namespace cfg_term;
+	auto& args = all_args.command_line;
+
 	std::vector<std::string> ans;
-	auto try_match = [&ans](std::string_view vs, const std::string& str) {
-		if (vs.substr(0, std::min(vs.size(), str.size())) == str) {
+	unsigned int current_subpart = 0u;
+
+	auto try_match_str = [&ans, &args, &current_subpart](std::string_view vs) {
+		std::string& str = args[current_subpart];
+
+		if (str.size() > vs.size()) {
+			return;
+		}
+
+		bool is_prefix = std::equal(str.begin(), str.end(), vs.begin(), [](char c1, char c2) {
+			auto to_upper = [] (char c) -> char { return c < 'a' ? c + ('a' - 'A') : c; }; // don't care about the locale here
+			return to_upper(c1) == to_upper(c2);
+		});
+		if (is_prefix) {
 			ans.emplace_back(vs.data(), vs.size());
 		}
 	};
+	auto try_match = [&try_match_str](cmds::cmds cmd) {
+		try_match_str(strings[cmd]);
+	};
 
 	if (args.size() == 2) {
-		try_match("completion", args[1]);
-		try_match("colors", args[1]);
+		current_subpart = 1;
+		try_match(cmds::completion);
+		try_match(cmds::colors);
 	} else if (args.size() == 3) {
-		if (args[1] == "completion") {
-			try_match("down", args[2]);
-			try_match("disable", args[2]);
-			try_match("up", args[2]);
-
-		} else if (args[1] == "colors") {
-			try_match("reset", args[2]);
-			try_match("reset_theme", args[2]);
-			try_match("set_theme", args[2]);
-
+		current_subpart = 2;
+		if (args[1] == strings[cmds::completion]) {
+			if (all_args.term.get_autocomplete_pos() != term_t::position::nowhere) {
+				try_match(cmds::cpl_disable);
+			}
+			if (all_args.term.get_autocomplete_pos() != term_t::position::down) {
+				try_match(cmds::cpl_down);
+			}
+			if (all_args.term.get_autocomplete_pos() != term_t::position::up) {
+				try_match(cmds::cpl_up);
+			}
+		} else if (args[1] == strings[cmds::colors]) {
+			try_match(cmds::col_set_theme);
+			try_match(cmds::col_get_value);
+			try_match(cmds::col_list_themes);
+			try_match(cmds::col_set_value);
+			try_match(cmds::col_reset_theme);
+		}
+	} else if (args.size() == 4) {
+		if (args[1] == strings[cmds::colors]) {
+			current_subpart = 3;
+			if (args[2] == strings[cmds::col_set_theme]) {
+				for (const term::theme& theme : term::themes::list) {
+					try_match_str(theme.name);
+				}
+			} else if (args[2] == strings[cmds::col_set_value] || args[2] == strings[cmds::col_get_value]) {
+				for (int i = cmds::csv_begin ; i < cmds::csv_end ; ++i) {
+					try_match(static_cast<cmds::cmds>(i));
+				}
+				std::sort(ans.begin(), ans.end());
+			}
 		}
 	}
 	return ans;
@@ -171,7 +384,7 @@ void terminal_commands::help(argument_type& arg) {
 
 	arg.term.print("Available commands:");
 	for (const command_type& cmd : local_command_list) {
-		arg.term.print("        {:{}}| {}", cmd.name, list_element_name_max_size, cmd.description);
+		arg.term.print("        {:{}} | {}", cmd.name, list_element_name_max_size, cmd.description);
 	}
 	arg.term.print("");
 	arg.term.print("Additional information might be available using \"'command' --help\"");
