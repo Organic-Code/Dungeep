@@ -516,15 +516,18 @@ std::vector<dungeep::direction> map::path_to(const dungeep::point_i& source, con
 
 	open_list.emplace(make_node(source, 0.f));
 
-	constexpr std::array<std::pair<point_i, direction>, 8> possible_children = {
-			std::pair{point_i{-1, -1}, direction::top_left },
-			std::pair{point_i{ 0, -1}, direction::top      },
-			std::pair{point_i{ 1, -1}, direction::top_right},
-			std::pair{point_i{-1,  0}, direction::left     },
-			std::pair{point_i{ 1,  0}, direction::right    },
-			std::pair{point_i{-1,  1}, direction::bot_left },
-			std::pair{point_i{ 0,  1}, direction::bot      },
-			std::pair{point_i{ 1,  1}, direction::bot_right}
+	constexpr std::array<std::pair<point_i, direction>, 4> possible_children = {
+			std::pair{point_i{ 0,-1}, direction::top      },
+			std::pair{point_i{-1, 0}, direction::left     },
+			std::pair{point_i{ 1, 0}, direction::right    },
+			std::pair{point_i{ 0, 1}, direction::bot      },
+	};
+
+	constexpr std::array<std::pair<point_i, direction>, 4> possible_children_diag = {
+			std::pair{point_i{ 1, 1}, direction::bot_right},
+			std::pair{point_i{-1,-1}, direction::top_left},
+			std::pair{point_i{ 1,-1}, direction::top_right},
+			std::pair{point_i{-1, 1}, direction::bot_left}
 	};
 
 	std::optional<node> ending_node{};
@@ -539,21 +542,16 @@ std::vector<dungeep::direction> map::path_to(const dungeep::point_i& source, con
 			closed_list.insert(q);
 		}
 
-		for (const std::pair<point_i, direction>& pt : possible_children) {
-			node child = make_child_node(q, pt);
-			if (child.pos.x < 0 || child.pos.y < 0 || static_cast<unsigned>(child.pos.x) >= size().width
-			    || static_cast<unsigned>(child.pos.y) >= size().height || child.depth > max_depth) {
-				continue;
-			}
+		auto process_node = [&](node child) {
 
-			if (child.pos == destination) {
+			if (child.pos == destination) [[unlikely]] {
 				ending_node = child;
-				break;
+				return;
 			}
 
 			if (m_tiles[static_cast<unsigned>(child.pos.x)][static_cast<unsigned>(child.pos.y)] != tiles::walkable) {
 				if (std::isinf(wall_crossing_penalty) && !std::signbit(wall_crossing_penalty)) {
-					continue;
+					return;
 				}
 				child.dist += wall_crossing_penalty;
 			}
@@ -562,7 +560,7 @@ std::vector<dungeep::direction> map::path_to(const dungeep::point_i& source, con
 				auto it = std::find(open_list.begin(), open_list.end(), child);
 				if (it != open_list.end()) {
 					if (it->dist <= child.dist) {
-						continue;
+						return;
 					}
 					open_list.erase(it);
 					open_list.insert(child);
@@ -571,9 +569,38 @@ std::vector<dungeep::direction> map::path_to(const dungeep::point_i& source, con
 
 			auto it = closed_list.find(child);
 			if (it != closed_list.end() && it->dist <= q.dist + 1) {
-				continue;
+				return;
 			}
 			open_list.insert(child);
+		};
+
+		for (const std::pair<point_i, direction>& pt : possible_children) {
+			node child = make_child_node(q, pt);
+			if (child.pos.x < 0 || child.pos.y < 0 || static_cast<unsigned>(child.pos.x) >= size().width
+			    || static_cast<unsigned>(child.pos.y) >= size().height || child.depth > max_depth) [[unlikely]] {
+				continue;
+			}
+			process_node(child);
+			if (ending_node) {
+				break;
+			}
+		}
+
+		for (const std::pair<point_i, direction>& pt : possible_children_diag) {
+			node child = make_child_node(q, pt);
+			if (child.pos.x < 0 || child.pos.y < 0 || static_cast<unsigned>(child.pos.x) >= size().width
+			    || static_cast<unsigned>(child.pos.y) >= size().height || child.depth > max_depth) [[unlikely]] {
+				continue;
+			}
+
+			if (m_tiles[static_cast<unsigned>(child.pos.x)][static_cast<unsigned>(q.pos.y)] != tiles::walkable
+				|| m_tiles[static_cast<unsigned>(q.pos.x)][static_cast<unsigned>(child.pos.y)] != tiles::walkable) [[unlikely]] {
+				continue;
+			}
+			process_node(child);
+			if (ending_node) {
+				break;
+			}
 		}
 
 	} while (!ending_node && !open_list.empty());

@@ -24,7 +24,7 @@
 				{
 					"average size" : 27.0,
 					"borders fuzziness" : 1.0,
-					"borders fuzzy deviation" : 0.10000000000000001,
+					"borders fuzzy deviation" : 0.10000000149011612,
 					"borders fuzzy distance" : 1,
 					"maximum height" : 10,
 					"minimum height" : 3,
@@ -48,12 +48,12 @@
 				"hole count deviation" : 3.0,
 				"holes properties" : 
 				{
-					"average size" : 100.0,
+					"average size" : 68.0,
 					"borders fuzziness" : 2.0,
 					"borders fuzzy deviation" : 1.0,
 					"borders fuzzy distance" : 4,
-					"maximum height" : 45,
-					"minimum height" : 15,
+					"maximum height" : 21,
+					"minimum height" : 8,
 					"size deviation" : 24.0
 				},
 				"room count deviation" : 10.0,
