@@ -20,9 +20,9 @@
 #include "environment/world.hpp"
 
 void world::generate_next_level() {
-	const std::vector<std::string>& map_list = resources::manager.get_map_list();
+	const std::vector<std::string>& map_list = resources::manager->get_map_list();
 	const std::string& map_name = map_list[shared_random() % map_list.size()];
-	auto map_properties = resources::manager.get_map(map_name);
+	auto map_properties = resources::manager->get_map(map_name);
 	std::vector<map::map_area> room_list = shared_map.generate(
 			  std::get<map::size_type>(map_properties)
 			, std::get<std::vector<room_gen_properties>>(map_properties)
@@ -35,7 +35,7 @@ void world::generate_next_level() {
 	dynamic_objects = decltype(dynamic_objects)(map_area);
 	static_objects = decltype(static_objects)(map_area);
 
-	std::vector<resources::creature_info> mobs = resources::manager.get_creatures_for_level(current_level, map_name);
+	std::vector<resources::creature_info> mobs = resources::manager->get_creatures_for_level(current_level, map_name);
 	assert(!mobs.empty());
 
 	unsigned int density = mobs_per_100_tiles();

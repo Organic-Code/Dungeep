@@ -20,7 +20,7 @@
 #include <algorithm>
 #include <SFML/Graphics/Sprite.hpp>
 #include <utils/resource_keys.hpp>
-#include <utils/logger.hpp>
+#include <spdlog/spdlog.h>
 
 #include "utils/resource_manager.hpp"
 
@@ -128,7 +128,7 @@ resources::resources() noexcept {
 	if constexpr (disable_resources) {
 		return;
 	}
-	logger::log.info("Loading resources.");
+	spdlog::info("Loading resources.");
 	load_config();
 	load_maps();
 	load_creatures();
@@ -136,7 +136,7 @@ resources::resources() noexcept {
 	load_items();
 	load_translations();
 	load_creature_infos();
-	logger::log.info("Resources loading: done.");
+	spdlog::info("Resources loading: done.");
 }
 
 
@@ -261,26 +261,26 @@ void resources::save_map(std::string_view map_name, map::size_type size
 }
 
 void resources::load_config() noexcept {
-	logger::log.debug("Loading config file: {}", paths::config_file);
+	spdlog::debug("Loading config file: {}", paths::config_file);
 	std::ifstream config_file = try_open(paths::config_file);
 	config_file >> config;
 }
 
 void resources::load_maps() noexcept {
-	logger::log.debug("Loading config maps: {}", paths::map_file);
+	spdlog::debug("Loading config maps: {}", paths::map_file);
 	std::ifstream maps_file = try_open(paths::map_file);
 	maps_file >> maps;
 	map_list = maps.getMemberNames();
 }
 
 void resources::load_creatures() noexcept {
-	logger::log.debug("Loading creatures stats: {}", paths::creatures_file);
+	spdlog::debug("Loading creatures stats: {}", paths::creatures_file);
 	std::ifstream creatures_file = try_open(paths::creatures_file);
 	creatures_file >> creatures;
 }
 
 void resources::load_sprites() noexcept {
-	logger::log.debug("Loading sprites and textures: {} :: {}", paths::sprites_file, paths::texture_file);
+	spdlog::debug("Loading sprites and textures: {} :: {}", paths::sprites_file, paths::texture_file);
 	std::ifstream sprites_file = try_open(paths::sprites_file);
 
 	if (!texture.loadFromFile(std::string(paths::texture_file))) {
@@ -307,7 +307,7 @@ void resources::load_sprites() noexcept {
 }
 
 void resources::load_items() noexcept {
-	logger::log.debug("Loading items stats: {}", paths::items_file);
+	spdlog::debug("Loading items stats: {}", paths::items_file);
 	std::ifstream items_file = try_open(paths::items_file);
 	items_file >> items;
 	std::vector<std::string> members = items.getMemberNames();
@@ -317,14 +317,14 @@ void resources::load_items() noexcept {
 }
 
 void resources::load_translations() noexcept {
-	logger::log.debug("Loading text strings: {}", paths::default_lang_file);
+	spdlog::debug("Loading text strings: {}", paths::default_lang_file);
 	std::ifstream default_lang_file = try_open(paths::default_lang_file);
 	default_lang_file >> text_list_json;
 
 	if (config.isMember(keys::config::language)) {
 		std::string lang = config[keys::config::language].asString();
 		std::string lang_file = paths::lang_folder.data() + std::move(lang);
-		logger::log.debug("Loading translations: {}", lang_file);
+		spdlog::debug("Loading translations: {}", lang_file);
 		std::ifstream translations_file(lang_file, std::ios_base::in);
 
 		if (translations_file) {
@@ -336,7 +336,7 @@ void resources::load_translations() noexcept {
 }
 
 void resources::load_creature_infos() noexcept {
-	logger::log.debug("Pre-parsing creatures infos");
+	spdlog::debug("Pre-parsing creatures infos");
 	creatures_name_list = creatures.getMemberNames();
 	for (const std::string& name : creatures_name_list) {
 		Json::Value& current_creature = creatures[name];
@@ -371,7 +371,7 @@ void resources::load_creature_infos() noexcept {
 }
 
 void resources::load_creature_sprites(const std::string& name, const Json::Value& values) noexcept {
-	logger::log.trace("> loading creature sprite: {}", name);
+	spdlog::trace("> loading creature sprite: {}", name);
 
 	sf::Texture& the_texture = texture;
 
@@ -421,7 +421,7 @@ void resources::load_creature_sprites(const std::string& name, const Json::Value
 }
 
 void resources::load_map_sprites(const std::string& name, const Json::Value& values) noexcept {
-	logger::log.trace("> loading map sprite: {}", name);
+	spdlog::trace("> loading map sprite: {}", name);
 	sf::Texture& the_texture = texture;
 
 	auto load_part = [&the_texture](const Json::Value& sub_value) -> sf::Sprite {
@@ -446,7 +446,7 @@ void resources::load_map_sprites(const std::string& name, const Json::Value& val
 
 std::vector<resources::creature_info> resources::get_creatures_for_level(unsigned int level, const std::string& map_name) const noexcept {
 	// Improvement: find an actual algorithm to do that ? \:
-	logger::log.trace("Loading creatures list for map {}, at level {}.", map_name, level);
+	spdlog::trace("Loading creatures list for map {}, at level {}.", map_name, level);
 	std::vector<creature_info> creature_list;
 	try {
 		const std::vector<creature_info>& full_creature_list = creatures_info_per_map.at(map_name);
@@ -456,7 +456,7 @@ std::vector<resources::creature_info> resources::get_creatures_for_level(unsigne
 			}
 		}
 	} catch (const std::out_of_range&) {}
-	logger::log.trace("Found {} creature(s)", creature_list.size());
+	spdlog::trace("Found {} creature(s)", creature_list.size());
 	return creature_list;
 }
 

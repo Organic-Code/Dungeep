@@ -16,6 +16,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <json/json.h>
+#include <spdlog/logger.h>
 
 #include "utils/resource_manager.hpp"
 #include "iconned/dynamic.hpp"
@@ -28,9 +29,9 @@ std::unique_ptr<item> item::generate_rand(chest_level /*chest_level*/) {
 	// Todo: rareté (cf paramètre)
 	// Todo: limiter à 'un' exemplaire de chaque objet (pour chaque joueur) [en paramètre (inventaire de joueur) ?]
 
-	assert(resources::manager.get_item_count() != 0);
-	const Json::Value& item_props = resources::manager.read_item(dungeep::uint_distrib(dungeep::random_engine
-			, dungeep::uniform_int_distribution<unsigned>::param_type{0u, resources::manager.get_item_count() - 1}));
+	assert(resources::manager->get_item_count() != 0);
+	const Json::Value& item_props = resources::manager->read_item(dungeep::uint_distrib(dungeep::random_engine
+			, dungeep::uniform_int_distribution<unsigned>::param_type{0u, resources::manager->get_item_count() - 1}));
 
 	std::string name = item_props[keys::item::name].asString();
 	fixed_effect::defense def{item_props[keys::item::hp].asInt(), item_props[keys::item::armor].asInt(), item_props[keys::item::resist].asInt()};
@@ -38,7 +39,7 @@ std::unique_ptr<item> item::generate_rand(chest_level /*chest_level*/) {
 	fixed_effect::critics crits{item_props[keys::item::phy_crit_chance].asInt(), item_props[keys::item::mag_crit_chance].asInt()};
 	fixed_effect::misc m{item_props[keys::item::move_speed].asFloat(), item_props[keys::item::armor_pen].asInt(), item_props[keys::item::resist_pen].asInt()};
 
-	logger::log.debug("Generated item: {}.", name);
+	spdlog::debug("Generated item: {}.", name);
 
 	std::unique_ptr<fixed_effect> ptr;
 	if (item_props[keys::item::is_dynamic].asBool()) {

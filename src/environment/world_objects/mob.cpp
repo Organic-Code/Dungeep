@@ -20,8 +20,7 @@
 #include <json/json.h>
 #include <utils/resource_keys.hpp>
 #include <environment/world_objects/mob.hpp>
-#include <utils/logger.hpp>
-
+#include <spdlog/spdlog.h>
 
 #include "environment/world_objects/mob.hpp"
 #include "utils/resource_manager.hpp"
@@ -35,7 +34,7 @@ mob::mob(const resources::creature_info& infos, int level) noexcept :
 	current_direction = dungeep::direction::none;
 	namespace ck = keys::creature;
 
-	const Json::Value& me = resources::manager.read_creature(name);
+	const Json::Value& me = resources::manager->read_creature(name);
 	max_health = me.get(ck::hp, 0).asInt() + me.get(ck::hp_pl, 0).asInt() * level;
 	attack_power = me.get(ck::phys_power, 0).asInt() + me.get(ck::phys_power_pl, 0).asInt() * level;
 	armor = me.get(ck::armor, 0).asInt() + me.get(ck::armor_pl, 0).asInt() * level;
@@ -53,5 +52,5 @@ int mob::sleep() noexcept {
 }
 
 mob::~mob() {
-	logger::log.trace("Mob: {} killed.", name.get());
+	spdlog::trace("Mob: {} killed.", name.get());
 }

@@ -9,6 +9,8 @@ include(cmake/SFML.cmake)
 include(cmake/imgui-sfml.cmake)
 include(cmake/jsoncpp.cmake)
 include(cmake/spdlog.cmake)
+include(cmake/fmt.cmake)
+include(cmake/imterm.cmake)
 
 configure_folder(
         ${CMAKE_SOURCE_DIR}/resources/
@@ -38,7 +40,6 @@ set(DUNGEEP_SOURCES
         src/utils/resource_manager.cpp
 
         src/main.cpp
-        src/static.cpp
         )
 
 make_target(
@@ -54,6 +55,8 @@ make_target(
     "${IMGUI_SFML_INCLUDE_DIR}"
     "${JSONCPP_INCLUDE_DIR}"
     "${SPDLOG_INCLUDE_DIR}"
+    "${FMT_INCLUDE_DIR}"
+    "${IMTERM_INCLUDE_DIR}"
   OPTIONS
     cxx
     executable
@@ -69,6 +72,8 @@ target_link_libraries(
   ${IMGUI_SFML_LIBRARY}
   ${JSONCPP_LIBRARY}
   ${SPDLOG_LIBRARY}
+  ${FMT_LIBRARY}
+  ${IMTERM_LIBRARY}
 )
 
 set_property(TARGET dungeep PROPERTY CXX_STANDARD 17)

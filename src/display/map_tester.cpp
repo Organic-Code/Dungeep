@@ -21,7 +21,8 @@
 #include <SFML/Graphics/Color.hpp>
 #include <sstream>
 #include <iomanip>
-#include <utils/logger.hpp>
+#include <spdlog/spdlog.h>
+#include <utils/misc.hpp>
 
 #include "utils/random.hpp"
 #include "display/map_tester.hpp"
@@ -80,7 +81,7 @@ map_tester::map_tester() noexcept
 void map_tester::configureDockspace(ImGuiID dockspace_id) const
 {
 	ImGui::DockBuilderRemoveNode(dockspace_id); // Clear out existing layout
-	ImGui::DockBuilderAddNode(dockspace_id, ImGui::GetMainViewport()->Size); // Add empty node
+	ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace); // Add empty node
 
 	ImGuiID dock_main_id = dockspace_id;
 	ImGuiID dock_id_left =
@@ -101,7 +102,7 @@ void map_tester::showConfigWindow()
 {
 	ImGui::Begin(CONFIG_WINDOW_NAME.data());
 
-	std::vector<std::string> map_list = resources::manager.get_map_list();
+	std::vector<std::string> map_list = resources::manager->get_map_list();
 	ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() - 50 - GImGui->Style.ItemSpacing.x);
 	ImGui::Combo(
 	  "##load_combo",
@@ -122,7 +123,7 @@ void map_tester::showConfigWindow()
 	if(ImGui::Button("Load", ImVec2(50, 0)) && m_selected_load_map >= 0
 	   && m_selected_load_map < static_cast<int>(map_list.size()))
 	{
-		std::tie(m_map_size, m_gen_properties, m_hall_properties) = resources::manager.get_map(
+		std::tie(m_map_size, m_gen_properties, m_hall_properties) = resources::manager->get_map(
 		  map_list[static_cast<std::vector<std::string>::size_type>(m_selected_load_map)]);
 	}
 
@@ -130,7 +131,7 @@ void map_tester::showConfigWindow()
 	ImGui::SameLine();
 	if(ImGui::Button("Save", ImVec2(50, 0)) && m_save_map_name[0] != '\0')
 	{
-		resources::manager.save_map(
+		resources::manager->save_map(
 		  m_save_map_name.data(), m_map_size, m_gen_properties, m_hall_properties);
 	}
 	ImGui::PopItemWidth();
@@ -333,12 +334,13 @@ void map_tester::showViewerConfigWindow()
 void map_tester::updateMap()
 {
 	dungeep::random_engine.seed(m_seed);
-	logger::log.info("Generating map {}", m_seed);
+	separator(spdlog::info);
+	spdlog::info("Generating map {}", m_seed);
 	m_map.generate(m_map_size, m_gen_properties, m_hall_properties);
-	logger::log.trace("Time spent generating rooms: {}ms", m_map.rooms_generation_time.count());
-	logger::log.trace("Time spent generating halls: {}ms", m_map.halls_generation_time.count());
-	logger::log.trace("Time spent generating fuzziness: {}ms", m_map.fuzzy_generation_time.count());
-	logger::log.info("Total generation time: {}ms", m_map.total_generation_time.count());
+	spdlog::trace("Time spent generating rooms: {}ms", m_map.rooms_generation_time.count());
+	spdlog::trace("Time spent generating halls: {}ms", m_map.halls_generation_time.count());
+	spdlog::trace("Time spent generating fuzziness: {}ms", m_map.fuzzy_generation_time.count());
+	spdlog::info("Total generation time: {}ms", m_map.total_generation_time.count());
 	updateMapView();
 }
 

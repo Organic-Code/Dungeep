@@ -28,7 +28,7 @@
 
 
 creature::creature(const std::string& name) noexcept
-	: sprites{resources::manager.get_creature_sprite(name)}
+	: sprites{resources::manager->get_creature_sprite(name)}
 {
 }
 

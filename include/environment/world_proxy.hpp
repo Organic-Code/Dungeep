@@ -4,7 +4,7 @@
 #include <memory>
 #include <vector>
 #include <random>
-#include <utils/logger.hpp>
+#include <spdlog/spdlog.h>
 
 #include "world.hpp"
 #include "tiles.hpp"
@@ -45,13 +45,13 @@ public:
 
 	void create_entity(std::unique_ptr<world_object>&& ptr) {
 		auto center = ptr->hitbox().center();
-		logger::log.debug("New entity will be added to world (at [{}, {}])", center.x, center.y);
+		spdlog::debug("New entity will be added to world (at [{}, {}])", center.x, center.y);
 		new_objects.emplace_back(std::move(ptr));
 	}
 
 	void delete_entity(world_object* ptr) {
 		auto center = ptr->hitbox().center();
-		logger::log.debug("Entity at [{}, {}] will be removed from world.", center.x, center.y);
+		spdlog::debug("Entity at [{}, {}] will be removed from world.", center.x, center.y);
 		deleted_objects.emplace_back(ptr);
 	}
 

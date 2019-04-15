@@ -32,10 +32,10 @@
 #include "display/map_tester.hpp"
 
 #include <spdlog/spdlog.h>
-#include <utils/logger.hpp>
-#include <display/terminal.hpp>
+#include <imterm/terminal.hpp>
 #include <display/terminal_commands.hpp>
 #include <environment/world.hpp>
+#include <utils/resource_manager.hpp>
 
 namespace
 {
@@ -49,48 +49,29 @@ namespace
 
 int main()
 {
-	logger::log.trace("Hello, World!");
-	logger::log.debug("Hello, World!");
-	logger::log.info("Hello, World!");
-	logger::log.warn("Hello, World!");
-	logger::log.error("Hello, World!");
-	logger::log.critical("Hello, World!");
+	program_state prgm;
+	ImTerm::terminal<terminal_commands> terminal_log(prgm, "terminal", WINDOW_INITIAL_WIDTH);
+	terminal_log.theme() = ImTerm::themes::cherry;
+	terminal_log.log_level(ImTerm::message::severity::info);
+	terminal_log.set_flags(ImGuiWindowFlags_NoTitleBar);
+	terminal_log.disallow_x_resize();
+	terminal_log.filter_hint() = "regex filter...";
+	bool showing_term = true;
 
-	auto seed = std::random_device()();
-	std::mt19937_64 mt{seed};
-	std::array<proba_tester, 8> t;
-	std::array<dungeep::normal_distribution<float>, t.size() / 2> norm_dists{
-			dungeep::normal_distribution{500.f, 40.f},
-			dungeep::normal_distribution{470.f, 40.f},
-			dungeep::normal_distribution{500.f, 100.f},
-			dungeep::normal_distribution{500.f, 4.f}
-	};
-	std::array<dungeep::uniform_int_distribution<int>, (t.size() + 1)/ 2> uni_dists{
-			dungeep::uniform_int_distribution{0, 1000},
-			dungeep::uniform_int_distribution{460, 510},
-			dungeep::uniform_int_distribution{490, 600},
-			dungeep::uniform_int_distribution{500, 504}
-	};
+	spdlog::default_logger()->sinks().push_back(terminal_log.get_terminal_helper());
+	spdlog::default_logger()->set_level(spdlog::level::trace);
 
-	auto re_maker = [&mt](auto& distrib) {
-		return [&mt, &distrib] {
-			return static_cast<int>(std::round(distrib(mt)));
-		};
-	};
+	spdlog::info("~ Welcome to Dungeep ~");
 
-	for (auto i = 0u ; i < t.size() / 2; ++i) {
-		t[i].test_distribution(re_maker(norm_dists[i]), 0, 1000, 1000u);
-		t[i + t.size() / 2].test_distribution(re_maker(uni_dists[i]), 0, 1000, 1000u);
-	}
+	resources::manager = std::make_unique<resources>();
 
 	map_tester tester;
 
 	sf::Clock deltaClock;
 	sf::Clock musicOffsetClock;
 
-	sf::RenderWindow window(sf::VideoMode(WINDOW_INITIAL_WIDTH, WINDOW_INITIAL_HEIGHT),
-	                        WINDOW_NAME //, sf::Style::Titlebar | sf::Style::Close
-	);
+	sf::RenderWindow window({WINDOW_INITIAL_WIDTH, WINDOW_INITIAL_HEIGHT}, WINDOW_NAME);
+	bool resized_once = false;
 	window.setFramerateLimit(FRAME_RATE_LIMIT);
 	ImGui::SFML::Init(window);
 
@@ -98,11 +79,6 @@ int main()
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable; // Enable docking
 	io.ConfigDockingWithShift = true; // hold shift to use docking
 	io.IniFilename = nullptr; // disable .ini saving
-
-	world w;
-	term::terminal<terminal_commands> terminal_log(w);
-	terminal_log.theme() = term::themes::cherry;
-	bool showing_term = true;
 
 	while(window.isOpen())
 	{
@@ -116,16 +92,18 @@ int main()
 				window.close();
 			} else if (event.type == sf::Event::KeyPressed) {
 				if (event.key.code == sf::Keyboard::F11) {
-					showing_term = true;
+					showing_term = !showing_term;
 				}
+			} else if (event.type == sf::Event::Resized) {
+				terminal_log.set_width(window.getSize().x);
+				if (resized_once) {
+					terminal_log.set_height(std::min(window.getSize().y, static_cast<unsigned>(terminal_log.get_size().y)));
+				}
+				resized_once = true;
 			}
 		}
 
 		ImGui::SFML::Update(window, deltaClock.restart());
-
-  		for (proba_tester& proba_tester : t) {
-  			proba_tester.update();
-  		}
 
 		showMainDockSpace(tester);
 		tester.showViewerWindow();
@@ -133,16 +111,18 @@ int main()
 		tester.showViewerConfigWindow();
 		tester.showDebugInfoWindow();
 
-		ImGui::ShowDemoWindow();
 		if (showing_term) {
+			ImGui::SetNextWindowPos({0.f, 0.f}, ImGuiCond_Always);
 			showing_term = terminal_log.show();
+			if (!prgm.running) {
+				window.close();
+			}
 		}
 
 		window.clear();
 		ImGui::SFML::Render(window);
 		window.display();
 	}
-
 	ImGui::SFML::Shutdown();
 	return EXIT_SUCCESS;
 }
@@ -168,12 +148,10 @@ namespace
 		ImGui::PopStyleVar(2);
 
 		const ImGuiID dockspace_id = ImGui::GetID("main dockspace");
-		if(ImGui::DockBuilderGetNode(dockspace_id) == nullptr)
-		{
+		if(ImGui::DockBuilderGetNode(dockspace_id) == nullptr) {
 			map_tester.configureDockspace(dockspace_id);
 		}
 		ImGui::DockSpace(dockspace_id);
-		//nothing
 		ImGui::End();
 	}
 } // namespace

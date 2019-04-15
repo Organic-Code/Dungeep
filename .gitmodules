@@ -17,3 +17,9 @@
 [submodule "external/spdlog"]
 	path = external/spdlog
 	url = https://github.com/gabime/spdlog/
+[submodule "external/fmt"]
+	path = external/fmt
+	url = https://github.com/fmtlib/fmt
+[submodule "external/imterm"]
+	path = external/imterm
+	url = https://github.com/organic-code/imterm

@@ -24,6 +24,7 @@
 #include <string_view>
 #include <json/json.h>
 #include <unordered_map>
+#include <memory>
 #include <string>
 #include <array>
 #include <SFML/Graphics/Sprite.hpp>
@@ -48,7 +49,7 @@ public:
 		unsigned short max_level{std::numeric_limits<unsigned short>::max()};
 	};
 
-	static resources manager;
+	inline static std::unique_ptr<resources> manager{};
 
 	struct resource_acquisition_error : std::runtime_error {
 		explicit resource_acquisition_error(const char* err) : std::runtime_error("Failed to load resource file " + std::string(err)) {}

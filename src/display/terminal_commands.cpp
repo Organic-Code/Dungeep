@@ -17,8 +17,8 @@
 
 #include <display/terminal_commands.hpp>
 #include <utils/misc.hpp>
-#include <utils/logger.hpp>
-#include <display/terminal.hpp>
+#include <imterm/terminal.hpp>
+#include <any>
 
 namespace {
 
@@ -83,7 +83,7 @@ namespace {
 		};
 
 		namespace cmds {
-			enum cmds {
+			enum cmds : unsigned {
 				completion,
 				cpl_disable,
 				cpl_down,
@@ -152,7 +152,7 @@ void terminal_commands::configure_term(argument_type& arg) {
 	using namespace cfg_term;
 
 	auto fail = [&arg]() -> void {
-		arg.term.print_error("What would you like, master?");
+		arg.term.add_text("What would you like, master?");
 	};
 
 	std::vector<std::string>& cl = arg.command_line;
@@ -172,13 +172,15 @@ void terminal_commands::configure_term(argument_type& arg) {
 	} else if (cl[1] == strings[cmds::colors]) {
 		if (cl[2] == strings[cmds::col_list_themes] && cl.size() == 3) {
 			unsigned long max_size = 0;
-			for (const term::theme& theme : term::themes::list) {
+			for (const ImTerm::theme& theme : ImTerm::themes::list) {
 				max_size = std::max(max_size, theme.name.size());
 			}
 
-			arg.term.print("Available styles: ");
-			for (const term::theme& theme : term::themes::list) {
-				arg.term.print("     {:{}}", theme.name, max_size);
+			arg.term.add_text("Available styles: ");
+			for (const ImTerm::theme& theme : ImTerm::themes::list) {
+				std::string str("      ");
+				str += theme.name;
+				arg.term.add_text(std::move(str));
 			}
 
 
@@ -187,7 +189,7 @@ void terminal_commands::configure_term(argument_type& arg) {
 
 		} else if (cl[2] == strings[cmds::col_set_theme] && cl.size() == 4) {
 
-			for (const term::theme& theme : term::themes::list) {
+			for (const ImTerm::theme& theme : ImTerm::themes::list) {
 				if (theme.name == cl[3]) {
 					arg.term.theme() = theme;
 					return;
@@ -201,7 +203,7 @@ void terminal_commands::configure_term(argument_type& arg) {
 				return fail();
 			}
 
-			std::optional<term::theme::constexpr_color>* theme_color = nullptr;
+			std::optional<ImTerm::theme::constexpr_color>* theme_color = nullptr;
 			auto enum_v = static_cast<cmds::cmds>(it - strings.begin());
 			switch (enum_v) {
 				case cmds::csv_text:                       theme_color = &arg.term.theme().text;                        break;
@@ -262,11 +264,11 @@ void terminal_commands::configure_term(argument_type& arg) {
 				if (*theme_color) {
 					auto to_255 = [](float v) {
 						return static_cast<int>(v * 255.f + 0.5f);
-					};
-					arg.term.print("Current value for {}: [R: {}] [G: {}] [B: {}] [A: {}]", cl[3],
-							to_255((**theme_color).r), to_255((**theme_color).g), to_255((**theme_color).b), to_255((**theme_color).a));
+					};;
+					arg.term.add_formatted("Current value for {}: [R: {}] [G: {}] [B: {}] [A: {}]", cl[3], to_255((**theme_color).r)
+							, to_255((**theme_color).g), to_255((**theme_color).b), to_255((**theme_color).a));
 				} else {
-					arg.term.print("Current value for {}: unset", cl[3]);
+					arg.term.add_formatted("Current value for {}: unset", cl[3]);
 				}
 			}
 		}
@@ -290,7 +292,7 @@ std::vector<std::string> terminal_commands::configure_term_autocomplete(argument
 		}
 
 		bool is_prefix = std::equal(str.begin(), str.end(), vs.begin(), [](char c1, char c2) {
-			auto to_upper = [] (char c) -> char { return c < 'a' ? c + ('a' - 'A') : c; }; // don't care about the locale here
+			auto to_upper = [] (char c) -> char { return c < 'a' ? static_cast<char>(c + 'a' - 'A') : c; }; // don't care about the locale here
 			return to_upper(c1) == to_upper(c2);
 		});
 		if (is_prefix) {
@@ -328,11 +330,11 @@ std::vector<std::string> terminal_commands::configure_term_autocomplete(argument
 		if (args[1] == strings[cmds::colors]) {
 			current_subpart = 3;
 			if (args[2] == strings[cmds::col_set_theme]) {
-				for (const term::theme& theme : term::themes::list) {
+				for (const ImTerm::theme& theme : ImTerm::themes::list) {
 					try_match_str(theme.name);
 				}
 			} else if (args[2] == strings[cmds::col_set_value] || args[2] == strings[cmds::col_get_value]) {
-				for (int i = cmds::csv_begin ; i < cmds::csv_end ; ++i) {
+				for (unsigned i = cmds::csv_begin ; i < cmds::csv_end ; ++i) {
 					try_match(static_cast<cmds::cmds>(i));
 				}
 				std::sort(ans.begin(), ans.end());
@@ -344,14 +346,14 @@ std::vector<std::string> terminal_commands::configure_term_autocomplete(argument
 
 void terminal_commands::echo(argument_type& arg) {
 	if (arg.command_line.size() < 2) {
-		arg.term.print("");
+		arg.term.add_formatted("");
 		return;
 	}
 	if (arg.command_line[1][0] == '-') {
 		if (arg.command_line[1] == "--help" || arg.command_line[1] == "-help") {
-			arg.term.print("usage: {} [text to be printed]", arg.command_line[0]);
+			arg.term.add_formatted("usage: {} [text to be printed]", arg.command_line[0]);
 		} else {
-			arg.term.print_error("Unknown argument: {}", arg.command_line[1]);
+			arg.term.add_formatted_err("Unknown argument: {}", arg.command_line[1]);
 		}
 	} else {
 		std::string str{};
@@ -370,7 +372,7 @@ void terminal_commands::echo(argument_type& arg) {
 				str += *it;
 			}
 		}
-		arg.term.print("{}", str);
+		arg.term.add_formatted("{}", str);
 	}
 }
 
@@ -382,18 +384,18 @@ void terminal_commands::help(argument_type& arg) {
 	constexpr unsigned long list_element_name_max_size = misc::max_size(local_command_list.begin(), local_command_list.end(),
 			[](const command_type& cmd) { return cmd.name.size(); });
 
-	arg.term.print("Available commands:");
+	arg.term.add_formatted("Available commands:");
 	for (const command_type& cmd : local_command_list) {
-		arg.term.print("        {:{}} | {}", cmd.name, list_element_name_max_size, cmd.description);
+		arg.term.add_formatted("        {:{}} | {}", cmd.name, list_element_name_max_size, cmd.description);
 	}
-	arg.term.print("");
-	arg.term.print("Additional information might be available using \"'command' --help\"");
+	arg.term.add_formatted("");
+	arg.term.add_formatted("Additional information might be available using \"'command' --help\"");
 }
 
 void terminal_commands::print_resource(argument_type& arg) {
-	arg.term.print_error("TODO");
+	arg.term.add_formatted_err("TODO");
 }
 
 void terminal_commands::quit(argument_type& arg) {
-	arg.term.print_error("TODO");
+	arg.val.running = false;
 }

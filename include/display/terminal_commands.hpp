@@ -23,15 +23,19 @@
 #include <vector>
 
 #include <environment/world.hpp>
-#include <display/terminal.hpp>
-#include <display/demo_terminal_helpers.hpp>
+#include <imterm/terminal.hpp>
+#include <imterm/terminal_helpers.hpp>
 
-class terminal_commands : public term::basic_terminal_helper<terminal_commands, world> {
+struct program_state {
+	class world world{};
+	bool running{true};
+};
+class terminal_commands : public ImTerm::basic_spdlog_terminal_helper<terminal_commands, program_state, std::mutex> {
 public:
 
 	terminal_commands();
 
-	static std::vector<std::string> no_completion(argument_type&) { return {}; };
+	static std::vector<std::string> no_completion(argument_type&) { return {}; }
 
 	static void clear(argument_type&);
 	static void configure_term(argument_type&);

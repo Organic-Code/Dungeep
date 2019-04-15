@@ -28,7 +28,7 @@ mob_spawner::mob_spawner(const resources::creature_info& infos_, int level_) noe
 		, infos(infos_)
 		, level(level_)
 {
-	const Json::Value& creature = resources::manager.read_creature(infos_.name);
+	const Json::Value& creature = resources::manager->read_creature(infos_.name);
 	max_cooldown = creature[keys::creature::spawner::burst_interval].asUInt();
 	max_creature_count = creature[keys::creature::spawner::burst_duration].asUInt();
 
