@@ -35,7 +35,7 @@ public:
 
 	void seed_world(std::mt19937_64::result_type seed) {
 		shared_random.seed(seed);
-		std::seed_seq seq{{
+		std::seed_seq seq{{ // because why not
 				              local_random()
 				              , std::random_device()() + 0ul
 				              , seed
@@ -54,14 +54,14 @@ private:
 		return 2 * current_level + 10;
 	}
 
-	std::mt19937_64 shared_random{}; // NOLINT
-	std::mt19937_64 local_random{std::random_device{}()};
+	std::mt19937_64 shared_random{}; // NOLINT, shared as in shared between all players
+	std::mt19937_64 local_random{std::random_device{}()}; // local to current player
 	dungeep::quadtree<dungeep::qtree_unique_ptr<dynamic_object>> dynamic_objects{dungeep::area_f::null};
 	dungeep::quadtree<dungeep::qtree_unique_ptr<world_object>> static_objects{dungeep::area_f::null};
 
 	unsigned int current_level{0u};
 
-	map shared_map{};
+	map shared_map{}; // shared as in shared between all players
 
 };
 

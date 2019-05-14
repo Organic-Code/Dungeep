@@ -15,11 +15,14 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#include <utils/random.hpp>
 #include "utils/resource_manager.hpp"
 #include "environment/world_objects/mob.hpp"
 #include "environment/world.hpp"
 
 void world::generate_next_level() {
+
+	// retrieving map settings
 	const std::vector<std::string>& map_list = resources::manager->get_map_list();
 	const std::string& map_name = map_list[shared_random() % map_list.size()];
 	auto map_properties = resources::manager->get_map(map_name);
@@ -29,42 +32,72 @@ void world::generate_next_level() {
 			, std::get<hallway_gen_properties>(map_properties)
     );
 
+	std::vector<resources::creature_info> mobs = resources::manager->get_creatures_for_level(current_level, map_name);
+	assert(!mobs.empty());
+
+	// Setting Quadtrees working area
 	auto size = shared_map.size();
 	dungeep::area_f map_area{{0.f, 0.f}, {static_cast<float>(size.width), static_cast<float>(size.height)}};
 
 	dynamic_objects = decltype(dynamic_objects)(map_area);
 	static_objects = decltype(static_objects)(map_area);
 
-	std::vector<resources::creature_info> mobs = resources::manager->get_creatures_for_level(current_level, map_name);
-	assert(!mobs.empty());
-
 	unsigned int density = mobs_per_100_tiles();
 
+	// tries to generate a valid position for an object
 	auto try_gen_pos = [this](const map::map_area& room, dungeep::area_f& generated_area, dungeep::dim_uc dim) {
-		unsigned int i = 3;
+		assert(room.x >= 0 && room.y >= 0);
+		if (room.width <= dim.x || room.height <= dim.y) {
+			return false;
+		}
+
+		unsigned int i = 5;
 		bool valid_pos;
 		do {
 			generated_area.top_left.x = static_cast<float>(shared_random() % (room.width - dim.x) + room.x);
 			generated_area.top_left.y = static_cast<float>(shared_random() % (room.height - dim.y) + room.y);
 			generated_area.bot_right.x = generated_area.top_left.x + static_cast<float>(dim.x);
 			generated_area.bot_right.y = generated_area.top_left.y + static_cast<float>(dim.y);
-			valid_pos = shared_map[generated_area.top_left] == tiles::walkable && shared_map[generated_area.bot_right] == tiles::walkable;
+			valid_pos = true;
+			for (auto j = static_cast<unsigned>(generated_area.top_left.x) ; j < generated_area.bot_right.x && valid_pos ; ++j) {
+				for (auto k = static_cast<unsigned>(generated_area.top_left.y) ; k < generated_area.bot_right.y ; ++k) {
+					if (shared_map[j][k] != tiles::walkable) {
+						valid_pos = false;
+						break;
+					}
+				}
+			}
 		} while (!valid_pos && i--);
 		return valid_pos;
 	};
 
+	// Probability : sum of pop factors
+	const unsigned int total_pop_factor = std::accumulate(mobs.begin(), mobs.end(), 0u,
+			[](unsigned int s, const resources::creature_info& mob) {
+				return s + mob.populate_factor;
+			});
+	dungeep::uniform_int_distribution mob_distribution{0u, total_pop_factor};
+
+	// Placing mobs
 	dungeep::area_f mob_pos;
 	for (const map::map_area& room : room_list) {
 		for (unsigned int mob_count = density * room.height * room.width / 100 ; mob_count != 0 ; --mob_count) {
-			const resources::creature_info& selected_mob = mobs[shared_random() % mobs.size()];
-			if (try_gen_pos(room, mob_pos, selected_mob.size)) {
-				dynamic_objects.emplace(mob_pos, std::make_unique<mob>(mobs[shared_random() % mobs.size()], current_level));
+
+			// selecting a random mob
+			const unsigned int selected_mob_pop = mob_distribution(shared_random);
+			unsigned int selected_mob_idx = 0;
+			for (unsigned int sum = mobs[0].populate_factor ; selected_mob_idx < mobs.size() && sum < selected_mob_pop ; ++selected_mob_idx) {
+				sum += mobs[selected_mob_idx].populate_factor;
+			}
+
+			// trying to place it
+			if (try_gen_pos(room, mob_pos, mobs[selected_mob_idx].size)) {
+				dynamic_objects.emplace(mob_pos, std::make_unique<mob>(mobs[selected_mob_idx], current_level));
 			}
 		}
 	}
 
 	// TODO: objets statiques (coffres, boutons, …)
 
-	// TODO: haut-faits
 	// TODO: sortie et entrée du niveau
 }

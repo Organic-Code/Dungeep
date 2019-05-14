@@ -42,6 +42,7 @@ namespace keys {
 			constexpr const char * list                = "available for maps";
 			constexpr const char * min_level           = "minimum level";
 			constexpr const char * max_level           = "maximum level";
+			constexpr const char * populate_factor     = "populate factor";
 		}
 	}
 	namespace  player {

@@ -364,6 +364,12 @@ void resources::load_creature_infos() noexcept {
 					inf.max_level = std::numeric_limits<unsigned short>::max();
 				}
 
+				if (current_map.isMember(keys::creature::map::populate_factor)) {
+					inf.populate_factor = static_cast<unsigned short>(current_map[keys::creature::map::populate_factor].asUInt());
+				} else {
+					inf.populate_factor = 1;
+				}
+
 				creatures_info_per_map[map].push_back(inf);
 			}
 		}

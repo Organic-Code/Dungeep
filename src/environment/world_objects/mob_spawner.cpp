@@ -15,8 +15,7 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include <environment/world_objects/mob_spawner.hpp>
-#include <utils/logger.hpp>
+#include <spdlog/spdlog.h>
 
 #include "environment/world_objects/mob_spawner.hpp"
 #include "environment/world_objects/mob.hpp"
@@ -53,5 +52,5 @@ int mob_spawner::sleep() noexcept {
 }
 
 mob_spawner::~mob_spawner() {
-	logger::log.trace("Spawner for mob {} destroyed.", infos.name);
+	spdlog::trace("Spawner for mob {} destroyed.", infos.name);
 }

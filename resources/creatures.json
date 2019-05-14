@@ -43,11 +43,13 @@
     {
       "caves" :
       {
-        "maximum level" : 10
+        "maximum level" : 10,
+        "populate factor" : 5
       },
       "dungeon" :
       {
-        "minimum level" : 5
+        "minimum level" : 5,
+        "populate factor" : 5
       }
     }
   }

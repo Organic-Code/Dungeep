@@ -47,6 +47,7 @@ public:
 		dungeep::dim_uc size{0, 0};
 		unsigned short min_level{0};
 		unsigned short max_level{std::numeric_limits<unsigned short>::max()};
+		unsigned short populate_factor{0}; // chance for a given mob to be of a type M is M.populate_factor / sum of all populate_factors on this level
 	};
 
 	inline static std::unique_ptr<resources> manager{};
