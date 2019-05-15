@@ -86,44 +86,6 @@ namespace paths {
 	}
 }
 
-namespace {
-	namespace map_tags {
-		namespace categories {
-			constexpr const char * zones = "zones properties";
-			constexpr const char * rooms = "rooms properties";
-			constexpr const char * holes = "holes properties";
-			constexpr const char * halls = "halls properties";
-		}
-		namespace sizes {
-			constexpr const char * width = "width";
-			constexpr const char * height = "height";
-		}
-		namespace zones {
-			constexpr const char * avg_size = "average size";
-			constexpr const char * size_deviation = "size deviation";
-			constexpr const char * borders_fuzzinness = "borders fuzziness";
-			constexpr const char * borders_fuzzy_deviation = "borders fuzzy deviation";
-			constexpr const char * borders_fuzzy_distance = "borders fuzzy distance";
-			constexpr const char * min_height = "minimum height";
-			constexpr const char * max_height = "maximum height";
-			constexpr const char * avg_rooms_n = "average room count";
-			constexpr const char * rooms_n_dev = "room count deviation";
-			constexpr const char * avg_holes_n = "average hole count";
-			constexpr const char * holes_n_dev = "hole count deviation";
-		}
-		namespace halls {
-			constexpr const char * curliness = "curliness";
-			constexpr const char * curly_min_distance = "curly minimum distance";
-			constexpr const char * curly_segment_avg_size = "curly segment average size";
-			constexpr const char * curly_segment_size_dev = "curly segment size deviation";
-			constexpr const char * avg_width = "average width";
-			constexpr const char * width_dev = "width deviation";
-			constexpr const char * min_width = "minimum width";
-			constexpr const char * max_width = "maximum width";
-		}
-	}
-}
-
 resources::resources() noexcept {
 	if constexpr (disable_resources) {
 		return;
@@ -144,9 +106,8 @@ const std::vector<std::string>& resources::get_map_list() const {
 	return map_list;
 }
 
-std::tuple<map::size_type, std::vector<room_gen_properties>, hallway_gen_properties>
-resources::get_map(std::string_view map_name) const {
-	namespace tags = map_tags;
+resources::map_info resources::get_map(std::string_view map_name) const {
+	namespace tags = keys::map;
 
 	if constexpr (disable_resources) {
 		return {};
@@ -154,16 +115,15 @@ resources::get_map(std::string_view map_name) const {
 
 	const Json::Value& map = maps[map_name.data()];
 
-	std::tuple<map::size_type, std::vector<room_gen_properties>, hallway_gen_properties> ans;
-	auto& [size, rooms_props, hallways_prop] = ans;
+	map_info ans{};
 
-	size.width = map[tags::sizes::width].asUInt();
-	size.height = map[tags::sizes::height].asUInt();
+	ans.size.width = map[tags::sizes::width].asUInt();
+	ans.size.height = map[tags::sizes::height].asUInt();
 
 	for (const Json::Value& zone : map[tags::categories::zones]) {
 		const Json::Value& rooms_properties = zone[tags::categories::rooms];
 		const Json::Value& holes_properties = zone[tags::categories::holes];
-		rooms_props.push_back(
+		ans.rooms_props.push_back(
 				{
 					{
 						rooms_properties[tags::zones::avg_size].asFloat(),
@@ -192,33 +152,41 @@ resources::get_map(std::string_view map_name) const {
 	}
 
 	const Json::Value& halls_properties = map[tags::categories::halls];
-	hallways_prop.curliness = halls_properties[tags::halls::curliness].asFloat();
-	hallways_prop.curly_min_distance = halls_properties[tags::halls::curly_min_distance].asFloat();
-	hallways_prop.curly_segment_avg_size = halls_properties[tags::halls::curly_segment_avg_size].asFloat();
-	hallways_prop.curly_segment_size_dev = halls_properties[tags::halls::curly_segment_size_dev].asFloat();
-	hallways_prop.avg_width = halls_properties[tags::halls::avg_width].asFloat();
-	hallways_prop.width_dev = halls_properties[tags::halls::width_dev].asFloat();
-	hallways_prop.min_width = halls_properties[tags::halls::min_width].asUInt();
-	hallways_prop.max_width = halls_properties[tags::halls::max_width].asUInt();
+	ans.hallways_props.curliness = halls_properties[tags::halls::curliness].asFloat();
+	ans.hallways_props.curly_min_distance = halls_properties[tags::halls::curly_min_distance].asFloat();
+	ans.hallways_props.curly_segment_avg_size = halls_properties[tags::halls::curly_segment_avg_size].asFloat();
+	ans.hallways_props.curly_segment_size_dev = halls_properties[tags::halls::curly_segment_size_dev].asFloat();
+	ans.hallways_props.avg_width = halls_properties[tags::halls::avg_width].asFloat();
+	ans.hallways_props.width_dev = halls_properties[tags::halls::width_dev].asFloat();
+	ans.hallways_props.min_width = halls_properties[tags::halls::min_width].asUInt();
+	ans.hallways_props.max_width = halls_properties[tags::halls::max_width].asUInt();
+
+	ans.rubbish_chest.min = map[tags::chests::rubbish_min].asUInt();
+	ans.rubbish_chest.max = map[tags::chests::rubbish_max].asUInt();
+	ans.wooden_chest.min  = map[tags::chests::wooden_min ].asUInt();
+	ans.wooden_chest.max  = map[tags::chests::wooden_max ].asUInt();
+	ans.magic_chest.min   = map[tags::chests::magic_min  ].asUInt();
+	ans.magic_chest.max   = map[tags::chests::magic_max  ].asUInt();
+	ans.iron_chest.min    = map[tags::chests::iron_min   ].asUInt();
+	ans.iron_chest.max    = map[tags::chests::iron_max   ].asUInt();
 
 	return ans;
 }
 
-void resources::save_map(std::string_view map_name, map::size_type size
-		, const std::vector<room_gen_properties>& room_properties, const hallway_gen_properties& halls_properties) {
-	namespace tags = map_tags;
+void resources::save_map(std::string_view map_name, const map_info& map_info) {
+	namespace tags = keys::map;
 
 	if constexpr (disable_resources) {
 		return;
 	}
 
 	Json::Value& map = maps[map_name.data()];
-	map[tags::sizes::width] = size.width;
-	map[tags::sizes::height] = size.height;
+	map[tags::sizes::width] = map_info.size.width;
+	map[tags::sizes::height] = map_info.size.height;
 
 	Json::Value& zone = map[tags::categories::zones];
 	unsigned int i = 0;
-	for (const room_gen_properties& gen_prop : room_properties) {
+	for (const room_gen_properties& gen_prop : map_info.rooms_props) {
 		Json::Value& i_zone = zone[i++];
 		Json::Value& rooms_properties = i_zone[tags::categories::rooms];
 		Json::Value& holes_properties = i_zone[tags::categories::holes];
@@ -243,14 +211,23 @@ void resources::save_map(std::string_view map_name, map::size_type size
 	}
 
 	Json::Value& halls = map[tags::categories::halls];
-	halls[tags::halls::curliness] = static_cast<double>(halls_properties.curliness);
-	halls[tags::halls::curly_min_distance] = static_cast<double>(halls_properties.curly_min_distance);
-	halls[tags::halls::curly_segment_avg_size] = static_cast<double>(halls_properties.curly_segment_avg_size);
-	halls[tags::halls::curly_segment_size_dev] = static_cast<double>(halls_properties.curly_segment_size_dev);
-	halls[tags::halls::avg_width] = static_cast<double>(halls_properties.avg_width);
-	halls[tags::halls::width_dev] = static_cast<double>(halls_properties.width_dev);
-	halls[tags::halls::min_width] = halls_properties.min_width;
-	halls[tags::halls::max_width] = halls_properties.max_width;
+	halls[tags::halls::curliness] = static_cast<double>(map_info.hallways_props.curliness);
+	halls[tags::halls::curly_min_distance] = static_cast<double>(map_info.hallways_props.curly_min_distance);
+	halls[tags::halls::curly_segment_avg_size] = static_cast<double>(map_info.hallways_props.curly_segment_avg_size);
+	halls[tags::halls::curly_segment_size_dev] = static_cast<double>(map_info.hallways_props.curly_segment_size_dev);
+	halls[tags::halls::avg_width] = static_cast<double>(map_info.hallways_props.avg_width);
+	halls[tags::halls::width_dev] = static_cast<double>(map_info.hallways_props.width_dev);
+	halls[tags::halls::min_width] = map_info.hallways_props.min_width;
+	halls[tags::halls::max_width] = map_info.hallways_props.max_width;
+
+	map[tags::chests::rubbish_min] = map_info.rubbish_chest.min;
+	map[tags::chests::rubbish_max] = map_info.rubbish_chest.max;
+	map[tags::chests::wooden_min ] = map_info.wooden_chest.min;
+	map[tags::chests::wooden_max ] = map_info.wooden_chest.max;
+	map[tags::chests::magic_min  ] = map_info.magic_chest.min;
+	map[tags::chests::magic_max  ] = map_info.magic_chest.max;
+	map[tags::chests::iron_min   ] = map_info.iron_chest.min;
+	map[tags::chests::iron_max   ] = map_info.iron_chest.max;
 
 	if (std::find(map_list.begin(), map_list.end(), map_name) == map_list.end()) {
 		map_list.emplace_back(map_name);

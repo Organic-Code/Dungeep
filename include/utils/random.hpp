@@ -22,6 +22,7 @@
 #include <random>
 #include <type_traits>
 #include <iostream>
+#include <cassert>
 
 namespace dungeep {
 

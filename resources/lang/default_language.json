@@ -1,5 +1,5 @@
 {
-  "default language name": "English",
+  "language name": "English",
   "terminal: autoscroll checkbox" :  "autoscroll",
   "terminal: clear button" : "clear",
   "terminal: autowrap long lines": "autowrap",

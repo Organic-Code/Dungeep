@@ -27,9 +27,9 @@ void world::generate_next_level() {
 	const std::string& map_name = map_list[shared_random() % map_list.size()];
 	auto map_properties = resources::manager->get_map(map_name);
 	std::vector<map::map_area> room_list = shared_map.generate(
-			  std::get<map::size_type>(map_properties)
-			, std::get<std::vector<room_gen_properties>>(map_properties)
-			, std::get<hallway_gen_properties>(map_properties)
+			  map_properties.size
+			, map_properties.rooms_props
+			, map_properties.hallways_props
     );
 
 	std::vector<resources::creature_info> mobs = resources::manager->get_creatures_for_level(current_level, map_name);

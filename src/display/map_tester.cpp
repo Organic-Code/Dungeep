@@ -55,9 +55,7 @@ namespace
 
 map_tester::map_tester() noexcept
   : m_seed(std::random_device()())
-  , m_gen_properties()
-  , m_hall_properties(DEFAULT_HALL_PROPERTIES)
-  , m_map_size({20u, 20u})
+  , m_map_props()
   , m_map()
   , m_image()
   , m_texture()
@@ -74,7 +72,9 @@ map_tester::map_tester() noexcept
   , m_none_color(sf::Color::Red)
 {
 	m_save_map_name[0] = '\0';
-	m_gen_properties.push_back(DEFAULT_ROOM_PROPERTIES);
+	m_map_props.hallways_props = DEFAULT_HALL_PROPERTIES;
+	m_map_props.size = {20u, 20u};
+	m_map_props.rooms_props.push_back(DEFAULT_ROOM_PROPERTIES);
 	updateMap();
 }
 
@@ -123,16 +123,14 @@ void map_tester::showConfigWindow()
 	if(ImGui::Button("Load", ImVec2(50, 0)) && m_selected_load_map >= 0
 	   && m_selected_load_map < static_cast<int>(map_list.size()))
 	{
-		std::tie(m_map_size, m_gen_properties, m_hall_properties) = resources::manager->get_map(
-		  map_list[static_cast<std::vector<std::string>::size_type>(m_selected_load_map)]);
+		m_map_props = resources::manager->get_map(map_list[static_cast<std::vector<std::string>::size_type>(m_selected_load_map)]);
 	}
 
 	ImGui::InputText("##save_txt", m_save_map_name.data(), m_save_map_name.size());
 	ImGui::SameLine();
 	if(ImGui::Button("Save", ImVec2(50, 0)) && m_save_map_name[0] != '\0')
 	{
-		resources::manager->save_map(
-		  m_save_map_name.data(), m_map_size, m_gen_properties, m_hall_properties);
+		resources::manager->save_map(m_save_map_name.data(), m_map_props);
 	}
 	ImGui::PopItemWidth();
 	ImGui::Separator();
@@ -140,35 +138,35 @@ void map_tester::showConfigWindow()
 	int tmp = static_cast<int>(m_seed);
 	ImGui::InputInt("Seed", &tmp);
 	m_seed = static_cast<unsigned int>(tmp);
-	tmp = static_cast<int>(m_map_size.width);
+	tmp = static_cast<int>(m_map_props.size.width);
 	ImGui::InputInt("Map width", &tmp);
-	m_map_size.width = static_cast<unsigned int>(tmp);
-	tmp = static_cast<int>(m_map_size.height);
+	m_map_props.size.width = static_cast<unsigned int>(tmp);
+	tmp = static_cast<int>(m_map_props.size.height);
 	ImGui::InputInt("Map height", &tmp);
-	m_map_size.height = static_cast<unsigned int>(tmp);
+	m_map_props.size.height = static_cast<unsigned int>(tmp);
 
 	if(ImGui::CollapsingHeader("Hallways generation properties", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		ImGui::PushItemWidth(-14.0f * ImGui::GetFontSize());
-		ImGui::SliderAngle("curliness", &m_hall_properties.curliness, -90.f, 90.0f);
-		ImGui::SliderFloat("curly min distance", &m_hall_properties.curly_min_distance, 0.f, 20.f);
+		ImGui::SliderAngle("curliness", &m_map_props.hallways_props.curliness, -90.f, 90.0f);
+		ImGui::SliderFloat("curly min distance", &m_map_props.hallways_props.curly_min_distance, 0.f, 20.f);
 		ImGui::SliderFloat(
-		  "curly segment avg size", &m_hall_properties.curly_segment_avg_size, 0.f, 20.f);
+		  "curly segment avg size", &m_map_props.hallways_props.curly_segment_avg_size, 0.f, 20.f);
 		ImGui::SliderFloat(
-		  "curly segment size dev", &m_hall_properties.curly_segment_size_dev, 0.f, 20.f);
-		ImGui::SliderFloat("average width", &m_hall_properties.avg_width, 0.f, 20.f);
-		ImGui::SliderFloat("width dev", &m_hall_properties.width_dev, 0.f, 20.f);
-		tmp = static_cast<int>(m_hall_properties.min_width);
+		  "curly segment size dev", &m_map_props.hallways_props.curly_segment_size_dev, 0.f, 20.f);
+		ImGui::SliderFloat("average width", &m_map_props.hallways_props.avg_width, 0.f, 20.f);
+		ImGui::SliderFloat("width dev", &m_map_props.hallways_props.width_dev, 0.f, 20.f);
+		tmp = static_cast<int>(m_map_props.hallways_props.min_width);
 		ImGui::InputInt("Min width", &tmp);
-		m_hall_properties.min_width = static_cast<unsigned int>(tmp);
-		tmp = static_cast<int>(m_hall_properties.max_width);
+		m_map_props.hallways_props.min_width = static_cast<unsigned int>(tmp);
+		tmp = static_cast<int>(m_map_props.hallways_props.max_width);
 		ImGui::InputInt("Max width", &tmp);
-		m_hall_properties.max_width = static_cast<unsigned int>(tmp);
+		m_map_props.hallways_props.max_width = static_cast<unsigned int>(tmp);
 		ImGui::PopItemWidth();
 	}
 
 	int properties_number = 0;
-	for(room_gen_properties& properties: m_gen_properties)
+	for(room_gen_properties& properties: m_map_props.rooms_props)
 	{
 		const std::string properties_name =
 		  std::string("Room generation properties ") + std::to_string(++properties_number);
@@ -197,13 +195,13 @@ void map_tester::showConfigWindow()
 		ImGui::PopID();
 	}
 
-	if(m_gen_properties.size() > 1)
+	if(m_map_props.rooms_props.size() > 1)
 	{
 		ImGui::PushStyleColor(ImGuiCol_Button,
 		                      static_cast<ImVec4>(ImColor::HSV(1.0f / 7.0f, 0.6f, 0.6f)));
 		if(ImGui::Button("-", ImVec2(ImGui::GetWindowContentRegionWidth(), 20)))
 		{
-			m_gen_properties.pop_back();
+			m_map_props.rooms_props.pop_back();
 		}
 		ImGui::PopStyleColor();
 	}
@@ -211,7 +209,7 @@ void map_tester::showConfigWindow()
 	                      static_cast<ImVec4>(ImColor::HSV(2.0f / 7.0f, 0.6f, 0.6f)));
 	if(ImGui::Button("+", ImVec2(ImGui::GetWindowContentRegionWidth(), 20)))
 	{
-		m_gen_properties.push_back(DEFAULT_ROOM_PROPERTIES);
+		m_map_props.rooms_props.push_back(DEFAULT_ROOM_PROPERTIES);
 	}
 	ImGui::PopStyleColor();
 
@@ -336,7 +334,7 @@ void map_tester::updateMap()
 	dungeep::random_engine.seed(m_seed);
 	separator(spdlog::info);
 	spdlog::info("Generating map {}", m_seed);
-	m_map.generate(m_map_size, m_gen_properties, m_hall_properties);
+	m_map.generate(m_map_props.size, m_map_props.rooms_props, m_map_props.hallways_props);
 	spdlog::trace("Time spent generating rooms: {}ms", m_map.rooms_generation_time.count());
 	spdlog::trace("Time spent generating halls: {}ms", m_map.halls_generation_time.count());
 	spdlog::trace("Time spent generating fuzziness: {}ms", m_map.fuzzy_generation_time.count());
@@ -346,10 +344,10 @@ void map_tester::updateMap()
 
 void map_tester::updateMapView()
 {
-	m_image.create(m_map_size.width, m_map_size.height);
-	for(unsigned int i = 0; i < m_map_size.width; ++i)
+	m_image.create(m_map_props.size.width, m_map_props.size.height);
+	for(unsigned int i = 0; i < m_map_props.size.width; ++i)
 	{
-		for(unsigned int j = 0; j < m_map_size.height; ++j)
+		for(unsigned int j = 0; j < m_map_props.size.height; ++j)
 		{
 			m_image.setPixel(i, j, tileColor(m_map[i][j]));
 		}

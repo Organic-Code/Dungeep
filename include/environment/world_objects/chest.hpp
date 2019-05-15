@@ -29,11 +29,10 @@ enum class chest_level {
 	// TODO: utiliser une clef pour ouvrir un coffre ne "consomme" la clef que 20% du temps, chance de casser augmentant avec le nombre de coffres ouverts
 	// Compétence passive : ça se casse moi souvent // le taux d'usure est plus faible
 	// Tabasser un coffre peut permettre de l'ouvrir, mais a une chance d'user l'arme et de baisser ses dégats
-			wood,
-	bronze,
-	silver,
-	gold,
-	diamond,
+	rubbish,
+	wooden,
+	iron,
+	magic
 };
 
 class chest : public world_object {

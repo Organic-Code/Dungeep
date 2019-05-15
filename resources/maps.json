@@ -1,6 +1,14 @@
 {
 	"caves" : 
 	{
+		"min. rubbish chest": 0,
+		"min. wooden chest": 0,
+		"min. iron chest": 0,
+		"min. magic chest": 0,
+		"max. rubbish chest": 2,
+		"max. wooden chest": 1,
+		"max. iron chest": 1,
+		"max. magic chest": 1,
 		"halls properties" : 
 		{
 			"average width" : 3.0,
@@ -72,6 +80,14 @@
 	},
 	"dungeon" : 
 	{
+		"min. rubbish chest": 0,
+		"min. wooden chest": 0,
+		"min. iron chest": 0,
+		"min. magic chest": 0,
+		"max. rubbish chest": 2,
+		"max. wooden chest": 1,
+		"max. iron chest": 1,
+		"max. magic chest": 1,
 		"halls properties" : 
 		{
 			"average width" : 4.0240001678466797,
@@ -117,6 +133,14 @@
 	},
 	"open space" : 
 	{
+		"min. rubbish chest": 0,
+		"min. wooden chest": 0,
+		"min. iron chest": 0,
+		"min. magic chest": 0,
+		"max. rubbish chest": 2,
+		"max. wooden chest": 1,
+		"max. iron chest": 1,
+		"max. magic chest": 1,
 		"halls properties" : 
 		{
 			"average width" : 4.0240001678466797,

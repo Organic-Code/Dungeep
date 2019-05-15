@@ -26,6 +26,7 @@
 
 #include <random>
 #include <memory>
+#include <utils/resource_manager.hpp>
 
 class map_tester final
 {
@@ -55,9 +56,7 @@ private:
 	const sf::Color& tileColor(const tiles& tile) const;
 
 	unsigned int m_seed;
-	std::vector<room_gen_properties> m_gen_properties;
-	hallway_gen_properties m_hall_properties;
-	map::size_type m_map_size;
+	resources::map_info m_map_props;
 	map m_map;
 
 	sf::Image m_image;

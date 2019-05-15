@@ -42,6 +42,21 @@ class resources {
 
 public:
 
+	struct chest_count {
+		unsigned short min;
+		unsigned short max;
+	};
+
+	struct map_info {
+		map::size_type size;
+		std::vector<room_gen_properties> rooms_props;
+		hallway_gen_properties hallways_props;
+		chest_count rubbish_chest;
+		chest_count wooden_chest;
+		chest_count iron_chest;
+		chest_count magic_chest;
+	};
+
 	struct creature_info {
 		const std::string& name;
 		dungeep::dim_uc size{0, 0};
@@ -62,9 +77,9 @@ public:
 
 	const std::vector<std::string>& get_map_list() const;
 
-	std::tuple<map::size_type, std::vector<room_gen_properties>, hallway_gen_properties> get_map(std::string_view map_name) const;
+	map_info get_map(std::string_view map_name) const;
 
-	void save_map(std::string_view map_name, map::size_type size, const std::vector<room_gen_properties>& room_properties, const hallway_gen_properties& halls_properties);
+	void save_map(std::string_view map_name, const map_info& map_info);
 
 	std::array<sf::Sprite, direction_count>& get_creature_sprite(const std::string& name) {
 		return creatures_sprites[name];
