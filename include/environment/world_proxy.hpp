@@ -35,14 +35,6 @@ public:
 		return world_shared_random_engine()();
 	}
 
-	std::mt19937_64& world_local_random_engine() {
-		return tied_world.local_random;
-	}
-
-	std::mt19937_64::result_type  world_local_rand() {
-		return world_local_random_engine()();
-	}
-
 	void create_entity(std::unique_ptr<world_object>&& ptr) {
 		auto center = ptr->hitbox().center();
 		spdlog::debug("New entity will be added to world (at [{}, {}])", center.x, center.y);

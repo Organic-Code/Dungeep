@@ -15,10 +15,19 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include <utils/random.hpp>
+#include "utils/random.hpp"
+#include "environment/world_objects/chest.hpp"
+#include "utils/constants.hpp"
 #include "utils/resource_manager.hpp"
 #include "environment/world_objects/mob.hpp"
 #include "environment/world.hpp"
+
+namespace {
+	unsigned short chest_count_rand(dungeep::uniform_int_distribution<unsigned short>& dist, resources::chest_count cc, std::mt19937_64& rand) {
+		dist.param(dungeep::uniform_int_distribution<unsigned short>::param_type{cc.min, cc.max});
+		return dist(rand);
+	}
+}
 
 void world::generate_next_level() {
 
@@ -42,41 +51,24 @@ void world::generate_next_level() {
 	dynamic_objects = decltype(dynamic_objects)(map_area);
 	static_objects = decltype(static_objects)(map_area);
 
+
+	// TODO: objets statiques (boutons, …) (avant les mobs)
+	dungeep::uniform_int_distribution<unsigned short> c_dist;
+	put_n_chest(chest_level::rubbish, chest_count_rand(c_dist, map_properties.rubbish_chest, shared_random), room_list);
+	put_n_chest(chest_level::wooden, chest_count_rand(c_dist, map_properties.wooden_chest, shared_random), room_list);
+	put_n_chest(chest_level::magic, chest_count_rand(c_dist, map_properties.magic_chest, shared_random), room_list);
+	put_n_chest(chest_level::iron, chest_count_rand(c_dist, map_properties.iron_chest, shared_random), room_list);
+
+
+
 	unsigned int density = mobs_per_100_tiles();
 
-	// tries to generate a valid position for an object
-	auto try_gen_pos = [this](const map::map_area& room, dungeep::area_f& generated_area, dungeep::dim_uc dim) {
-		assert(room.x >= 0 && room.y >= 0);
-		if (room.width <= dim.x || room.height <= dim.y) {
-			return false;
-		}
-
-		unsigned int i = 5;
-		bool valid_pos;
-		do {
-			generated_area.top_left.x = static_cast<float>(shared_random() % (room.width - dim.x) + room.x);
-			generated_area.top_left.y = static_cast<float>(shared_random() % (room.height - dim.y) + room.y);
-			generated_area.bot_right.x = generated_area.top_left.x + static_cast<float>(dim.x);
-			generated_area.bot_right.y = generated_area.top_left.y + static_cast<float>(dim.y);
-			valid_pos = true;
-			for (auto j = static_cast<unsigned>(generated_area.top_left.x) ; j < generated_area.bot_right.x && valid_pos ; ++j) {
-				for (auto k = static_cast<unsigned>(generated_area.top_left.y) ; k < generated_area.bot_right.y ; ++k) {
-					if (shared_map[j][k] != tiles::walkable) {
-						valid_pos = false;
-						break;
-					}
-				}
-			}
-		} while (!valid_pos && i--);
-		return valid_pos;
-	};
-
-	// Probability : sum of pop factors
+	// Probability : sum of pop factors (preparing mob generation)
 	const unsigned int total_pop_factor = std::accumulate(mobs.begin(), mobs.end(), 0u,
 			[](unsigned int s, const resources::creature_info& mob) {
 				return s + mob.populate_factor;
-			});
-	dungeep::uniform_int_distribution mob_distribution{0u, total_pop_factor};
+			});dungeep::uniform_int_distribution mob_distribution{0u, total_pop_factor};
+
 
 	// Placing mobs
 	dungeep::area_f mob_pos;
@@ -97,7 +89,53 @@ void world::generate_next_level() {
 		}
 	}
 
-	// TODO: objets statiques (coffres, boutons, …)
-
 	// TODO: sortie et entrée du niveau
 }
+
+bool world::try_gen_pos(const map::map_area& room, dungeep::area_f& /* out */ generated_area, dungeep::dim_uc dim) {
+	assert(room.x >= 0 && room.y >= 0);
+	if (room.width <= dim.x || room.height <= dim.y) {
+		return false;
+	}
+
+	unsigned int i = 5;
+	bool valid_pos;
+	do {
+		generated_area.top_left.x = static_cast<float>(shared_random() % (room.width - dim.x) + room.x);
+		generated_area.top_left.y = static_cast<float>(shared_random() % (room.height - dim.y) + room.y);
+		generated_area.bot_right.x = generated_area.top_left.x + static_cast<float>(dim.x);
+		generated_area.bot_right.y = generated_area.top_left.y + static_cast<float>(dim.y);
+		valid_pos = true;
+		for (auto j = static_cast<unsigned>(generated_area.top_left.x) ; j < generated_area.bot_right.x && valid_pos ; ++j) {
+			for (auto k = static_cast<unsigned>(generated_area.top_left.y) ; k < generated_area.bot_right.y ; ++k) {
+				if (shared_map[j][k] != tiles::walkable) {
+					valid_pos = false;
+					break;
+				}
+			}
+		}
+		if (valid_pos) {
+			valid_pos = !static_objects.has_collision(generated_area);
+		}
+
+	} while (!valid_pos && i--);
+
+	return valid_pos;
+}
+
+
+void world::put_n_chest(chest_level lvl, unsigned short count, const std::vector<map::map_area>& room_list) {
+	dungeep::area_f location;
+
+	while (count--) {
+		unsigned int i = 0;
+		do {
+			map::map_area target_room = room_list[shared_random() % room_list.size()];
+			if (try_gen_pos(target_room, location, constants::chests::size)) {
+				static_objects.emplace(location, std::make_unique<chest>(lvl));
+				return;
+			}
+		} while (++i < 5);
+	}
+}
+

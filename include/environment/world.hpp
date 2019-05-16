@@ -24,6 +24,8 @@
 #include "utils/quadtree.hpp"
 #include "map.hpp"
 
+enum class chest_level;
+
 class world {
 	friend class world_proxy;
 	// TODO pièges ?
@@ -35,27 +37,24 @@ public:
 
 	void seed_world(std::mt19937_64::result_type seed) {
 		shared_random.seed(seed);
-		std::seed_seq seq{{ // because why not
-				              local_random()
-				              , std::random_device()() + 0ul
-				              , seed
-			                  , local_random()
-				              , shared_random()
-				              , std::random_device()() + 0ul
-		              }};
-		local_random.seed(seq);
 	}
 
 	void next_tick();
 
 private:
 
+	// tries to generate a valid position for an object, returns false on failure
+	bool try_gen_pos(const map::map_area& room, dungeep::area_f& /* out */ generated_area, dungeep::dim_uc dim);
+
+
+	// generates a chest
+	void put_n_chest(chest_level lvl, unsigned short count, const std::vector<map::map_area>& room_list);
+
 	unsigned int mobs_per_100_tiles() const noexcept {
 		return 2 * current_level + 10;
 	}
 
-	std::mt19937_64 shared_random{}; // NOLINT, shared as in shared between all players
-	std::mt19937_64 local_random{std::random_device{}()}; // local to current player
+	std::mt19937_64 shared_random{}; // NOLINT, shared as in shared between all players. For local random, use dungeep::random_engine
 	dungeep::quadtree<dungeep::qtree_unique_ptr<dynamic_object>> dynamic_objects{dungeep::area_f::null};
 	dungeep::quadtree<dungeep::qtree_unique_ptr<world_object>> static_objects{dungeep::area_f::null};
 

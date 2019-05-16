@@ -1,13 +1,10 @@
-#ifndef DUNGEEP_CHEST_HPP
-#define DUNGEEP_CHEST_HPP
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///                                                                                                                                     ///
-///  Copyright C 2018, Lucas Lazare                                                                                                     ///
+///  Copyright C 2019, Lucas Lazare                                                                                                     ///
 ///  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation         ///
-///  files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy,         ///
+///  		files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy,  ///
 ///  modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software     ///
-///  is furnished to do so, subject to the following conditions:                                                                        ///
+///  		is furnished to do so, subject to the following conditions:                                                                 ///
 ///                                                                                                                                     ///
 ///  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.     ///
 ///                                                                                                                                     ///
@@ -18,47 +15,16 @@
 ///                                                                                                                                     ///
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include <optional>
+#ifndef DUNGEEP_CONSTANTS_HPP
+#define DUNGEEP_CONSTANTS_HPP
 
-#include "world_object.hpp"
-#include "item.hpp"
-#include "iconned/fixed.hpp"
-#include "environment/world_proxy.hpp"
+#include "geometry.hpp"
 
-enum class chest_level {
-	// TODO: utiliser une clef pour ouvrir un coffre ne "consomme" la clef que 20% du temps, chance de casser augmentant avec le nombre de coffres ouverts
-	// Compétence passive : ça se casse moi souvent // le taux d'usure est plus faible
-	// Tabasser un coffre peut permettre de l'ouvrir, mais a une chance d'user l'arme et de baisser ses dégats
-	rubbish,
-	wooden,
-	iron,
-	magic
-};
-
-class chest : public world_object {
-public:
-
-	chest(chest_level l) : level(l), ite{item::generate_rand(l)} {}
-
-	void drop(world_proxy& proxy) noexcept {
-		if (ite) {
-			proxy.create_entity(std::move(ite));
-			proxy.delete_entity(this);
-		}
+namespace constants {
+	namespace chests {
+		// TODO: replace by sprite px size ?
+		constexpr dungeep::dim_uc size{5, 5};
 	}
+}
 
-
-	void print(sf::RenderWindow&) const noexcept override {
-		// TODO
-	}
-	
-	void interact_with(player&) noexcept override {
-		// TODO
-	}
-
-private:
-	chest_level level;
-	std::unique_ptr<item> ite;
-};
-
-#endif //DUNGEEP_CHEST_HPP
+#endif //DUNGEEP_CONSTANTS_HPP
