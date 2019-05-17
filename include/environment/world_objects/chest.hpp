@@ -38,7 +38,7 @@ enum class chest_level {
 class chest : public world_object {
 public:
 
-	chest(chest_level l) : level(l), ite{item::generate_rand(l)} {}
+	chest(chest_level l) : ite{item::generate_rand(l)} {}
 
 	void drop(world_proxy& proxy) noexcept {
 		if (ite) {
@@ -51,13 +51,13 @@ public:
 	void print(sf::RenderWindow&) const noexcept override {
 		// TODO
 	}
-	
+
+	// FIXME: y'a vraiment besoin de ça ici ? (cf classe parente)
 	void interact_with(player&) noexcept override {
 		// TODO
 	}
 
 private:
-	chest_level level;
 	std::unique_ptr<item> ite;
 };
 

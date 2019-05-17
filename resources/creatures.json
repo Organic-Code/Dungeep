@@ -37,7 +37,8 @@
     "move speed per level" : 2,
 
     "spawner spawn count" : 5,
-    "spawner spawn interval" : 1000,
+    "spawner spawn interval" : 100,
+    "spawner spawn long interval" : 5000,
 
     "available for maps" :
     {

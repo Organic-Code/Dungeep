@@ -102,7 +102,11 @@ void map_tester::showConfigWindow()
 {
 	ImGui::Begin(CONFIG_WINDOW_NAME.data());
 
-	std::vector<std::string> map_list = resources::manager->get_map_list();
+	const std::unordered_map<std::string, resources::map_info>& map_list_umap = resources::manager->get_map_list();
+	std::vector<std::string> map_list_vtor(map_list_umap.size()); // copying because reasons (ImGui takes by ptr and not const ptr)
+	for (const auto& pair : map_list_umap) {
+		map_list_vtor.emplace_back(pair.first);
+	}
 	ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() - 50 - GImGui->Style.ItemSpacing.x);
 	ImGui::Combo(
 	  "##load_combo",
@@ -117,13 +121,13 @@ void map_tester::showConfigWindow()
 		    (*data_map_list)[static_cast<std::vector<std::string>::size_type>(idx)].c_str();
 		  return true;
 	  },
-	  &map_list,
-	  static_cast<int>(map_list.size()));
+	  &map_list_vtor,
+	  static_cast<int>(map_list_vtor.size()));
 	ImGui::SameLine();
 	if(ImGui::Button("Load", ImVec2(50, 0)) && m_selected_load_map >= 0
-	   && m_selected_load_map < static_cast<int>(map_list.size()))
+	   && m_selected_load_map < static_cast<int>(map_list_vtor.size()))
 	{
-		m_map_props = resources::manager->get_map(map_list[static_cast<std::vector<std::string>::size_type>(m_selected_load_map)]);
+		m_map_props = resources::manager->get_map(map_list_vtor[static_cast<std::vector<std::string>::size_type>(m_selected_load_map)]);
 	}
 
 	ImGui::InputText("##save_txt", m_save_map_name.data(), m_save_map_name.size());

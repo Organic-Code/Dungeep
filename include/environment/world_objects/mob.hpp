@@ -31,7 +31,7 @@ class player;
 
 class mob final : public creature {
 public:
-	mob(const resources::creature_info& infos, int level) noexcept;
+	mob(const resources::creature_info& infos, unsigned int level) noexcept;
 
 	void tick(world_proxy& world) noexcept override;
 
@@ -46,8 +46,6 @@ public:
 	~mob() override;
 
 private:
-
-	std::reference_wrapper<const std::string> name;
 };
 
 #endif //DUNGEEP_MOB_HPP

@@ -1,3 +1,6 @@
+// Required for earch sprite : top, top right, right. Optional : bot right, bot, bot left, left, top left
+// for each given orientation : required : x, y, width, height
+
 {
   "creatures": {
     "dummy player": {

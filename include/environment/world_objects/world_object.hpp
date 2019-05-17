@@ -46,6 +46,7 @@ public:
 		hit_box = ar;
 	}
 
+	// TODO: use for spell/fervor/potion/object/... ?
 	dungeep::area_f get_resized(float width_percent) noexcept {
 		return get_resized(width_percent, width_percent);
 	}

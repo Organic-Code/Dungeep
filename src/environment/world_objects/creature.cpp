@@ -27,8 +27,9 @@
 #include "iconned/dynamic.hpp"
 
 
-creature::creature(const std::string& name) noexcept
-	: sprites{resources::manager->get_creature_sprite(name)}
+creature::creature(std::string_view name_) noexcept
+	: name{name_}
+	, sprites{resources::manager->get_creature_sprite(name)}
 {
 }
 

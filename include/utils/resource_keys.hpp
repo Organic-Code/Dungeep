@@ -36,7 +36,8 @@ namespace keys {
 		constexpr const char * move_speed_pl               = "move speed per level";
 		namespace spawner {
 			constexpr const char * burst_duration          = "spawner spawn count";
-			constexpr const char * burst_interval          = "spawner spawn interval";
+			constexpr const char * burst_inner_interval    = "spawner spawn interval";
+			constexpr const char * burst_interval          = "spawner spawn long interval";
 		}
 		namespace map {
 			constexpr const char * list                    = "available for maps";
@@ -79,7 +80,6 @@ namespace keys {
 
 	namespace text {
 		constexpr const char * lang_name                   = "language name";
-		constexpr const char * dflt_lang_name              = "default language name";
 		constexpr const char * autoscroll                  = "terminal: autoscroll checkbox";
 		constexpr const char * clear                       = "terminal: clear button";
 		constexpr const char * autowrap                    = "terminal: autowrap long lines";
@@ -140,6 +140,34 @@ namespace keys {
 			constexpr const char * iron_max                = "max. iron chest";
 			constexpr const char * magic_min               = "min. magic chest";
 			constexpr const char * magic_max               = "max. magic chest";
+		}
+	}
+
+	namespace sprites {
+		constexpr const char * creatures                    = "creatures";
+		constexpr const char * maps                        = "maps";
+		namespace geometry {
+			constexpr const char * x                       = "x";
+			constexpr const char * y                       = "y";
+			constexpr const char * width                   = "width";
+			constexpr const char * height                  = "height";
+		}
+		namespace orientation {
+			constexpr const char * top                     = "top";
+			constexpr const char * top_right               = "top right";
+			constexpr const char * right                   = "right";
+			constexpr const char * bot_right               = "bot right";
+			constexpr const char * bot                     = "bot";
+			constexpr const char * bot_left                = "bot left";
+			constexpr const char * left                    = "left";
+			constexpr const char * top_left                = "top left";
+		}
+
+		namespace tiles {
+			constexpr const char * hole                    = "hole";
+			constexpr const char * walkable                = "walkable";
+			constexpr const char * empty_space             = "empty space";
+			constexpr const char * wall                    = "wall";
 		}
 	}
 }

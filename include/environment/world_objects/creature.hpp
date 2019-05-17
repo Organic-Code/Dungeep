@@ -31,7 +31,7 @@ namespace sf {
 class creature : public dynamic_object {
 public:
 
-	explicit creature(const std::string& name) noexcept;
+	explicit creature(std::string_view name_) noexcept;
 
 	virtual void magical_hit(int damage, int resist_ignore) noexcept;
 
@@ -78,6 +78,8 @@ protected:
 			return damage * 2 - damage * 1000 / (1000 - defense);
 		}
 	}
+
+	std::string_view name;
 
 	int current_health{};
 	int max_health{};

@@ -27,20 +27,18 @@
 #include "iconned/fixed.hpp"
 #include "iconned/dynamic.hpp"
 
-mob::mob(const resources::creature_info& infos, int level) noexcept :
-		creature(infos.name),
-		name{infos.name}
+mob::mob(const resources::creature_info& infos, unsigned int level) noexcept :
+		creature(infos.name)
 {
 	current_direction = dungeep::direction::none;
-	namespace ck = keys::creature;
 
-	const Json::Value& me = resources::manager->read_creature(name);
-	max_health = me.get(ck::hp, 0).asInt() + me.get(ck::hp_pl, 0).asInt() * level;
-	attack_power = me.get(ck::phys_power, 0).asInt() + me.get(ck::phys_power_pl, 0).asInt() * level;
-	armor = me.get(ck::armor, 0).asInt() + me.get(ck::armor_pl, 0).asInt() * level;
-	resist = me.get(ck::resist, 0).asInt() + me.get(ck::resist_pl, 0).asInt() * level;
-	move_speed = me.get(ck::move_speed,0).asInt() + me.get(ck::move_speed_pl, 0).asInt() * level;
-	crit_chance = me.get(ck::crit, 0).asInt() + me.get(ck::crit_pl, 0).asInt() * level;
+	const resources::creature_info& me = resources::manager->read_creature(name);
+	max_health = std::max(static_cast<int>(me.base_hp + me.hp_per_level * level), 1);
+	attack_power = std::max(static_cast<int>(me.base_physical_power + me.physical_power_per_level * level), 1);
+	armor = std::max(static_cast<int>(me.base_armor + me.armor_per_level * level), 1);
+	resist = std::max(static_cast<int>(me.base_resist + me.resist_per_level * level), 1);
+	move_speed = std::max(static_cast<int>(me.base_move_speed + me.move_speed_per_level * level), 1);
+	crit_chance = std::max(static_cast<int>(me.base_crit_chance + me.crit_chance_per_level * level), 1);
 }
 
 void mob::tick(world_proxy& /*world*/) noexcept {
@@ -52,5 +50,5 @@ int mob::sleep() noexcept {
 }
 
 mob::~mob() {
-	spdlog::trace("Mob: {} killed.", name.get());
+	spdlog::trace("Mob: {} killed.", name);
 }

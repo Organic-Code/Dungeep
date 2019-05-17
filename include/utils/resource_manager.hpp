@@ -26,6 +26,8 @@
 #include <unordered_map>
 #include <memory>
 #include <string>
+#include <variant>
+#include <spdlog/spdlog.h>
 #include <array>
 #include <SFML/Graphics/Sprite.hpp>
 #include <SFML/Graphics/Texture.hpp>
@@ -58,8 +60,44 @@ public:
 	};
 
 	struct creature_info {
-		const std::string& name;
+		struct player_stats {  // human player only
+			unsigned int mana;
+			unsigned int mana_per_level;
+			unsigned int magic_power;
+			unsigned int magic_power_per_level;
+		};
+
+		struct creep_stats { // creep only
+			unsigned int spawn_count;
+			unsigned int spawn_interval;
+			unsigned int spawn_long_interval;
+		};
+
+		struct creep_boss_stats { // creep boss only
+			// to be defined
+		};
+
+		std::string_view name;
 		dungeep::dim_uc size{0, 0};
+
+		unsigned int base_hp;
+		unsigned int hp_per_level;
+		unsigned int base_physical_power;
+		unsigned int physical_power_per_level;
+		unsigned int base_armor;
+		unsigned int armor_per_level;
+		unsigned int base_resist;
+		unsigned int resist_per_level;
+		unsigned int base_crit_chance;
+		unsigned int crit_chance_per_level;
+		unsigned int base_move_speed;
+		unsigned int move_speed_per_level;
+
+		std::variant<player_stats, creep_stats, creep_boss_stats> other;
+	};
+
+	// map related info for creatures
+	struct mob_map_rinfo {
 		unsigned short min_level{0};
 		unsigned short max_level{std::numeric_limits<unsigned short>::max()};
 		unsigned short populate_factor{0}; // chance for a given mob to be of a type M is M.populate_factor / sum of all populate_factors on this level
@@ -73,13 +111,31 @@ public:
 		explicit resource_acquisition_error(std::string_view err) : std::runtime_error("Failed to load resource file " + std::string(err)) {}
 	};
 
+	struct no_such_resource_error : std::runtime_error {
+		explicit no_such_resource_error(const char* err) : std::runtime_error("Failed to load resource file " + std::string(err)) {}
+		explicit no_such_resource_error(const std::string& err) : std::runtime_error("Failed to load resource file " + err) {}
+		explicit no_such_resource_error(std::string_view err) : std::runtime_error("Failed to load resource file " + std::string(err)) {}
+	};
+
+	struct malformed_json_error : std::runtime_error {
+		explicit malformed_json_error(const char* err) : std::runtime_error("Failed to load resource file " + std::string(err)) {}
+		explicit malformed_json_error(const std::string& err) : std::runtime_error("Failed to load resource file " + err) {}
+		explicit malformed_json_error(std::string_view err) : std::runtime_error("Failed to load resource file " + std::string(err)) {}
+	};
+
 	resources() noexcept;
 
-	const std::vector<std::string>& get_map_list() const;
+	const std::unordered_map<std::string, map_info>& get_map_list() const {
+		return maps;
+	}
 
-	map_info get_map(std::string_view map_name) const;
+	const map_info& get_map(std::string_view map_name) const;
 
 	void save_map(std::string_view map_name, const map_info& map_info);
+
+	std::array<sf::Sprite, direction_count>& get_creature_sprite(std::string_view str) {
+		return get_creature_sprite(std::string{str});
+	}
 
 	std::array<sf::Sprite, direction_count>& get_creature_sprite(const std::string& name) {
 		return creatures_sprites[name];
@@ -90,44 +146,39 @@ public:
 	}
 
 	unsigned int get_creature_count() const {
-		return creatures.size();
+		return static_cast<unsigned int>(creatures_name_list.size());
 	}
 
-	const Json::Value& read_creature(unsigned int index) const {
-		return creatures[index];
-	}
-
-	const Json::Value& read_creature(const std::string& name) const {
-		return creatures[name];
+	const creature_info& read_creature(std::string_view name) const {
+		try {
+			return creatures.at(name);
+		} catch (const std::out_of_range&) {
+			spdlog::error("Tried to read info of creature {}, which is not in the creature dataset. [internal error]", name);
+			throw;
+		}
 	}
 
 	unsigned int get_item_count() const {
-		return items.size();
+		return items_json.size();
 	}
 
 	const Json::Value& read_item(unsigned int index) const {
-		return items[index];
+		return items_json[index];
 	}
 
 	const Json::Value& read_item(const std::string& name) const {
-		return items[name];
+		return items_json[name];
 	}
 
-	std::vector<creature_info> get_creatures_for_level(unsigned int level, const std::string& map_name) const noexcept;
+	std::vector<std::pair<std::string_view, mob_map_rinfo>>
+	get_creatures_for_level(unsigned int level, std::string_view map_name) const noexcept;
 
-	// constructs the string the first time it's needed, re-uses it afterward
-	// does not invalidates previously fetched references
-	const std::string& get_text(const char* key) {
+	std::string_view get_text(const std::string& key) const {
 		try {
 			return text_list.at(key);
 		} catch (std::out_of_range&) {
-			if (text_list_json.isMember(key)) {
-				std::string str = text_list_json[key].asString();
-				text_list_json.removeMember(key);
-				return text_list.emplace(std::pair(key, std::move(str))).first->second;
-			} else {
-				return empty_string;
-			}
+			spdlog::warn("Missing text. Key: {}.", key);
+			return empty_string;
 		}
 	}
 
@@ -139,7 +190,9 @@ private:
 	void load_sprites() noexcept;
 	void load_items() noexcept;
 	void load_translations() noexcept;
-	void load_creature_infos() noexcept;
+
+	void parse_creatures() noexcept;
+	void parse_maps() noexcept;
 
 	void load_creature_sprites(const std::string& name, const Json::Value& values) noexcept;
 	void load_map_sprites(const std::string& name, const Json::Value& values) noexcept;
@@ -148,18 +201,17 @@ private:
 
 	Json::Value config{};
 
-	Json::Value maps{};
-	std::vector<std::string> map_list{};
+	Json::Value maps_json{};
+	std::unordered_map<std::string, map_info> maps{};
 
-	Json::Value creatures{};
+	Json::Value items_json{}; // TODO: items_parsed
 
-	Json::Value items{};
+	std::unordered_map<std::string, std::string> text_list{};
 
-	Json::Value text_list_json{};
-	std::unordered_map<const char*, std::string> text_list{};
-
+	Json::Value creatures_json{};
 	std::vector<std::string> creatures_name_list{};
-	std::unordered_map<std::string, std::vector<creature_info>> creatures_info_per_map{};
+	std::unordered_map<std::string_view, std::unordered_map<std::string_view, mob_map_rinfo>> creatures_info_per_map{};
+	std::unordered_map<std::string_view, creature_info> creatures{};
 
 	sf::Texture texture{};
 	std::unordered_map<std::string, std::array<sf::Sprite, direction_count>> creatures_sprites{};

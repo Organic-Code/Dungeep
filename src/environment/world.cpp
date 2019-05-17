@@ -32,17 +32,22 @@ namespace {
 void world::generate_next_level() {
 
 	// retrieving map settings
-	const std::vector<std::string>& map_list = resources::manager->get_map_list();
-	const std::string& map_name = map_list[shared_random() % map_list.size()];
-	auto map_properties = resources::manager->get_map(map_name);
+	const std::unordered_map<std::string, resources::map_info>& map_list = resources::manager->get_map_list();
+	const auto& selected_map = *std::next(map_list.begin(), static_cast<unsigned>(shared_random() % map_list.size()));
+
+	const auto& map_properties = resources::manager->get_map(selected_map.first);
 	std::vector<map::map_area> room_list = shared_map.generate(
 			  map_properties.size
 			, map_properties.rooms_props
 			, map_properties.hallways_props
     );
 
-	std::vector<resources::creature_info> mobs = resources::manager->get_creatures_for_level(current_level, map_name);
-	assert(!mobs.empty());
+	std::vector<std::pair<std::string_view, resources::mob_map_rinfo>> mobs = resources::manager->get_creatures_for_level(current_level, selected_map.first);
+
+	if (mobs.empty()) {
+		spdlog::error("No creature available for level {} on map {}. Aborting.", current_level, selected_map.first);
+		std::exit(0);
+	}
 
 	// Setting Quadtrees working area
 	auto size = shared_map.size();
@@ -65,9 +70,10 @@ void world::generate_next_level() {
 
 	// Probability : sum of pop factors (preparing mob generation)
 	const unsigned int total_pop_factor = std::accumulate(mobs.begin(), mobs.end(), 0u,
-			[](unsigned int s, const resources::creature_info& mob) {
-				return s + mob.populate_factor;
-			});dungeep::uniform_int_distribution mob_distribution{0u, total_pop_factor};
+			[](unsigned int s, const auto& mob) {
+				return s + mob.second.populate_factor;
+			});
+	dungeep::uniform_int_distribution mob_distribution{0u, total_pop_factor};
 
 
 	// Placing mobs
@@ -78,13 +84,14 @@ void world::generate_next_level() {
 			// selecting a random mob
 			const unsigned int selected_mob_pop = mob_distribution(shared_random);
 			unsigned int selected_mob_idx = 0;
-			for (unsigned int sum = mobs[0].populate_factor ; selected_mob_idx < mobs.size() && sum < selected_mob_pop ; ++selected_mob_idx) {
-				sum += mobs[selected_mob_idx].populate_factor;
+			for (unsigned int sum = mobs[0].second.populate_factor ; selected_mob_idx < mobs.size() && sum < selected_mob_pop ; ++selected_mob_idx) {
+				sum += mobs[selected_mob_idx].second.populate_factor;
 			}
 
 			// trying to place it
-			if (try_gen_pos(room, mob_pos, mobs[selected_mob_idx].size)) {
-				dynamic_objects.emplace(mob_pos, std::make_unique<mob>(mobs[selected_mob_idx], current_level));
+			const resources::creature_info& cinfo = resources::manager->read_creature(mobs[selected_mob_idx].first);
+			if (try_gen_pos(room, mob_pos, cinfo.size)) {
+				dynamic_objects.emplace(mob_pos, std::make_unique<mob>(cinfo, current_level));
 			}
 		}
 	}

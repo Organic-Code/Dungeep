@@ -36,7 +36,6 @@
 #pragma GCC diagnostic ignored "-Wterminate"
 
 namespace {
-	constexpr bool disable_resources = false; // everything might not work if disabled.
 
 	// Merges Json::Value by simply over-writing top level keys
 	[[maybe_unused]] void simple_merge(Json::Value& val1, Json::Value&& val2) {
@@ -62,9 +61,77 @@ namespace {
 	std::ifstream try_open(std::string_view path) {
 		std::ifstream file(path.data(), std::ios_base::in);
 		if (!file) {
+			spdlog::error("Failed to open file {}.", path);
 			throw resources::resource_acquisition_error(path);
 		}
 		return file;
+	}
+
+	template <typename T>
+	void try_assign(const Json::Value& val, const char* key, T& v, std::string_view data_source) {
+		if (!val.isMember(key)) {
+			spdlog::error("Trying to fetch {} from {}, but that key is missing.", key, data_source);
+			throw resources::malformed_json_error("missing key: " + std::string(key) + "(in value " + std::string(data_source) + ")");
+		}
+		const Json::Value& actual_value = val[key];
+
+		if constexpr (std::is_integral_v<T>) {
+			if (!actual_value.isIntegral()) {
+				spdlog::error("While fetching {} from {}: {} must be an integral type.", key, data_source, key);
+				throw resources::malformed_json_error(std::string(key) + " must be an integral type");
+			}
+
+			std::conditional_t<std::numeric_limits<T>::is_signed, Json::LargestInt, Json::LargestUInt> integer_value;
+
+			if constexpr (std::numeric_limits<T>::is_signed) {
+				integer_value = actual_value.asLargestInt();
+			} else {
+				integer_value = actual_value.asLargestUInt();
+			}
+
+			if (integer_value > std::numeric_limits<T>::max()) {
+				v = std::numeric_limits<T>::max();
+				spdlog::warn("Value {} in {}: {} is too high. Clamping to {}", key, data_source, integer_value, v);
+
+			} else if (integer_value  < std::numeric_limits<T>::min()) {
+				v = std::numeric_limits<T>::min();
+				spdlog::warn("Value {} in {}: {} is too low. Clamping to {}", key, data_source, integer_value, v);
+
+			} else {
+				v = static_cast<T>(integer_value);
+			}
+
+
+		} else if constexpr (std::is_same_v<T, std::string>) {
+			v = actual_value.asString();
+
+		} else if constexpr (std::is_same_v<T, float>) {
+			if (!actual_value.isDouble()) {
+				spdlog::error("While fetching {} from {}: {} must be a numeric type.", key, data_source, key);
+				throw resources::malformed_json_error(std::string(key) + " must be a numeric type");
+			}
+			v = actual_value.asFloat();
+
+		} else {
+			static_assert(std::is_same_v<T, unsigned int>);
+		}
+
+	}
+
+	template <typename T>
+	T try_get_as(const Json::Value& val, const char* key, std::string_view data_source) {
+		T v{};
+		try_assign(val, key, v, data_source);
+		return v;
+	}
+
+	const Json::Value& try_get(const Json::Value& val, const char* key, std::string_view data_source) {
+		if (!val.isMember(key)) {
+			spdlog::error("Trying to fetch {} from {}, but that key is missing.", key, data_source);
+			throw resources::malformed_json_error("missing key: " + std::string(key) + "(in value " + std::string(data_source) + ")");
+		}
+
+		return val[key];
 	}
 }
 
@@ -87,106 +154,48 @@ namespace paths {
 }
 
 resources::resources() noexcept {
-	if constexpr (disable_resources) {
-		return;
-	}
 	spdlog::info("Loading resources.");
 	load_config();
-	load_maps();
+
 	load_creatures();
+	load_maps();
+
 	load_sprites();
 	load_items();
 	load_translations();
-	load_creature_infos();
+	parse_maps();
+	parse_creatures(); // /!\ Must be done AFTER parse_map
 	spdlog::info("Resources loading: done.");
 }
 
+const resources::map_info& resources::get_map(std::string_view map_name) const {
 
-const std::vector<std::string>& resources::get_map_list() const {
-	return map_list;
+	auto it = maps.find(std::string{map_name});
+	if (it != maps.end()) {
+		return it->second;
+	}
+
+	spdlog::error("Tried to retrieve map {}, which is not in the map dataset. [internal error]", map_name);
+	if (maps.empty()) {
+		spdlog::error("The map dataset is empty. Aborting");
+		throw no_such_resource_error("map " + std::string(map_name));
+	}
+
+	it = maps.begin();
+	spdlog::error("Returning map {}.", it->first);
+	return it->second;
 }
 
-resources::map_info resources::get_map(std::string_view map_name) const {
+void resources::save_map(std::string_view map_name, const map_info& new_map) {
 	namespace tags = keys::map;
 
-	if constexpr (disable_resources) {
-		return {};
-	}
-
-	const Json::Value& map = maps[map_name.data()];
-
-	map_info ans{};
-
-	ans.size.width = map[tags::sizes::width].asUInt();
-	ans.size.height = map[tags::sizes::height].asUInt();
-
-	for (const Json::Value& zone : map[tags::categories::zones]) {
-		const Json::Value& rooms_properties = zone[tags::categories::rooms];
-		const Json::Value& holes_properties = zone[tags::categories::holes];
-		ans.rooms_props.push_back(
-				{
-					{
-						rooms_properties[tags::zones::avg_size].asFloat(),
-						rooms_properties[tags::zones::size_deviation].asFloat(),
-						rooms_properties[tags::zones::borders_fuzzinness].asFloat(),
-						rooms_properties[tags::zones::borders_fuzzy_deviation].asFloat(),
-						rooms_properties[tags::zones::borders_fuzzy_distance].asUInt(),
-						rooms_properties[tags::zones::min_height].asUInt(),
-						rooms_properties[tags::zones::max_height].asUInt()
-					},
-					{
-						holes_properties[tags::zones::avg_size].asFloat(),
-						holes_properties[tags::zones::size_deviation].asFloat(),
-						holes_properties[tags::zones::borders_fuzzinness].asFloat(),
-						holes_properties[tags::zones::borders_fuzzy_deviation].asFloat(),
-						holes_properties[tags::zones::borders_fuzzy_distance].asUInt(),
-						holes_properties[tags::zones::min_height].asUInt(),
-						holes_properties[tags::zones::max_height].asUInt()
-					},
-					zone[tags::zones::avg_rooms_n].asFloat(),
-					zone[tags::zones::rooms_n_dev].asFloat(),
-					zone[tags::zones::avg_holes_n].asFloat(),
-					zone[tags::zones::holes_n_dev].asFloat()
-				}
-		);
-	}
-
-	const Json::Value& halls_properties = map[tags::categories::halls];
-	ans.hallways_props.curliness = halls_properties[tags::halls::curliness].asFloat();
-	ans.hallways_props.curly_min_distance = halls_properties[tags::halls::curly_min_distance].asFloat();
-	ans.hallways_props.curly_segment_avg_size = halls_properties[tags::halls::curly_segment_avg_size].asFloat();
-	ans.hallways_props.curly_segment_size_dev = halls_properties[tags::halls::curly_segment_size_dev].asFloat();
-	ans.hallways_props.avg_width = halls_properties[tags::halls::avg_width].asFloat();
-	ans.hallways_props.width_dev = halls_properties[tags::halls::width_dev].asFloat();
-	ans.hallways_props.min_width = halls_properties[tags::halls::min_width].asUInt();
-	ans.hallways_props.max_width = halls_properties[tags::halls::max_width].asUInt();
-
-	ans.rubbish_chest.min = map[tags::chests::rubbish_min].asUInt();
-	ans.rubbish_chest.max = map[tags::chests::rubbish_max].asUInt();
-	ans.wooden_chest.min  = map[tags::chests::wooden_min ].asUInt();
-	ans.wooden_chest.max  = map[tags::chests::wooden_max ].asUInt();
-	ans.magic_chest.min   = map[tags::chests::magic_min  ].asUInt();
-	ans.magic_chest.max   = map[tags::chests::magic_max  ].asUInt();
-	ans.iron_chest.min    = map[tags::chests::iron_min   ].asUInt();
-	ans.iron_chest.max    = map[tags::chests::iron_max   ].asUInt();
-
-	return ans;
-}
-
-void resources::save_map(std::string_view map_name, const map_info& map_info) {
-	namespace tags = keys::map;
-
-	if constexpr (disable_resources) {
-		return;
-	}
-
-	Json::Value& map = maps[map_name.data()];
-	map[tags::sizes::width] = map_info.size.width;
-	map[tags::sizes::height] = map_info.size.height;
+	Json::Value& map = maps_json[map_name.data()];
+	map[tags::sizes::width] = new_map.size.width;
+	map[tags::sizes::height] = new_map.size.height;
 
 	Json::Value& zone = map[tags::categories::zones];
 	unsigned int i = 0;
-	for (const room_gen_properties& gen_prop : map_info.rooms_props) {
+	for (const room_gen_properties& gen_prop : new_map.rooms_props) {
 		Json::Value& i_zone = zone[i++];
 		Json::Value& rooms_properties = i_zone[tags::categories::rooms];
 		Json::Value& holes_properties = i_zone[tags::categories::holes];
@@ -211,30 +220,26 @@ void resources::save_map(std::string_view map_name, const map_info& map_info) {
 	}
 
 	Json::Value& halls = map[tags::categories::halls];
-	halls[tags::halls::curliness] = static_cast<double>(map_info.hallways_props.curliness);
-	halls[tags::halls::curly_min_distance] = static_cast<double>(map_info.hallways_props.curly_min_distance);
-	halls[tags::halls::curly_segment_avg_size] = static_cast<double>(map_info.hallways_props.curly_segment_avg_size);
-	halls[tags::halls::curly_segment_size_dev] = static_cast<double>(map_info.hallways_props.curly_segment_size_dev);
-	halls[tags::halls::avg_width] = static_cast<double>(map_info.hallways_props.avg_width);
-	halls[tags::halls::width_dev] = static_cast<double>(map_info.hallways_props.width_dev);
-	halls[tags::halls::min_width] = map_info.hallways_props.min_width;
-	halls[tags::halls::max_width] = map_info.hallways_props.max_width;
+	halls[tags::halls::curliness] = static_cast<double>(new_map.hallways_props.curliness);
+	halls[tags::halls::curly_min_distance] = static_cast<double>(new_map.hallways_props.curly_min_distance);
+	halls[tags::halls::curly_segment_avg_size] = static_cast<double>(new_map.hallways_props.curly_segment_avg_size);
+	halls[tags::halls::curly_segment_size_dev] = static_cast<double>(new_map.hallways_props.curly_segment_size_dev);
+	halls[tags::halls::avg_width] = static_cast<double>(new_map.hallways_props.avg_width);
+	halls[tags::halls::width_dev] = static_cast<double>(new_map.hallways_props.width_dev);
+	halls[tags::halls::min_width] = new_map.hallways_props.min_width;
+	halls[tags::halls::max_width] = new_map.hallways_props.max_width;
 
-	map[tags::chests::rubbish_min] = map_info.rubbish_chest.min;
-	map[tags::chests::rubbish_max] = map_info.rubbish_chest.max;
-	map[tags::chests::wooden_min ] = map_info.wooden_chest.min;
-	map[tags::chests::wooden_max ] = map_info.wooden_chest.max;
-	map[tags::chests::magic_min  ] = map_info.magic_chest.min;
-	map[tags::chests::magic_max  ] = map_info.magic_chest.max;
-	map[tags::chests::iron_min   ] = map_info.iron_chest.min;
-	map[tags::chests::iron_max   ] = map_info.iron_chest.max;
-
-	if (std::find(map_list.begin(), map_list.end(), map_name) == map_list.end()) {
-		map_list.emplace_back(map_name);
-	}
+	map[tags::chests::rubbish_min] = new_map.rubbish_chest.min;
+	map[tags::chests::rubbish_max] = new_map.rubbish_chest.max;
+	map[tags::chests::wooden_min ] = new_map.wooden_chest.min;
+	map[tags::chests::wooden_max ] = new_map.wooden_chest.max;
+	map[tags::chests::magic_min  ] = new_map.magic_chest.min;
+	map[tags::chests::magic_max  ] = new_map.magic_chest.max;
+	map[tags::chests::iron_min   ] = new_map.iron_chest.min;
+	map[tags::chests::iron_max   ] = new_map.iron_chest.max;
 
 	std::ofstream map_file(paths::map_file.data(), std::ios_base::trunc);
-	map_file << maps;
+	map_file << maps_json;
 }
 
 void resources::load_config() noexcept {
@@ -246,14 +251,13 @@ void resources::load_config() noexcept {
 void resources::load_maps() noexcept {
 	spdlog::debug("Loading config maps: {}", paths::map_file);
 	std::ifstream maps_file = try_open(paths::map_file);
-	maps_file >> maps;
-	map_list = maps.getMemberNames();
+	maps_file >> maps_json;
 }
 
 void resources::load_creatures() noexcept {
 	spdlog::debug("Loading creatures stats: {}", paths::creatures_file);
 	std::ifstream creatures_file = try_open(paths::creatures_file);
-	creatures_file >> creatures;
+	creatures_file >> creatures_json;
 }
 
 void resources::load_sprites() noexcept {
@@ -269,14 +273,14 @@ void resources::load_sprites() noexcept {
 	sprites_file >> val;
 	sprites_file.close();
 
-	const Json::Value& creatures_json = val["creatures"];
-	std::vector<std::string> members = creatures_json.getMemberNames();
+	const Json::Value& creatures_sprite_json = val[keys::sprites::creatures];
+	std::vector<std::string> members = creatures_sprite_json.getMemberNames();
 	for (const std::string& member : members) {
-		load_creature_sprites(member, creatures_json[member]);
+		load_creature_sprites(member, creatures_sprite_json[member]);
 	}
 
 
-	const Json::Value& map_json = val["maps"];
+	const Json::Value& map_json = val[keys::sprites::maps];
 	members = map_json.getMemberNames();
 	for (const std::string& member : members) {
 		load_map_sprites(member, map_json[member]);
@@ -286,16 +290,18 @@ void resources::load_sprites() noexcept {
 void resources::load_items() noexcept {
 	spdlog::debug("Loading items stats: {}", paths::items_file);
 	std::ifstream items_file = try_open(paths::items_file);
-	items_file >> items;
-	std::vector<std::string> members = items.getMemberNames();
+	items_file >> items_json;
+	std::vector<std::string> members = items_json.getMemberNames();
 	for (const std::string& member : members) {
-		items[member][keys::item::name] = member;
+		items_json[member][keys::item::name] = member;
 	}
 }
 
 void resources::load_translations() noexcept {
 	spdlog::debug("Loading text strings: {}", paths::default_lang_file);
 	std::ifstream default_lang_file = try_open(paths::default_lang_file);
+
+	Json::Value text_list_json{};
 	default_lang_file >> text_list_json;
 
 	if (config.isMember(keys::config::language)) {
@@ -308,49 +314,196 @@ void resources::load_translations() noexcept {
 			Json::Value translation;
 			translations_file >> translation;
 			simple_merge(text_list_json, std::move(translation));
+		} else {
+			spdlog::warn("Failed to open translation file {}. Bailing out.", lang_file);
+		}
+	}
+
+	std::vector<std::string> keys = text_list_json.getMemberNames();
+	for (std::string& key : keys) {
+		text_list.emplace(std::move(key), text_list_json[key].asString());
+	}
+}
+
+void resources::parse_creatures() noexcept {
+	spdlog::debug("Parsing creatures infos");
+	creatures_name_list = creatures_json.getMemberNames();
+
+	for (const std::string& name : creatures_name_list) {
+		spdlog::trace("> parsing creature {}", name);
+
+		Json::Value& current_creature = creatures_json[name];
+		if (current_creature[keys::creature::type].asString() != values::creature::type::player) {
+			const sf::IntRect& sprite_rect = creatures_sprites[name][0].getTextureRect();
+
+			creature_info inf{};
+			inf.name = name;
+			inf.size.x = static_cast<std::uint8_t>(sprite_rect.width);
+			inf.size.y = static_cast<std::uint8_t>(sprite_rect.height);
+
+			try_assign(current_creature, keys::creature::hp,            inf.base_hp,                  name);
+			try_assign(current_creature, keys::creature::hp_pl,         inf.hp_per_level,             name);
+			try_assign(current_creature, keys::creature::phys_power,    inf.base_physical_power,      name);
+			try_assign(current_creature, keys::creature::phys_power_pl, inf.physical_power_per_level, name);
+			try_assign(current_creature, keys::creature::armor,         inf.base_armor,               name);
+			try_assign(current_creature, keys::creature::armor_pl,      inf.armor_per_level,          name);
+			try_assign(current_creature, keys::creature::resist,        inf.base_resist,              name);
+			try_assign(current_creature, keys::creature::resist_pl,     inf.resist_per_level,         name);
+			try_assign(current_creature, keys::creature::crit,          inf.base_crit_chance,         name);
+			try_assign(current_creature, keys::creature::crit_pl,       inf.crit_chance_per_level,    name);
+			try_assign(current_creature, keys::creature::move_speed,    inf.base_move_speed,          name);
+			try_assign(current_creature, keys::creature::move_speed_pl, inf.move_speed_per_level,     name);
+
+			std::string type;
+			try_assign(current_creature, keys::creature::type, type, name);
+			if (type == values::creature::type::creep) {
+				creature_info::creep_stats cs{};
+				try_assign(current_creature, keys::creature::spawner::burst_duration, cs.spawn_count, name);
+				try_assign(current_creature, keys::creature::spawner::burst_interval, cs.spawn_interval, name);
+				try_assign(current_creature, keys::creature::spawner::burst_inner_interval, cs.spawn_long_interval, name);
+				inf.other = cs;
+
+			} else if (type == values::creature::type::creep_boss) {
+				// nothing yet
+				creature_info::creep_boss_stats cbs{};
+				inf.other = cbs;
+
+			} else if (type == values::creature::type::player) {
+				creature_info::player_stats ps{};
+				try_assign(current_creature, keys::player::mag_power_pl, ps.magic_power_per_level, name);
+				try_assign(current_creature, keys::player::mag_power, ps.magic_power, name);
+				try_assign(current_creature, keys::player::mana, ps.mana, name);
+				try_assign(current_creature, keys::player::mana_pl, ps.mana_per_level, name);
+				inf.other = ps;
+
+			} else {
+				spdlog::error("Key {} in {}: invalid value.", keys::creature::type, name);
+				spdlog::error("Acceptable values are: {}, {}, {}", values::creature::type::player, values::creature::type::creep, values::creature::type::creep_boss);
+			}
+
+			creatures.emplace(name, inf);
+
+			Json::Value& maps_ = current_creature[keys::creature::map::list];
+			std::vector<std::string> map_names = maps_.getMemberNames();
+
+			if (std::holds_alternative<creature_info::player_stats>(inf.other) && !map_names.empty()) {
+				spdlog::warn("Player class {} has been marked with map availability. Ignoring.", name);
+				continue;
+			}
+
+			mob_map_rinfo map_rinfo;
+			for (const std::string& map : map_names) {
+				auto map_inf_it = maps.find(map);
+				if (map_inf_it == maps.end()) {
+					spdlog::warn("Creature {} is marked available for map {}, but map {} does not exist.", name, map, map);
+					continue;
+				}
+				spdlog::debug("Adding {} to creature set of map {}.", name, map);
+
+				Json::Value& current_map = maps_[map];
+
+				std::string source{};
+				source.reserve(name.size() + 1 + map.size());
+				source.append(name).append(":").append(map);
+
+				if (current_map.isMember(keys::creature::map::min_level)) {
+					try_assign(current_map, keys::creature::map::min_level, map_rinfo.min_level, map);
+				} else {
+					map_rinfo.min_level = 0u;
+					spdlog::debug("{} for creature {} and map {} field is missing, setting a value of {}."
+							, keys::creature::map::min_level, name, map, map_rinfo.min_level);
+				}
+
+				if (current_map.isMember(keys::creature::map::max_level)) {
+					try_assign(current_map, keys::creature::map::max_level, map_rinfo.max_level, map);
+				} else {
+					map_rinfo.max_level = std::numeric_limits<unsigned short>::max();
+					spdlog::debug("{} for creature {} and map {} field is missing, setting a value of {}."
+							, keys::creature::map::max_level, name, map, map_rinfo.max_level);
+				}
+
+				if (current_map.isMember(keys::creature::map::populate_factor)) {
+					try_assign(current_map, keys::creature::map::populate_factor, map_rinfo.populate_factor, map);
+				} else {
+					map_rinfo.populate_factor = 1;
+					spdlog::debug("{} for creature {} and map {} field is missing, setting a value of {}."
+							, keys::creature::map::populate_factor, name, map, map_rinfo.populate_factor);
+				}
+				creatures_info_per_map[map_inf_it->first][name] = map_rinfo;
+			}
 		}
 	}
 }
 
-void resources::load_creature_infos() noexcept {
-	spdlog::debug("Pre-parsing creatures infos");
-	creatures_name_list = creatures.getMemberNames();
-	for (const std::string& name : creatures_name_list) {
-		Json::Value& current_creature = creatures[name];
-		if (current_creature[keys::creature::type].asString() != values::creature::type::player) {
-			const sf::IntRect& sprite_rect = creatures_sprites[name][0].getTextureRect();
+void resources::parse_maps() noexcept {
+	spdlog::debug("Parsing maps infos");
+	namespace tags = keys::map;
 
-			creature_info inf{name};
-			inf.size.x = static_cast<std::uint8_t>(sprite_rect.width);
-			inf.size.y = static_cast<std::uint8_t>(sprite_rect.height);
+	auto map_list = maps_json.getMemberNames();
+	for (const std::string& map_name : map_list) {
+		const Json::Value& map = maps_json[map_name.data()];
 
-			Json::Value& maps_ = current_creature[keys::creature::map::list];
-			std::vector<std::string> map_names = maps_.getMemberNames();
-			for (const std::string& map : map_names) {
-				Json::Value& current_map = maps_[map];
+		map_info current_map{};
 
-				if (current_map.isMember(keys::creature::map::min_level)) {
-					inf.min_level = static_cast<unsigned short>(current_map[keys::creature::map::min_level].asUInt());
-				} else {
-					inf.min_level = 0u;
-				}
+		try_assign(map, tags::sizes::width, current_map.size.width, map_name);
+		try_assign(map, tags::sizes::height, current_map.size.height, map_name);
 
-				if (current_map.isMember(keys::creature::map::max_level)) {
-					inf.max_level = static_cast<unsigned short>(current_map[keys::creature::map::max_level].asUInt());
-				} else {
-					inf.max_level = std::numeric_limits<unsigned short>::max();
-				}
-
-				if (current_map.isMember(keys::creature::map::populate_factor)) {
-					inf.populate_factor = static_cast<unsigned short>(current_map[keys::creature::map::populate_factor].asUInt());
-				} else {
-					inf.populate_factor = 1;
-				}
-
-				creatures_info_per_map[map].push_back(inf);
-			}
+		unsigned int i = 0;
+		for (const Json::Value& zone : map[tags::categories::zones]) {
+			++i;
+			std::string source = map_name + ", in zone " + std::to_string(i) + " (counting from 1)";
+			const Json::Value& rooms_properties = try_get(zone, tags::categories::rooms, source);
+			const Json::Value& holes_properties = try_get(zone, tags::categories::holes, source);
+			current_map.rooms_props.push_back(
+					{
+							{
+									try_get_as<float>(rooms_properties, tags::zones::avg_size, source),
+									try_get_as<float>(rooms_properties, tags::zones::size_deviation, source),
+									try_get_as<float>(rooms_properties, tags::zones::borders_fuzzinness, source),
+									try_get_as<float>(rooms_properties, tags::zones::borders_fuzzy_deviation, source),
+									try_get_as<unsigned int>(rooms_properties, tags::zones::borders_fuzzy_distance, source),
+									try_get_as<unsigned int>(rooms_properties, tags::zones::min_height, source),
+									try_get_as<unsigned int>(rooms_properties, tags::zones::max_height, source)
+							},
+							{
+									try_get_as<float>(holes_properties, tags::zones::avg_size, source),
+									try_get_as<float>(holes_properties, tags::zones::size_deviation, source),
+									try_get_as<float>(holes_properties, tags::zones::borders_fuzzinness, source),
+									try_get_as<float>(holes_properties, tags::zones::borders_fuzzy_deviation, source),
+									try_get_as<unsigned>(holes_properties, tags::zones::borders_fuzzy_distance, source),
+									try_get_as<unsigned>(holes_properties, tags::zones::min_height, source),
+									try_get_as<unsigned>(holes_properties, tags::zones::max_height, source)
+							},
+							try_get_as<float>(zone, tags::zones::avg_rooms_n, source),
+							try_get_as<float>(zone, tags::zones::rooms_n_dev, source),
+							try_get_as<float>(zone, tags::zones::avg_holes_n, source),
+							try_get_as<float>(zone, tags::zones::holes_n_dev, source)
+					}
+			);
 		}
+
+		const Json::Value& halls_properties = try_get(map, tags::categories::halls, map_name);
+		try_assign(halls_properties, tags::halls::curly_segment_avg_size, current_map.hallways_props.curly_segment_avg_size, map_name);
+		try_assign(halls_properties, tags::halls::curly_segment_size_dev, current_map.hallways_props.curly_segment_size_dev, map_name);
+		try_assign(halls_properties, tags::halls::curly_min_distance, current_map.hallways_props.curly_min_distance, map_name);
+		try_assign(halls_properties, tags::halls::curliness, current_map.hallways_props.curliness, map_name);
+		try_assign(halls_properties, tags::halls::avg_width, current_map.hallways_props.avg_width, map_name);
+		try_assign(halls_properties, tags::halls::width_dev, current_map.hallways_props.width_dev, map_name);
+		try_assign(halls_properties, tags::halls::min_width, current_map.hallways_props.min_width, map_name);
+		try_assign(halls_properties, tags::halls::max_width, current_map.hallways_props.max_width, map_name);
+
+		try_assign(map, tags::chests::rubbish_min, current_map.rubbish_chest.min, map_name);
+		try_assign(map, tags::chests::rubbish_max, current_map.rubbish_chest.max, map_name);
+		try_assign(map, tags::chests::wooden_min , current_map.wooden_chest.min , map_name);
+		try_assign(map, tags::chests::wooden_max , current_map.wooden_chest.max , map_name);
+		try_assign(map, tags::chests::magic_min  , current_map.magic_chest.min  , map_name);
+		try_assign(map, tags::chests::magic_max  , current_map.magic_chest.max  , map_name);
+		try_assign(map, tags::chests::iron_min   , current_map.iron_chest.min   , map_name);
+		try_assign(map, tags::chests::iron_max   , current_map.iron_chest.max   , map_name);
+
+		maps.emplace(map_name, current_map);
 	}
+
 }
 
 void resources::load_creature_sprites(const std::string& name, const Json::Value& values) noexcept {
@@ -358,14 +511,14 @@ void resources::load_creature_sprites(const std::string& name, const Json::Value
 
 	sf::Texture& the_texture = texture;
 
-	auto load_part = [&the_texture](const Json::Value& sub_value) -> sf::Sprite {
+	auto load_part = [&the_texture](const Json::Value& sub_value, std::string_view name_) -> sf::Sprite {
 		sf::Sprite spr;
 		spr.setTexture(the_texture);
 		spr.setTextureRect(sf::IntRect(
-				sub_value["x"].asInt()
-				, sub_value["y"].asInt()
-				, sub_value["width"].asInt()
-				, sub_value["height"].asInt())
+				try_get_as<int>(sub_value, keys::sprites::geometry::x, name_)
+				, try_get_as<int>(sub_value, keys::sprites::geometry::y, name_)
+				, try_get_as<int>(sub_value, keys::sprites::geometry::width, name_)
+				, try_get_as<int>(sub_value, keys::sprites::geometry::height, name_))
 		);
 		return spr;
 	};
@@ -373,7 +526,7 @@ void resources::load_creature_sprites(const std::string& name, const Json::Value
 	auto get_or_flip = [&values, &load_part](std::string_view name_, const sf::Sprite& spr, float xscale, float yscale) -> sf::Sprite {
 		sf::Sprite ans;
 		if (values.isMember(name_.data())) {
-			ans = load_part(values[name_.data()]);
+			ans = load_part(values[name_.data()], name_);
 		} else {
 			ans = spr;
 			ans.scale(xscale, yscale);
@@ -381,15 +534,15 @@ void resources::load_creature_sprites(const std::string& name, const Json::Value
 		return ans;
 	};
 
-	sf::Sprite top       = load_part(values["top"]);
-	sf::Sprite top_right = load_part(values["top right"]);
-	sf::Sprite right     = load_part(values["right"]);
+	sf::Sprite top       = load_part(try_get(values, keys::sprites::orientation::top, name), name + ": " + keys::sprites::orientation::top);
+	sf::Sprite top_right = load_part(try_get(values, keys::sprites::orientation::top_right, name), name + ": " + keys::sprites::orientation::top_right);
+	sf::Sprite right     = load_part(try_get(values, keys::sprites::orientation::right, name), name + ": " + keys::sprites::orientation::right);
 
-	sf::Sprite bot_right = get_or_flip("bot right", top_right,  1.f, -1.f); // flip around vertical axis
-	sf::Sprite bot       = get_or_flip("bot"      , top      ,  1.f, -1.f);
-	sf::Sprite bot_left  = get_or_flip("bot left" , bot_right, -1.f,  1.f); // flip around hztal axis
-	sf::Sprite left      = get_or_flip("left"     , right    , -1.f,  1.f);
-	sf::Sprite top_left  = get_or_flip("top left" , top_right, -1.f,  1.f);
+	sf::Sprite bot_right = get_or_flip(keys::sprites::orientation::bot_right, top_right,  1.f, -1.f); // flip around vertical axis
+	sf::Sprite bot       = get_or_flip(keys::sprites::orientation::bot      , top      ,  1.f, -1.f);
+	sf::Sprite bot_left  = get_or_flip(keys::sprites::orientation::bot_left , bot_right, -1.f,  1.f); // flip around hztal axis
+	sf::Sprite left      = get_or_flip(keys::sprites::orientation::left     , right    , -1.f,  1.f);
+	sf::Sprite top_left  = get_or_flip(keys::sprites::orientation::top_left , top_right, -1.f,  1.f);
 
 	using dungeep::direction;
 	auto& array = creatures_sprites.emplace(std::make_pair(name, std::array<sf::Sprite, direction_count>())).first->second;
@@ -407,40 +560,41 @@ void resources::load_map_sprites(const std::string& name, const Json::Value& val
 	spdlog::trace("> loading map sprite: {}", name);
 	sf::Texture& the_texture = texture;
 
-	auto load_part = [&the_texture](const Json::Value& sub_value) -> sf::Sprite {
+	auto load_part = [&the_texture](const Json::Value& sub_value, std::string_view name_) -> sf::Sprite {
 		sf::Sprite spr;
 		spr.setTexture(the_texture);
 		spr.setTextureRect(sf::IntRect(
-				sub_value["x"].asInt()
-				, sub_value["y"].asInt()
-				, sub_value["width"].asInt()
-				, sub_value["height"].asInt())
+				try_get_as<int>(sub_value, keys::sprites::geometry::x, name_)
+				, try_get_as<int>(sub_value, keys::sprites::geometry::y, name_)
+				, try_get_as<int>(sub_value, keys::sprites::geometry::width, name_)
+				, try_get_as<int>(sub_value, keys::sprites::geometry::height, name_))
 		);
 		return spr;
 	};
 
 	auto& array = maps_sprites.emplace(std::make_pair(name, std::array<sf::Sprite, tiles_count>())).first->second;
-	array[static_cast<unsigned>(tiles::hole)       ] = load_part(values["hole"]);
-	array[static_cast<unsigned>(tiles::walkable)   ] = load_part(values["walkable"]);
-	array[static_cast<unsigned>(tiles::empty_space)] = load_part(values["empty space"]);
-	array[static_cast<unsigned>(tiles::wall)       ] = load_part(values["wall"]);
+	array[static_cast<unsigned>(tiles::hole)       ] = load_part(try_get(values, keys::sprites::tiles::hole, name), name + ": " + keys::sprites::tiles::hole);
+	array[static_cast<unsigned>(tiles::walkable)   ] = load_part(try_get(values, keys::sprites::tiles::walkable, name), name + ": " + keys::sprites::tiles::walkable);
+	array[static_cast<unsigned>(tiles::empty_space)] = load_part(try_get(values, keys::sprites::tiles::empty_space, name), name + ": " + keys::sprites::tiles::empty_space);
+	array[static_cast<unsigned>(tiles::wall)       ] = load_part(try_get(values, keys::sprites::tiles::wall, name), name + ": " + keys::sprites::tiles::wall);
 
 }
 
-std::vector<resources::creature_info> resources::get_creatures_for_level(unsigned int level, const std::string& map_name) const noexcept {
-	// Improvement: find an actual algorithm to do that ? \:
-	spdlog::trace("Loading creatures list for map {}, at level {}.", map_name, level);
-	std::vector<creature_info> creature_list;
+std::vector<std::pair<std::string_view, resources::mob_map_rinfo>>
+resources::get_creatures_for_level(unsigned int level, std::string_view map_name) const noexcept {
+
+	std::vector<std::pair<std::string_view, resources::mob_map_rinfo>> ans;
 	try {
-		const std::vector<creature_info>& full_creature_list = creatures_info_per_map.at(map_name);
-		for (const creature_info& creature : full_creature_list) {
-			if (creature.min_level <= level && level <= creature.max_level) {
-				creature_list.push_back(creature);
+		for (const auto& pair : creatures_info_per_map.at(map_name)) {
+			const mob_map_rinfo& current = pair.second;
+			if (current.max_level <= level && current.min_level >= level) {
+				ans.emplace_back(pair);
 			}
 		}
-	} catch (const std::out_of_range&) {}
-	spdlog::trace("Found {} creature(s)", creature_list.size());
-	return creature_list;
+	} catch (const std::out_of_range&) {
+		spdlog::error("Tried to access map {}, which is not in the map dataset. [internal error]", map_name);
+	}
+	return ans;
 }
 
 #pragma clang diagnostic pop
