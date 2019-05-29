@@ -38,6 +38,8 @@ namespace sf {
 	class Sprite;
 }
 
+// For all functions in there, it is assumed that std::string_view are pointing either to a const char * or to an std::string,
+// therefore std::string_view{}.data() shall always end by '\0' when passed to any of the methods
 class resources {
 	static constexpr unsigned int direction_count = static_cast<unsigned>(dungeep::direction::none);
 	static constexpr unsigned int tiles_count = static_cast<unsigned>(tiles::none);
@@ -153,7 +155,7 @@ public:
 		try {
 			return creatures.at(name);
 		} catch (const std::out_of_range&) {
-			spdlog::error("Tried to read info of creature {}, which is not in the creature dataset. [internal error]", name);
+			spdlog::error("Tried to read info of creature '{}', which is not in the creature dataset. [internal error]", name);
 			throw;
 		}
 	}
@@ -177,7 +179,7 @@ public:
 		try {
 			return text_list.at(key);
 		} catch (std::out_of_range&) {
-			spdlog::warn("Missing text. Key: {}.", key);
+			spdlog::warn("Missing text. Key: '{}'.", key);
 			return empty_string;
 		}
 	}

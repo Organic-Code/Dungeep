@@ -61,7 +61,7 @@ namespace {
 	std::ifstream try_open(std::string_view path) {
 		std::ifstream file(path.data(), std::ios_base::in);
 		if (!file) {
-			spdlog::error("Failed to open file {}.", path);
+			spdlog::error("Failed to open file '{}'.", path);
 			throw resources::resource_acquisition_error(path);
 		}
 		return file;
@@ -70,14 +70,14 @@ namespace {
 	template <typename T>
 	void try_assign(const Json::Value& val, const char* key, T& v, std::string_view data_source) {
 		if (!val.isMember(key)) {
-			spdlog::error("Trying to fetch {} from {}, but that key is missing.", key, data_source);
+			spdlog::error("Trying to fetch '{}' from '{}', but that key is missing.", key, data_source);
 			throw resources::malformed_json_error("missing key: " + std::string(key) + "(in value " + std::string(data_source) + ")");
 		}
 		const Json::Value& actual_value = val[key];
 
 		if constexpr (std::is_integral_v<T>) {
 			if (!actual_value.isIntegral()) {
-				spdlog::error("While fetching {} from {}: {} must be an integral type.", key, data_source, key);
+				spdlog::error("While fetching '{}' from '{}': '{}' must be an integral type.", key, data_source, key);
 				throw resources::malformed_json_error(std::string(key) + " must be an integral type");
 			}
 
@@ -91,11 +91,11 @@ namespace {
 
 			if (integer_value > std::numeric_limits<T>::max()) {
 				v = std::numeric_limits<T>::max();
-				spdlog::warn("Value {} in {}: {} is too high. Clamping to {}", key, data_source, integer_value, v);
+				spdlog::warn("Value '{}' in '{}': {} is too high. Clamping to {}", key, data_source, integer_value, v);
 
 			} else if (integer_value  < std::numeric_limits<T>::min()) {
 				v = std::numeric_limits<T>::min();
-				spdlog::warn("Value {} in {}: {} is too low. Clamping to {}", key, data_source, integer_value, v);
+				spdlog::warn("Value '{}' in '{}': {} is too low. Clamping to {}", key, data_source, integer_value, v);
 
 			} else {
 				v = static_cast<T>(integer_value);
@@ -107,7 +107,7 @@ namespace {
 
 		} else if constexpr (std::is_same_v<T, float>) {
 			if (!actual_value.isDouble()) {
-				spdlog::error("While fetching {} from {}: {} must be a numeric type.", key, data_source, key);
+				spdlog::error("While fetching '{}' from '{}': '{}' must be a numeric type.", key, data_source, key);
 				throw resources::malformed_json_error(std::string(key) + " must be a numeric type");
 			}
 			v = actual_value.asFloat();
@@ -127,7 +127,7 @@ namespace {
 
 	const Json::Value& try_get(const Json::Value& val, const char* key, std::string_view data_source) {
 		if (!val.isMember(key)) {
-			spdlog::error("Trying to fetch {} from {}, but that key is missing.", key, data_source);
+			spdlog::error("Trying to fetch '{}' from '{}', but that key is missing.", key, data_source);
 			throw resources::malformed_json_error("missing key: " + std::string(key) + "(in value " + std::string(data_source) + ")");
 		}
 
@@ -175,14 +175,14 @@ const resources::map_info& resources::get_map(std::string_view map_name) const {
 		return it->second;
 	}
 
-	spdlog::error("Tried to retrieve map {}, which is not in the map dataset. [internal error]", map_name);
+	spdlog::error("Tried to retrieve map '{}', which is not in the map dataset. [internal error]", map_name);
 	if (maps.empty()) {
 		spdlog::error("The map dataset is empty. Aborting");
 		throw no_such_resource_error("map " + std::string(map_name));
 	}
 
 	it = maps.begin();
-	spdlog::error("Returning map {}.", it->first);
+	spdlog::error("Returning map '{}'.", it->first);
 	return it->second;
 }
 
@@ -243,25 +243,25 @@ void resources::save_map(std::string_view map_name, const map_info& new_map) {
 }
 
 void resources::load_config() noexcept {
-	spdlog::debug("Loading config file: {}", paths::config_file);
+	spdlog::debug("Loading config file: '{}'", paths::config_file);
 	std::ifstream config_file = try_open(paths::config_file);
 	config_file >> config;
 }
 
 void resources::load_maps() noexcept {
-	spdlog::debug("Loading config maps: {}", paths::map_file);
+	spdlog::debug("Loading config maps: '{}'", paths::map_file);
 	std::ifstream maps_file = try_open(paths::map_file);
 	maps_file >> maps_json;
 }
 
 void resources::load_creatures() noexcept {
-	spdlog::debug("Loading creatures stats: {}", paths::creatures_file);
+	spdlog::debug("Loading creatures stats: '{}'", paths::creatures_file);
 	std::ifstream creatures_file = try_open(paths::creatures_file);
 	creatures_file >> creatures_json;
 }
 
 void resources::load_sprites() noexcept {
-	spdlog::debug("Loading sprites and textures: {} :: {}", paths::sprites_file, paths::texture_file);
+	spdlog::debug("Loading sprites and textures: '{}' | '{}'", paths::sprites_file, paths::texture_file);
 	std::ifstream sprites_file = try_open(paths::sprites_file);
 
 	if (!texture.loadFromFile(std::string(paths::texture_file))) {
@@ -288,7 +288,7 @@ void resources::load_sprites() noexcept {
 }
 
 void resources::load_items() noexcept {
-	spdlog::debug("Loading items stats: {}", paths::items_file);
+	spdlog::debug("Loading items stats: '{}'", paths::items_file);
 	std::ifstream items_file = try_open(paths::items_file);
 	items_file >> items_json;
 	std::vector<std::string> members = items_json.getMemberNames();
@@ -298,7 +298,7 @@ void resources::load_items() noexcept {
 }
 
 void resources::load_translations() noexcept {
-	spdlog::debug("Loading text strings: {}", paths::default_lang_file);
+	spdlog::debug("Loading text strings: '{}'", paths::default_lang_file);
 	std::ifstream default_lang_file = try_open(paths::default_lang_file);
 
 	Json::Value text_list_json{};
@@ -307,7 +307,7 @@ void resources::load_translations() noexcept {
 	if (config.isMember(keys::config::language)) {
 		std::string lang = config[keys::config::language].asString();
 		std::string lang_file = paths::lang_folder.data() + std::move(lang);
-		spdlog::debug("Loading translations: {}", lang_file);
+		spdlog::debug("Loading translations: '{}'", lang_file);
 		std::ifstream translations_file(lang_file, std::ios_base::in);
 
 		if (translations_file) {
@@ -330,7 +330,7 @@ void resources::parse_creatures() noexcept {
 	creatures_name_list = creatures_json.getMemberNames();
 
 	for (const std::string& name : creatures_name_list) {
-		spdlog::trace("> parsing creature {}", name);
+		spdlog::trace("> parsing creature '{}'", name);
 
 		Json::Value& current_creature = creatures_json[name];
 		if (current_creature[keys::creature::type].asString() != values::creature::type::player) {
@@ -395,10 +395,10 @@ void resources::parse_creatures() noexcept {
 			for (const std::string& map : map_names) {
 				auto map_inf_it = maps.find(map);
 				if (map_inf_it == maps.end()) {
-					spdlog::warn("Creature {} is marked available for map {}, but map {} does not exist.", name, map, map);
+					spdlog::warn("Creature '{}' is marked available for map '{}', but map '{}' does not exist. Ignoring.", name, map, map);
 					continue;
 				}
-				spdlog::debug("Adding {} to creature set of map {}.", name, map);
+				spdlog::debug("Adding '{}' to creature set of map '{}'.", name, map);
 
 				Json::Value& current_map = maps_[map];
 
@@ -410,7 +410,7 @@ void resources::parse_creatures() noexcept {
 					try_assign(current_map, keys::creature::map::min_level, map_rinfo.min_level, map);
 				} else {
 					map_rinfo.min_level = 0u;
-					spdlog::debug("{} for creature {} and map {} field is missing, setting a value of {}."
+					spdlog::debug("'{}' for creature '{}' and map '{}' field is missing, setting a value of {}."
 							, keys::creature::map::min_level, name, map, map_rinfo.min_level);
 				}
 
@@ -418,7 +418,7 @@ void resources::parse_creatures() noexcept {
 					try_assign(current_map, keys::creature::map::max_level, map_rinfo.max_level, map);
 				} else {
 					map_rinfo.max_level = std::numeric_limits<unsigned short>::max();
-					spdlog::debug("{} for creature {} and map {} field is missing, setting a value of {}."
+					spdlog::debug("'{}' for creature '{}' and map '{}' field is missing, setting a value of {}."
 							, keys::creature::map::max_level, name, map, map_rinfo.max_level);
 				}
 
@@ -426,7 +426,7 @@ void resources::parse_creatures() noexcept {
 					try_assign(current_map, keys::creature::map::populate_factor, map_rinfo.populate_factor, map);
 				} else {
 					map_rinfo.populate_factor = 1;
-					spdlog::debug("{} for creature {} and map {} field is missing, setting a value of {}."
+					spdlog::debug("'{}' for creature '{}' and map '{}' field is missing, setting a value of '{}'."
 							, keys::creature::map::populate_factor, name, map, map_rinfo.populate_factor);
 				}
 				creatures_info_per_map[map_inf_it->first][name] = map_rinfo;
@@ -507,7 +507,7 @@ void resources::parse_maps() noexcept {
 }
 
 void resources::load_creature_sprites(const std::string& name, const Json::Value& values) noexcept {
-	spdlog::trace("> loading creature sprite: {}", name);
+	spdlog::trace("> loading creature sprite: '{}'", name);
 
 	sf::Texture& the_texture = texture;
 
@@ -557,7 +557,7 @@ void resources::load_creature_sprites(const std::string& name, const Json::Value
 }
 
 void resources::load_map_sprites(const std::string& name, const Json::Value& values) noexcept {
-	spdlog::trace("> loading map sprite: {}", name);
+	spdlog::trace("> loading map sprite: '{}'", name);
 	sf::Texture& the_texture = texture;
 
 	auto load_part = [&the_texture](const Json::Value& sub_value, std::string_view name_) -> sf::Sprite {
@@ -592,7 +592,7 @@ resources::get_creatures_for_level(unsigned int level, std::string_view map_name
 			}
 		}
 	} catch (const std::out_of_range&) {
-		spdlog::error("Tried to access map {}, which is not in the map dataset. [internal error]", map_name);
+		spdlog::error("Tried to access map '{}', which is not in the map dataset. [internal error]", map_name);
 	}
 	return ans;
 }
