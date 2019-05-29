@@ -103,7 +103,8 @@ void map_tester::showConfigWindow()
 	ImGui::Begin(CONFIG_WINDOW_NAME.data());
 
 	const std::unordered_map<std::string, resources::map_info>& map_list_umap = resources::manager->get_map_list();
-	std::vector<std::string> map_list_vtor(map_list_umap.size()); // copying because reasons (ImGui takes by ptr and not const ptr)
+	std::vector<std::string> map_list_vtor{}; // copying because reasons (ImGui takes by ptr and not const ptr)
+	map_list_vtor.reserve(map_list_umap.size());
 	for (const auto& pair : map_list_umap) {
 		map_list_vtor.emplace_back(pair.first);
 	}
