@@ -137,9 +137,9 @@ namespace dungeep {
 		using point = dungeep::point<float>;
 
 	public:
-		explicit quadtree(const area& ar) // NOLINT
+		explicit quadtree(const area& ar)
 			noexcept(Dynamicity != quadtree_dynamics::static_children && noexcept(container()))
-			: quadtree(ar, 10, 20) {}
+			: quadtree(ar, 5, 20) {}
 
 		quadtree(const area&, size_type max_depth, size_type max_size)
 			noexcept(Dynamicity != quadtree_dynamics::static_children && noexcept(container()));
@@ -205,7 +205,7 @@ namespace dungeep {
 		/**
 		 * Returns true if at least one element is at least partially present in the given area
 		 */
-		bool has_collision(const area& ar) const noexcept;
+		[[nodiscard]] bool has_collision(const area& ar) const noexcept;
 
 		/**
 		 * Same as without 'pred', but the colliding element must be an argument for which pred returned true
@@ -213,18 +213,18 @@ namespace dungeep {
 		 * Elements passed to the predicate all collides
 		 */
 		template <typename FuncT>
-		bool has_collision_if(const area& ar, FuncT&& pred) noexcept(std::is_nothrow_invocable_v<FuncT, T&>);
+		[[nodiscard]] bool has_collision_if(const area& ar, FuncT&& pred) noexcept(std::is_nothrow_invocable_v<FuncT, T&>);
 		template <typename FuncT>
-		bool has_collision_if(const area& ar, FuncT&& pred) const noexcept(std::is_nothrow_invocable_v<FuncT, const T&>);
+		[[nodiscard]] bool has_collision_if(const area& ar, FuncT&& pred) const noexcept(std::is_nothrow_invocable_v<FuncT, const T&>);
 
 		/**
 		 * Iterators are invalidated
 		 */
-		T extract(iterator element);
-		T extract(const_iterator element);
+		[[nodiscard]] T extract(iterator element);
+		[[nodiscard]] T extract(const_iterator element);
 
-		iterator find(const T& element) noexcept;
-		const_iterator find(const T& element) const noexcept;
+		[[nodiscard]] iterator find(const T& element) noexcept;
+		[[nodiscard]] const_iterator find(const T& element) const noexcept;
 
 		/**
 		 * Iterators are invalidated
